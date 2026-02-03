@@ -1,0 +1,110 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+version: '3'
+
+vars:
+  BACKEND_DIR: ./backend
+  FRONTEND_DIR: ./frontend
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  # Setup
+  install:
+    desc: Install all dependencies
+    cmds:
+      - task: install:backend
+      - task: install:frontend
+
+  install:backend:
+    desc: Install backend dependencies
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go mod download
+
+  install:frontend:
+    desc: Install frontend dependencies
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm install
+
+  # Development
+  dev:
+    desc: Run both backend and frontend in development mode
+    deps:
+      - dev:backend
+      - dev:frontend
+
+  dev:backend:
+    desc: Run the backend in development mode
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go run ./cmd/server
+
+  dev:frontend:
+    desc: Run the frontend in development mode
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm dev
+
+  # Build
+  build:
+    desc: Build all projects
+    cmds:
+      - task: build:backend
+      - task: build:frontend
+
+  build:backend:
+    desc: Build the backend binary
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go build -o bin/server ./cmd/server
+
+  build:frontend:
+    desc: Build the frontend
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm build
+
+  # Docker
+  start:
+    desc: Start all services with Docker Compose
+    cmds:
+      - docker-compose -f docker-compose.local.yml up -d
+
+  stop:
+    desc: Stop all services
+    cmds:
+      - docker-compose -f docker-compose.local.yml down
+
+  logs:
+    desc: View service logs
+    cmds:
+      - docker-compose -f docker-compose.local.yml logs -f
+
+  # Testing
+  test:
+    desc: Run all tests
+    cmds:
+      - task: test:backend
+      - task: test:frontend
+
+  test:backend:
+    desc: Run backend tests
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test ./...
+
+  test:frontend:
+    desc: Run frontend tests
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm test
+
+  test:coverage:
+    desc: Run backend tests with coverage
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test -cover ./...

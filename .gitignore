@@ -143,3 +143,15 @@ bin/
 
 # Docs
 docs/
+
+# Archives
+*.tar.gz
+*.zip
+*.rar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp archives
+archive-*/

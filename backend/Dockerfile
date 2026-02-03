@@ -23,9 +23,11 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
-# Copy binary and migrations
+# Copy binary
 COPY --from=builder /app/server .
-COPY --from=builder /app/migrations ./migrations
+
+# Copy migrations if they exist
+COPY --from=builder /app/migrations* ./migrations/
 
 # Set ownership to non-root user
 RUN chown -R appuser:appgroup /app
