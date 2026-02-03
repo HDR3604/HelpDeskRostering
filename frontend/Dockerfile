@@ -2,8 +2,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm (use version matching lockfile v9.0)
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# Enable pnpm (use version matching package.json)
+RUN corepack enable && corepack prepare pnpm@10 --activate
 
 # Install dependencies first (better caching)
 COPY package.json pnpm-lock.yaml ./
