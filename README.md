@@ -1,4 +1,4 @@
-# Help-Desk-App
+# Help Desk Rostering
 
 A help desk and rostering application built with Go and PostgreSQL.
 
