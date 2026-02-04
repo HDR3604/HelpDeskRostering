@@ -72,7 +72,7 @@ tasks:
   start:
     desc: Start all services with Docker Compose
     cmds:
-      - docker-compose -f docker-compose.local.yml up -d
+      - docker-compose -f docker-compose.local.yml up -d --build
 
   stop:
     desc: Stop all services
@@ -108,3 +108,35 @@ tasks:
     dir: "{{.BACKEND_DIR}}"
     cmds:
       - go test -cover ./...
+
+  # Migrations
+  "migrate:up":
+    desc: Run all pending migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" up
+
+  "migrate:down":
+    desc: Rollback the last migration
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" down 1
+
+  "migrate:reset":
+    desc: Rollback all migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" down -all
+
+  "migrate:create":
+    desc: "Create a new migration (usage: task migrate:create -- name)"
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate create -ext sql -dir ./migrations -seq {{.CLI_ARGS}}
+
+  # Database
+  "db:studio":
+    desc: Open Drizzle Studio to view the database
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm db:studio
