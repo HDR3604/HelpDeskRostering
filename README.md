@@ -1,102 +1,85 @@
 # Help Desk Rostering
 
-A help desk and rostering application built with Go and PostgreSQL.
+A help desk and rostering application built with Go and React.
+
+## Quick Start
+
+```bash
+# 1. Install global tools (one-time)
+brew install go-task/tap/go-task
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+go install github.com/go-jet/jet/v2/cmd/jet@latest
+
+# 2. Start the database and run migrations
+task start
+task migrate:up
+
+# 3. Generate models (after migrations)
+task generate:models
+
+# 4. Start development
+task dev
+```
+
+**Services:**
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8080
+- Database: localhost:5432
 
 ## Tech Stack
 
-- **Backend:** Go 1.23, PostgreSQL 16
-- **Frontend:** React, TypeScript, TanStack Router, TanStack Query, shadcn/ui
-- **Infrastructure:** Docker, Docker Compose
+| Layer | Technology |
+|-------|------------|
+| Backend | Go 1.24, PostgreSQL 16, go-jet |
+| Frontend | React 19, TypeScript, TanStack Router, Tailwind CSS |
+| Infrastructure | Docker, Docker Compose, Air (hot reload) |
 
 ## Prerequisites
 
 - Docker & Docker Compose
-- Go 1.24+ (for local development)
-- Node.js & pnpm
+- Go 1.24+
+- Node.js 20+ & pnpm
 - [Task](https://taskfile.dev/) - task runner
-- [golang-migrate](https://github.com/golang-migrate/migrate) - database migrations
 
-### Global Dependencies
+## Commands
 
-```bash
-# Task runner
-pnpm add -g @go-task/cli
-
-# Database migrations CLI
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-```
-
-## Getting Started
-
-### 1. Install Dependencies
-
-```bash
-# Install global tools
-pnpm add -g @go-task/cli
-
-# Install project dependencies
-task install
-```
-
-### 2. Start Development
-
-```bash
-# Run both backend and frontend
-task dev
-
-# Or run separately
-task dev:backend
-task dev:frontend
-```
-
-### 3. Using Docker (Alternative)
-
-```bash
-task start    # Start all services
-task logs     # View logs
-task stop     # Stop all services
-```
-
-### Available Commands
+### Development
 
 | Command | Description |
 |---------|-------------|
-| **Setup** | |
-| `task install` | Install all dependencies |
-| `task install:backend` | Install Go dependencies |
-| `task install:frontend` | Install Node dependencies |
-| **Development** | |
-| `task dev` | Run backend + frontend concurrently |
+| `task dev` | Start database + backend + frontend |
 | `task dev:backend` | Run backend only |
 | `task dev:frontend` | Run frontend only |
-| **Build** | |
-| `task build` | Build all projects |
-| `task build:backend` | Build backend binary |
-| `task build:frontend` | Build frontend |
-| **Docker** | |
-| `task start` | Start all Docker services |
+
+### Docker
+
+| Command | Description |
+|---------|-------------|
+| `task start` | Start all services (with hot reload) |
 | `task stop` | Stop all services |
-| `task logs` | View Docker logs |
-| **Testing** | |
-| `task test` | Run all tests |
-| `task test:backend` | Run backend tests |
-| `task test:frontend` | Run frontend tests |
-| `task test:coverage` | Run backend tests with coverage |
-| **Migrations** | |
-| `task migrate:up` | Run all pending migrations |
-| `task migrate:down` | Rollback the last migration |
+| `task logs` | View service logs |
+
+### Database
+
+| Command | Description |
+|---------|-------------|
+| `task db:start` | Start PostgreSQL only |
+| `task db:studio` | Open Drizzle Studio (database viewer) |
+| `task migrate:up` | Run pending migrations |
+| `task migrate:down` | Rollback last migration |
 | `task migrate:reset` | Rollback all migrations |
-| `task migrate:create -- name` | Create a new migration |
+| `task migrate:create -- name` | Create new migration |
+| `task generate:models` | Generate Go models from schema |
 
-### Services
+### Build & Test
 
-| Service | Port | Description |
-|---------|------|-------------|
-| Backend | 8080 | Go API server |
-| Frontend | 5173 | Web application |
-| PostgreSQL | 5432 | Database |
+| Command | Description |
+|---------|-------------|
+| `task build` | Build all projects |
+| `task test` | Run all tests |
+| `task test:coverage` | Run tests with coverage |
 
-### Database Connection
+## Database Connection
 
 ```
 Host: localhost
@@ -106,7 +89,26 @@ Password: helpdesk_local
 Database: helpdesk
 ```
 
-### Database Schema
+## Project Structure
+
+```
+├── backend/
+│   ├── cmd/server/              # Entry point
+│   ├── internal/
+│   │   ├── application/         # App config & routes
+│   │   ├── domain/              # Business logic
+│   │   ├── infrastructure/
+│   │   │   └── models/          # Generated jet models
+│   │   └── interfaces/          # HTTP handlers
+│   └── migrations/              # SQL migrations
+├── frontend/                    # React application
+├── docker-compose.local.yml     # Local dev services
+└── Taskfile.yml                 # Task definitions
+```
+
+## Database Schema
+
+### Tables
 
 #### `auth.students`
 Student applicants and employees.
@@ -117,13 +119,13 @@ Student applicants and employees.
 | `email_address` | varchar(255) | Unique email |
 | `first_name` | varchar(50) | |
 | `last_name` | varchar(100) | |
-| `transcript_metadata` | jsonb | Extracted transcript data (GPA, courses) |
-| `availability` | jsonb | Weekly availability by day/hour |
-| `created_at` | timestamptz | Auto-set on insert |
-| `updated_at` | timestamptz | Auto-set on update |
-| `accepted_at` | timestamptz | When application was accepted |
-| `rejected_at` | timestamptz | When application was rejected |
-| `deleted_at` | timestamptz | Soft delete timestamp |
+| `transcript_metadata` | jsonb | Extracted transcript data (GPA, courses, current_level) |
+| `availability` | jsonb | Weekly availability `{day: [hours]}` |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
+| `accepted_at` | timestamptz | Application accepted |
+| `rejected_at` | timestamptz | Application rejected |
+| `deleted_at` | timestamptz | Soft delete |
 
 #### `auth.users`
 Admin accounts for system access.
@@ -133,21 +135,21 @@ Admin accounts for system access.
 | `user_id` | uuid | Primary key |
 | `email_address` | varchar(255) | Unique email |
 | `password` | varchar(255) | Hashed password |
-| `role` | roles | `student` or `admin` |
+| `role` | auth.roles | `student` or `admin` |
 | `is_active` | boolean | Account enabled |
-| `created_at` | timestamptz | Auto-set on insert |
-| `updated_at` | timestamptz | Auto-set on update |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
 
 #### `auth.banking_details`
 Student banking information for payroll.
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `student_id` | int | Primary key, FK → students |
-| `bank_name` | varchar(100) | Name of the bank |
+| `student_id` | int | FK → students |
+| `bank_name` | varchar(100) | Bank name |
 | `branch_name` | varchar(100) | Branch name |
-| `account_type` | bank_account_type | `chequeing` or `savings` |
-| `account_number` | bytea | Encrypted account number |
+| `account_type` | auth.bank_account_type | `chequeing` or `savings` |
+| `account_number` | bytea | Encrypted |
 
 #### `auth.payments`
 Fortnightly payment records.
@@ -160,23 +162,23 @@ Fortnightly payment records.
 | `period_end` | date | Pay period end |
 | `hours_worked` | numeric(5,2) | Hours in period |
 | `gross_amount` | numeric(8,2) | hours × $20.00 |
-| `processed_at` | timestamptz | When payment was processed |
-| `created_at` | timestamptz | Auto-set on insert |
-| `updated_at` | timestamptz | Auto-set on update |
+| `processed_at` | timestamptz | Payment processed |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
 
 #### `schedule.time_logs`
-Clock in/out records with location.
+Clock in/out records with GPS location.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | uuid | Primary key |
 | `student_id` | int | FK → students |
-| `entry_at` | timestamptz | Clock in time |
-| `exit_at` | timestamptz | Clock out time |
+| `entry_at` | timestamptz | Clock in |
+| `exit_at` | timestamptz | Clock out |
 | `longitude` | numeric(9,6) | GPS longitude |
 | `latitude` | numeric(9,6) | GPS latitude |
-| `distance_meters` | numeric | Distance from office (for flagging) |
-| `created_at` | timestamptz | Auto-set on insert |
+| `distance_meters` | numeric | Distance from office |
+| `created_at` | timestamptz | Auto-set |
 
 #### `schedule.schedules`
 Generated work schedules.
@@ -185,17 +187,17 @@ Generated work schedules.
 |--------|------|-------------|
 | `schedule_id` | uuid | Primary key |
 | `title` | varchar(100) | Schedule name |
-| `is_active` | boolean | Currently active schedule |
+| `is_active` | boolean | Currently active |
 | `assignments` | jsonb | `{student_id: {day: [hours]}}` |
-| `availability_metadata` | jsonb | Snapshot of availabilities used |
-| `effective_from` | date | Schedule start date |
-| `effective_to` | date | Schedule end date |
-| `created_at` | timestamptz | Auto-set on insert |
-| `created_by` | uuid | FK → users, auto-set from context |
-| `updated_at` | timestamptz | Auto-set on update |
+| `availability_metadata` | jsonb | Snapshot of availabilities |
+| `effective_from` | date | Start date |
+| `effective_to` | date | End date |
+| `created_at` | timestamptz | Auto-set |
+| `created_by` | uuid | FK → users, auto-set |
+| `updated_at` | timestamptz | Auto-set |
 | `archived_at` | timestamptz | When archived |
 
-#### Automatic Triggers
+### Automatic Triggers
 
 | Table | `created_at` | `updated_at` | `created_by` |
 |-------|:------------:|:------------:|:------------:|
@@ -205,36 +207,17 @@ Generated work schedules.
 | `schedule.time_logs` | ✓ | - | - |
 | `schedule.schedules` | ✓ | ✓ | ✓ |
 
-- `created_at`: Set to `NOW()` on INSERT
-- `updated_at`: Set to `NOW()` on UPDATE
-- `created_by`: Set from `app.current_user_id` session context on INSERT
-
 ### Row-Level Security
 
 | Table | Read | Write |
 |-------|------|-------|
-| `auth.students` | Admin: all, Student: own row | Admin: all, Student: own row (UPDATE only) |
+| `auth.students` | Admin: all, Student: own | Admin: all, Student: own |
 | `auth.users` | Admin only | Admin only |
-| `auth.banking_details` | Admin: all, Student: own row | Admin: all, Student: own row |
-| `auth.payments` | Admin: all, Student: own row | Admin only (via internal) |
+| `auth.banking_details` | Admin: all, Student: own | Admin: all, Student: own |
+| `auth.payments` | Admin: all, Student: own | Internal only |
 | `schedule.time_logs` | Admin only | Admin only |
-| `schedule.schedules` | Admin: all, Student: if in assignments | Admin only (via internal) |
+| `schedule.schedules` | Admin: all, Student: if assigned | Internal only |
 
-## Project Structure
-
-```
-├── backend/
-│   ├── cmd/server/        # Entry point
-│   ├── internal/
-│   │   ├── application/   # App config & routes
-│   │   ├── domain/        # Business logic
-│   │   ├── infrastructure/# Database, external services
-│   │   └── interfaces/    # HTTP handlers
-│   └── migrations/        # Database migrations
-├── frontend/              # Web application
-└── docker-compose.local.yml
-```
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+**Roles:**
+- `authenticated` - User requests with RLS enforcement
+- `internal` - System operations with full access
