@@ -37,8 +37,8 @@ DROP FUNCTION IF EXISTS set_updated_at();
 DROP FUNCTION IF EXISTS set_created_at();
 
 -- Drop types
-DROP TYPE IF EXISTS "roles";
-DROP TYPE IF EXISTS "bank_account_type";
+DROP TYPE IF EXISTS "auth"."roles";
+DROP TYPE IF EXISTS "auth"."bank_account_type";
 
 -- Drop schemas (only if empty - be careful in production)
 DROP SCHEMA IF EXISTS "schedule";

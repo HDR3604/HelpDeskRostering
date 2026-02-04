@@ -1,8 +1,8 @@
 CREATE SCHEMA IF NOT EXISTS "auth";
 CREATE SCHEMA IF NOT EXISTS "schedule";
 
-CREATE TYPE "bank_account_type" AS ENUM ('chequeing', 'savings');
-CREATE TYPE "roles" AS ENUM ('student', 'admin');
+CREATE TYPE "auth"."bank_account_type" AS ENUM ('chequeing', 'savings');
+CREATE TYPE "auth"."roles" AS ENUM ('student', 'admin');
 
 ---------------------------------
 --     Trigger Functions       --
