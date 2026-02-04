@@ -5,7 +5,7 @@ CREATE TYPE "bank_account_type" AS ENUM ('chequeing', 'savings');
 CREATE TYPE "roles" AS ENUM ('student', 'admin');
 
 ---------------------------------
--- Trigger Functions           --
+--     Trigger Functions       --
 ---------------------------------
 
 -- Automatically set created_at on INSERT
@@ -56,8 +56,9 @@ CREATE TABLE "auth"."students" (
     -- {
     --    overall_gpa: float;
     --    degree_gpa: float;
-    --   degree_programme: string;
-    --   courses: []maps[string]float;
+    --    degree_programme: string;
+    --    courses: []maps[string]float;
+    --    current_level: string;
     -- }
     "transcript_metadata" jsonb NOT NULL,
     -- Availability contains a json indicating the availability of a student for each time slot given. The times a represented in 24-hour format. 
