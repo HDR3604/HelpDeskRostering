@@ -1,4 +1,4 @@
-module github.com/HDR3604/Help-Desk-App
+module github.com/HDR3604/HelpDeskApp
 
 go 1.24.0
 

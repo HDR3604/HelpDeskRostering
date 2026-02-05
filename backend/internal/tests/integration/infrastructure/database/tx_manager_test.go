@@ -6,8 +6,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/HDR3604/Help-Desk-App/internal/infrastructure/database"
-	"github.com/HDR3604/Help-Desk-App/internal/tests/utils"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
+	"github.com/HDR3604/HelpDeskApp/internal/tests/utils"
 	"github.com/stretchr/testify/suite"
 )
 
