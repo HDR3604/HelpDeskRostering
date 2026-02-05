@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -30,15 +33,15 @@ func NewTestDB(t *testing.T) *TestDB {
 	_, currentFile, _, _ := runtime.Caller(0)
 	migrationsDir := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "migrations")
 
-	// Start PostgreSQL container with migrations
+	// Start PostgreSQL container
 	pgContainer, err := postgres.Run(ctx,
 		"postgres:16-alpine",
-		postgres.WithDatabase("test"),
-		postgres.WithUsername("test"),
-		postgres.WithPassword("test"),
+		postgres.WithDatabase("helpdesk"),
+		postgres.WithUsername("helpdesk"),
+		postgres.WithPassword("helpdesk"),
 		testcontainers.WithWaitStrategy(
-			wait.ForLog("database system is ready to accept connections.").
-				WithOccurrence(2). // Wait for the log message to appear twice (for both primary and standby)
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
 				WithStartupTimeout(60*time.Second),
 		),
 	)
