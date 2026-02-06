@@ -1,14 +1,9 @@
--- Drop triggers
+-- Drop triggers (only updated_at and created_by - created_at uses DEFAULT)
 DROP TRIGGER IF EXISTS trg_schedules_created_by ON "schedule"."schedules";
 DROP TRIGGER IF EXISTS trg_schedules_updated_at ON "schedule"."schedules";
-DROP TRIGGER IF EXISTS trg_schedules_created_at ON "schedule"."schedules";
-DROP TRIGGER IF EXISTS trg_time_logs_created_at ON "schedule"."time_logs";
 DROP TRIGGER IF EXISTS trg_payments_updated_at ON "auth"."payments";
-DROP TRIGGER IF EXISTS trg_payments_created_at ON "auth"."payments";
 DROP TRIGGER IF EXISTS trg_users_updated_at ON "auth"."users";
-DROP TRIGGER IF EXISTS trg_users_created_at ON "auth"."users";
 DROP TRIGGER IF EXISTS trg_students_updated_at ON "auth"."students";
-DROP TRIGGER IF EXISTS trg_students_created_at ON "auth"."students";
 
 -- Drop foreign key constraints
 ALTER TABLE "schedule"."schedules" DROP CONSTRAINT IF EXISTS "fk_schedules_created_by_users_user_id";

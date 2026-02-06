@@ -70,7 +70,7 @@ CREATE TABLE "auth"."students" (
     --   4: [8...16] // 24 hr format
     -- }
     "availability" jsonb NOT NULL,
-    "created_at" timestamptz NOT NULL,
+    "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, 
     "updated_at" timestamptz,
     "deleted_at" timestamptz,
     "accepted_at" timestamptz,
@@ -88,7 +88,7 @@ CREATE TABLE "auth"."users" (
     "password" varchar(255) NOT NULL,
     "role" "auth"."roles" NOT NULL,
     "is_active" boolean NOT NULL DEFAULT true,
-    "created_at" timestamptz NOT NULL,
+    "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamptz,
     PRIMARY KEY ("user_id")
 );
@@ -107,7 +107,7 @@ CREATE TABLE "schedule"."time_logs" (
     "student_id" int NOT NULL,
     "entry_at" timestamptz NOT NULL,
     "exit_at" timestamptz,
-    "created_at" timestamptz NOT NULL,
+    "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "longitude" numeric(9, 6) NOT NULL,
     "latitude" numeric(9, 6) NOT NULL,
     -- A pre-calculated distance based on the longitude and latitude to be later used to flag suspicious entries.
@@ -135,7 +135,7 @@ CREATE TABLE "schedule"."schedules" (
     --   [student_id:int]: map[int][]int
     -- }
     "availability_metadata" jsonb NOT NULL,
-    "created_at" timestamptz NOT NULL,
+    "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_by" uuid NOT NULL,
     "updated_at" timestamptz,
     "archived_at" timestamptz,
@@ -157,7 +157,7 @@ CREATE TABLE "auth"."payments" (
     -- Gross amount = hours_worked * $20.00
     "gross_amount" numeric(8, 2) NOT NULL,
     "processed_at" timestamptz,
-    "created_at" timestamptz NOT NULL,
+    "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamptz,
     PRIMARY KEY ("payment_id"),
     -- Ensure no duplicate payments for same student/period
@@ -179,44 +179,24 @@ ALTER TABLE "schedule"."schedules" ADD CONSTRAINT "fk_schedules_created_by_users
 ---------------------------------
 -- Triggers                    --
 ---------------------------------
+-- Note: created_at uses DEFAULT CURRENT_TIMESTAMP, no trigger needed
 
 -- auth.students
-CREATE TRIGGER trg_students_created_at
-    BEFORE INSERT ON "auth"."students"
-    FOR EACH ROW EXECUTE FUNCTION set_created_at();
-
 CREATE TRIGGER trg_students_updated_at
     BEFORE UPDATE ON "auth"."students"
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- auth.users
-CREATE TRIGGER trg_users_created_at
-    BEFORE INSERT ON "auth"."users"
-    FOR EACH ROW EXECUTE FUNCTION set_created_at();
-
 CREATE TRIGGER trg_users_updated_at
     BEFORE UPDATE ON "auth"."users"
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- auth.payments
-CREATE TRIGGER trg_payments_created_at
-    BEFORE INSERT ON "auth"."payments"
-    FOR EACH ROW EXECUTE FUNCTION set_created_at();
-
 CREATE TRIGGER trg_payments_updated_at
     BEFORE UPDATE ON "auth"."payments"
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- schedule.time_logs
-CREATE TRIGGER trg_time_logs_created_at
-    BEFORE INSERT ON "schedule"."time_logs"
-    FOR EACH ROW EXECUTE FUNCTION set_created_at();
-
 -- schedule.schedules
-CREATE TRIGGER trg_schedules_created_at
-    BEFORE INSERT ON "schedule"."schedules"
-    FOR EACH ROW EXECUTE FUNCTION set_created_at();
-
 CREATE TRIGGER trg_schedules_updated_at
     BEFORE UPDATE ON "schedule"."schedules"
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
