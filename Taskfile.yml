@@ -153,3 +153,10 @@ tasks:
     dir: "{{.FRONTEND_DIR}}"
     cmds:
       - pnpm db:studio
+
+  "db:reset":
+    desc: Drop and recreate the database
+    cmds:
+      - docker-compose -f {{.COMPOSE_FILE}} down -v
+      - task: db:start
+      - task: migrate:up
