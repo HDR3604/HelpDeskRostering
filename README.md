@@ -121,6 +121,8 @@ Student applicants and employees.
 | `last_name` | varchar(100) | |
 | `transcript_metadata` | jsonb | Extracted transcript data (GPA, courses, current_level) |
 | `availability` | jsonb | Weekly availability `{day: [hours]}` |
+| `min_weekly_hours` | float | Scheduler: minimum hours target |
+| `max_weekly_hours` | float | Scheduler: maximum hours allowed |
 | `created_at` | timestamptz | Auto-set |
 | `updated_at` | timestamptz | Auto-set |
 | `accepted_at` | timestamptz | Application accepted |
@@ -190,6 +192,8 @@ Generated work schedules.
 | `is_active` | boolean | Currently active |
 | `assignments` | jsonb | `{student_id: {day: [hours]}}` |
 | `availability_metadata` | jsonb | Snapshot of availabilities |
+| `scheduler_metadata` | jsonb | Optimizer results (objective, shortfalls) |
+| `generation_id` | uuid | FK → schedule_generations |
 | `effective_from` | date | Start date |
 | `effective_to` | date | End date |
 | `created_at` | timestamptz | Auto-set |
@@ -197,15 +201,72 @@ Generated work schedules.
 | `updated_at` | timestamptz | Auto-set |
 | `archived_at` | timestamptz | When archived |
 
+#### `schedule.shift_templates`
+Defines shift slots to be staffed (scheduler inputs).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `name` | varchar(100) | e.g., "Monday 9-10am" |
+| `day_of_week` | int | 0=Monday, 6=Sunday |
+| `start_time` | time | Shift start |
+| `end_time` | time | Shift end |
+| `min_staff` | int | Minimum tutors required |
+| `max_staff` | int | Maximum tutors allowed |
+| `course_demands` | jsonb | `[{course_code, tutors_required, weight}]` |
+| `is_active` | boolean | Include in scheduling |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
+
+#### `schedule.scheduler_configs`
+Optimizer configurations with penalty weights.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `name` | varchar(100) | Config name |
+| `course_shortfall_penalty` | float | Penalty for missing course coverage |
+| `min_hours_penalty` | float | Penalty for below baseline hours |
+| `max_hours_penalty` | float | Penalty for exceeding max hours |
+| `understaffed_penalty` | float | Penalty for understaffed shifts |
+| `extra_hours_penalty` | float | Fairness penalty for extra hours |
+| `max_extra_penalty` | float | Bottleneck fairness penalty |
+| `baseline_hours_target` | int | Target hours per assistant (default 6) |
+| `solver_time_limit` | int | Max solver time in seconds |
+| `is_default` | boolean | Use as default config |
+| `created_at` | timestamptz | Auto-set |
+| `updated_at` | timestamptz | Auto-set |
+
+#### `schedule.schedule_generations`
+Audit log for schedule generation requests.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `schedule_id` | uuid | FK → schedules (set after completion) |
+| `config_id` | uuid | FK → scheduler_configs |
+| `status` | varchar(20) | pending, completed, failed, infeasible |
+| `request_payload` | jsonb | Input sent to solver |
+| `response_payload` | jsonb | Result from solver |
+| `error_message` | text | Error details if failed |
+| `started_at` | timestamptz | Solver start time |
+| `completed_at` | timestamptz | Solver completion time |
+| `created_at` | timestamptz | Auto-set |
+| `created_by` | uuid | FK → users, auto-set |
+
 ### Automatic Triggers
 
-| Table | `created_at` | `updated_at` | `created_by` |
-|-------|:------------:|:------------:|:------------:|
-| `auth.students` | ✓ | ✓ | - |
-| `auth.users` | ✓ | ✓ | - |
-| `auth.payments` | ✓ | ✓ | - |
-| `schedule.time_logs` | ✓ | - | - |
-| `schedule.schedules` | ✓ | ✓ | ✓ |
+Note: `created_at` uses `DEFAULT CURRENT_TIMESTAMP`, no trigger needed.
+
+| Table | `updated_at` | `created_by` |
+|-------|:------------:|:------------:|
+| `auth.students` | ✓ | - |
+| `auth.users` | ✓ | - |
+| `auth.payments` | ✓ | - |
+| `schedule.schedules` | ✓ | ✓ |
+| `schedule.shift_templates` | ✓ | - |
+| `schedule.scheduler_configs` | ✓ | - |
+| `schedule.schedule_generations` | - | ✓ |
 
 ### Row-Level Security
 
@@ -217,6 +278,9 @@ Generated work schedules.
 | `auth.payments` | Admin: all, Student: own | Internal only |
 | `schedule.time_logs` | Admin only | Admin only |
 | `schedule.schedules` | Admin: all, Student: if assigned | Internal only |
+| `schedule.shift_templates` | Admin: all, Student: active only | Admin only |
+| `schedule.scheduler_configs` | All authenticated | Admin only |
+| `schedule.schedule_generations` | Admin only | Admin only |
 
 **Roles:**
 - `authenticated` - User requests with RLS enforcement

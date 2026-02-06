@@ -4,6 +4,9 @@ version: '3'
 vars:
   BACKEND_DIR: ./backend
   FRONTEND_DIR: ./frontend
+  MIGRATIONS_DIR: ./migrations
+  DATABASE_URL: "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable"
+  COMPOSE_FILE: docker-compose.local.yml
 
 tasks:
   default:
@@ -113,34 +116,30 @@ tasks:
   # Migrations
   "migrate:up":
     desc: Run all pending migrations
-    dir: "{{.BACKEND_DIR}}"
     cmds:
-      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" up
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" up
 
   "migrate:down":
     desc: Rollback the last migration
-    dir: "{{.BACKEND_DIR}}"
     cmds:
-      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" down 1
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down 1
 
   "migrate:reset":
     desc: Rollback all migrations
-    dir: "{{.BACKEND_DIR}}"
     cmds:
-      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" down -all
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down -all
 
   "migrate:create":
     desc: "Create a new migration (usage: task migrate:create -- name)"
-    dir: "{{.BACKEND_DIR}}"
     cmds:
-      - migrate create -ext sql -dir ./migrations -seq {{.CLI_ARGS}}
+      - migrate create -ext sql -dir {{.MIGRATIONS_DIR}} -seq {{.CLI_ARGS}}
 
   "generate:models":
     desc: Generate Go models from database schema using jet
     dir: "{{.BACKEND_DIR}}"
     cmds:
-      - jet -dsn=postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable -schema=auth -path=./internal/infrastructure/models
-      - jet -dsn=postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable -schema=schedule -path=./internal/infrastructure/models
+      - jet -dsn={{.DATABASE_URL}} -schema=auth -path=./internal/infrastructure/models
+      - jet -dsn={{.DATABASE_URL}} -schema=schedule -path=./internal/infrastructure/models
 
   # Database
   "db:start":
