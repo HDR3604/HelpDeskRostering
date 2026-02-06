@@ -86,7 +86,7 @@ CREATE TABLE "auth"."users" (
     "user_id" uuid NOT NULL,
     "email_address" varchar(255) NOT NULL UNIQUE,
     "password" varchar(255) NOT NULL,
-    "role" roles NOT NULL,
+    "role" "auth"."roles" NOT NULL,
     "is_active" boolean NOT NULL DEFAULT true,
     "created_at" timestamptz NOT NULL,
     "updated_at" timestamptz,
@@ -97,7 +97,7 @@ CREATE TABLE "auth"."banking_details" (
     "student_id" int NOT NULL,
     "bank_name" varchar(100) NOT NULL,
     "branch_name" varchar(100) NOT NULL,
-    "account_type" bank_account_type NOT NULL,
+    "account_type" "auth"."bank_account_type" NOT NULL,
     "account_number" bytea NOT NULL,  -- Encrypted
     PRIMARY KEY ("student_id")
 );
