@@ -34,8 +34,9 @@ tasks:
   dev:
     desc: Run both backend and frontend in development mode
     deps:
-      - dev:backend
-      - dev:frontend
+      - db:start
+    cmds:
+      - task --parallel dev:backend dev:frontend
 
   dev:backend:
     desc: Run the backend in development mode
@@ -72,7 +73,7 @@ tasks:
   start:
     desc: Start all services with Docker Compose
     cmds:
-      - docker-compose -f docker-compose.local.yml up -d
+      - docker-compose -f docker-compose.local.yml up -d --build
 
   stop:
     desc: Stop all services
@@ -108,3 +109,48 @@ tasks:
     dir: "{{.BACKEND_DIR}}"
     cmds:
       - go test -cover ./...
+
+  # Migrations
+  "migrate:up":
+    desc: Run all pending migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" up
+
+  "migrate:down":
+    desc: Rollback the last migration
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" down 1
+
+  "migrate:reset":
+    desc: Rollback all migrations
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate -path ./migrations -database "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable" down -all
+
+  "migrate:create":
+    desc: "Create a new migration (usage: task migrate:create -- name)"
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - migrate create -ext sql -dir ./migrations -seq {{.CLI_ARGS}}
+
+  "generate:models":
+    desc: Generate Go models from database schema using jet
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - jet -dsn=postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable -schema=auth -path=./internal/infrastructure/models
+      - jet -dsn=postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable -schema=schedule -path=./internal/infrastructure/models
+
+  # Database
+  "db:start":
+    desc: Start the PostgreSQL database
+    cmds:
+      - docker-compose -f docker-compose.local.yml up -d postgres
+      - docker-compose -f docker-compose.local.yml exec postgres pg_isready -U helpdesk -d helpdesk --timeout=30
+
+  "db:studio":
+    desc: Open Drizzle Studio to view the database
+    dir: "{{.FRONTEND_DIR}}"
+    cmds:
+      - pnpm db:studio

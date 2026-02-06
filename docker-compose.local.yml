@@ -3,8 +3,14 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - /app/tmp  # Exclude tmp dir from mount
+    environment:
+      - DATABASE_URL=postgres://helpdesk:helpdesk_local@postgres:5432/helpdesk?sslmode=disable
     depends_on:
       postgres:
         condition: service_healthy
@@ -13,8 +19,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Exclude node_modules from mount
     restart: unless-stopped
 
   postgres:
