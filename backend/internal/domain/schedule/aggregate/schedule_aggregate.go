@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
 	"github.com/google/uuid"
 )
 
@@ -91,4 +92,38 @@ func (a *Schedule) Unarchive() {
 	}
 
 	a.ArchivedAt = nil
+}
+
+// ToModel maps the Schedule aggregate to a database model
+func (a *Schedule) ToModel() model.Schedules {
+	return model.Schedules{
+		ScheduleID:           a.ScheduleID,
+		Title:                a.Title,
+		IsActive:             a.IsActive,
+		Assignments:          string(a.Assignments),
+		AvailabilityMetadata: string(a.AvailabilityMetadata),
+		CreatedAt:            a.CreatedAt,
+		CreatedBy:            a.CreatedBy,
+		UpdatedAt:            a.UpdatedAt,
+		ArchivedAt:           a.ArchivedAt,
+		EffectiveFrom:        a.EffectiveFrom,
+		EffectiveTo:          a.EffectiveTo,
+	}
+}
+
+// FromModel maps a database model to the Schedule aggregate
+func ScheduleFromModel(m model.Schedules) Schedule {
+	return Schedule{
+		ScheduleID:           m.ScheduleID,
+		Title:                m.Title,
+		IsActive:             m.IsActive,
+		Assignments:          json.RawMessage(m.Assignments),
+		AvailabilityMetadata: json.RawMessage(m.AvailabilityMetadata),
+		CreatedAt:            m.CreatedAt,
+		CreatedBy:            m.CreatedBy,
+		UpdatedAt:            m.UpdatedAt,
+		ArchivedAt:           m.ArchivedAt,
+		EffectiveFrom:        m.EffectiveFrom,
+		EffectiveTo:          m.EffectiveTo,
+	}
 }
