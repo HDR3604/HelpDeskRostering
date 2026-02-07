@@ -50,7 +50,7 @@ func (s *SchedulerService) GenerateSchedule(req types.GenerateScheduleRequest) (
 		s.logger.Error("scheduler health check failed", zap.String("url", s.baseurl), zap.Error(err))
 		return nil, fmt.Errorf("%w: %w", types.ErrSchedulerUnavailable, err)
 	}
-	defer healthResponse.Body.Close()
+	defer func() { _ = healthResponse.Body.Close() }()
 
 	// Make request to generate schedule
 	scheduleResponse, err := http.Post(s.baseurl+"/api/v1/schedules/generate", "application/json", bytes.NewReader(request))
@@ -58,7 +58,7 @@ func (s *SchedulerService) GenerateSchedule(req types.GenerateScheduleRequest) (
 		s.logger.Error("failed to send schedule request", zap.Error(err))
 		return nil, fmt.Errorf("%w: %w", types.ErrSchedulerUnavailable, err)
 	}
-	defer scheduleResponse.Body.Close()
+	defer func() { _ = scheduleResponse.Body.Close() }()
 
 	if scheduleResponse.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(scheduleResponse.Body)
