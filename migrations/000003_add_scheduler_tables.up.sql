@@ -70,11 +70,11 @@ COMMENT ON TABLE "schedule"."scheduler_configs" IS 'Named optimizer configuratio
 CREATE UNIQUE INDEX "scheduler_configs_idx_default"
     ON "schedule"."scheduler_configs" ("is_default") WHERE is_default = true;
 
--- Insert default configuration
+-- Insert default configuration (fixed UUID for deterministic seed data)
 INSERT INTO "schedule"."scheduler_configs" (
     "id", "name", "is_default", "created_at"
 ) VALUES (
-    gen_random_uuid(),
+    '00000000-0000-0000-0000-000000000001',
     'Default',
     true,
     NOW()
@@ -125,7 +125,9 @@ CREATE INDEX "schedule_generations_idx_created_at"
 
 ALTER TABLE "auth"."students"
     ADD COLUMN "min_weekly_hours" float NOT NULL DEFAULT 0,
-    ADD COLUMN "max_weekly_hours" float DEFAULT NULL;
+    ADD COLUMN "max_weekly_hours" float DEFAULT NULL,
+    ADD CONSTRAINT "chk_students_min_weekly_hours" CHECK (min_weekly_hours >= 0),
+    ADD CONSTRAINT "chk_students_max_weekly_hours" CHECK (max_weekly_hours IS NULL OR max_weekly_hours >= min_weekly_hours);
 
 COMMENT ON COLUMN "auth"."students"."min_weekly_hours" IS 'Minimum hours per week this student should be scheduled (fairness baseline)';
 COMMENT ON COLUMN "auth"."students"."max_weekly_hours" IS 'Maximum hours per week this student can work';
@@ -176,11 +178,11 @@ CREATE TRIGGER trg_schedule_generations_created_by
 ---------------------------------
 
 -- shift_templates: admins can manage, students can view active templates
-GRANT SELECT ON "schedule"."shift_templates" TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON "schedule"."shift_templates" TO authenticated;
 GRANT ALL ON "schedule"."shift_templates" TO internal;
 
 -- scheduler_configs: admins can manage, students can view
-GRANT SELECT ON "schedule"."scheduler_configs" TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON "schedule"."scheduler_configs" TO authenticated;
 GRANT ALL ON "schedule"."scheduler_configs" TO internal;
 
 -- schedule_generations: admins only (audit log)
@@ -245,15 +247,7 @@ CREATE POLICY scheduler_configs_delete ON "schedule"."scheduler_configs"
     FOR DELETE TO authenticated
     USING (user_has_role('admin'));
 
--- schedule_generations: admins only
+-- schedule_generations: read-only for authenticated admins, mutations via internal role only
 CREATE POLICY schedule_generations_select ON "schedule"."schedule_generations"
     FOR SELECT TO authenticated
-    USING (user_has_role('admin'));
-
-CREATE POLICY schedule_generations_insert ON "schedule"."schedule_generations"
-    FOR INSERT TO authenticated
-    WITH CHECK (user_has_role('admin'));
-
-CREATE POLICY schedule_generations_update ON "schedule"."schedule_generations"
-    FOR UPDATE TO authenticated
     USING (user_has_role('admin'));
