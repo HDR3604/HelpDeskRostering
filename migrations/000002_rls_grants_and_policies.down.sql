@@ -1,3 +1,6 @@
+-- Migration: 000002_rls_grants_and_policies (DOWN)
+-- Reverse all changes from the up migration
+
 -- Revoke application user role membership
 REVOKE authenticated FROM helpdesk;
 REVOKE internal FROM helpdesk;

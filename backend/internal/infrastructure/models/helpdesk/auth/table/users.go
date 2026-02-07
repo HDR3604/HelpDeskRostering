@@ -74,7 +74,7 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		UpdatedAtColumn    = postgres.TimestampzColumn("updated_at")
 		allColumns         = postgres.ColumnList{UserIDColumn, EmailAddressColumn, PasswordColumn, RoleColumn, IsActiveColumn, CreatedAtColumn, UpdatedAtColumn}
 		mutableColumns     = postgres.ColumnList{EmailAddressColumn, PasswordColumn, RoleColumn, IsActiveColumn, CreatedAtColumn, UpdatedAtColumn}
-		defaultColumns     = postgres.ColumnList{IsActiveColumn}
+		defaultColumns     = postgres.ColumnList{IsActiveColumn, CreatedAtColumn}
 	)
 
 	return usersTable{

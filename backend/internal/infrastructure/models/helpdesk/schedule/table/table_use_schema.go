@@ -10,6 +10,9 @@ package table
 // UseSchema sets a new schema name for all generated table SQL builder types. It is recommended to invoke
 // this method only once at the beginning of the program.
 func UseSchema(schema string) {
+	ScheduleGenerations = ScheduleGenerations.FromSchema(schema)
+	SchedulerConfigs = SchedulerConfigs.FromSchema(schema)
 	Schedules = Schedules.FromSchema(schema)
+	ShiftTemplates = ShiftTemplates.FromSchema(schema)
 	TimeLogs = TimeLogs.FromSchema(schema)
 }

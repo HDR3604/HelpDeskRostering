@@ -1,3 +1,6 @@
+-- Migration: 000001_initial_schema (DOWN)
+-- Reverse all changes from the up migration
+
 -- Drop triggers (only updated_at and created_by - created_at uses DEFAULT)
 DROP TRIGGER IF EXISTS trg_schedules_created_by ON "schedule"."schedules";
 DROP TRIGGER IF EXISTS trg_schedules_updated_at ON "schedule"."schedules";
