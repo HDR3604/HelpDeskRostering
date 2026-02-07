@@ -1,15 +1,32 @@
 import logging
+import os
 
-from fastapi import FastAPI, HTTPException, APIRouter
+from fastapi import FastAPI, HTTPException, APIRouter, Request
+from fastapi.responses import JSONResponse
 
 from app.linear_scheduler import solve_helpdesk_schedule
 from app.models import GenerateScheduleRequest, GenerateScheduleResponse
 
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(title="HelpDesk Scheduler", version="1.0.0")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "internal server error"},
+    )
+
 
 prefix_router = APIRouter(prefix="/api/v1")
+
 
 @prefix_router.get("/healthy")
 async def health_check():

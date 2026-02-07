@@ -26,11 +26,13 @@ services:
       - ./scheduler:/app
       - /app/tmp  # Exclude tmp dir from mount
     environment:
-      - DATABASE_URL=postgres://helpdesk:helpdesk_local@postgres:5432/helpdesk?sslmode=disable
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - LOG_LEVEL=DEBUG
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthy')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:

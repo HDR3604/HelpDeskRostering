@@ -1,10 +1,15 @@
-FROM python:3.9
+FROM python:3.14-slim AS base
 
 WORKDIR /app
 
-COPY ./requirements.txt /app/requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
-COPY ./app /app/
+COPY app/ app/
 
-CMD ["fastapi", "run", "app/main.py", "--port", "5000"]
+RUN adduser --disabled-password --no-create-home scheduler
+USER scheduler
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
