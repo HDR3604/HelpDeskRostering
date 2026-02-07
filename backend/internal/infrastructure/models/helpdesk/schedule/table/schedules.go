@@ -28,6 +28,8 @@ type schedulesTable struct {
 	ArchivedAt           postgres.ColumnTimestampz
 	EffectiveFrom        postgres.ColumnDate
 	EffectiveTo          postgres.ColumnDate
+	GenerationID         postgres.ColumnString
+	SchedulerMetadata    postgres.ColumnString // Optimizer results: {objective_value, assistant_hours, shortfalls, solver_status}
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -80,9 +82,11 @@ func newSchedulesTableImpl(schemaName, tableName, alias string) schedulesTable {
 		ArchivedAtColumn           = postgres.TimestampzColumn("archived_at")
 		EffectiveFromColumn        = postgres.DateColumn("effective_from")
 		EffectiveToColumn          = postgres.DateColumn("effective_to")
-		allColumns                 = postgres.ColumnList{ScheduleIDColumn, TitleColumn, IsActiveColumn, AssignmentsColumn, AvailabilityMetadataColumn, CreatedAtColumn, CreatedByColumn, UpdatedAtColumn, ArchivedAtColumn, EffectiveFromColumn, EffectiveToColumn}
-		mutableColumns             = postgres.ColumnList{TitleColumn, IsActiveColumn, AssignmentsColumn, AvailabilityMetadataColumn, CreatedAtColumn, CreatedByColumn, UpdatedAtColumn, ArchivedAtColumn, EffectiveFromColumn, EffectiveToColumn}
-		defaultColumns             = postgres.ColumnList{IsActiveColumn}
+		GenerationIDColumn         = postgres.StringColumn("generation_id")
+		SchedulerMetadataColumn    = postgres.StringColumn("scheduler_metadata")
+		allColumns                 = postgres.ColumnList{ScheduleIDColumn, TitleColumn, IsActiveColumn, AssignmentsColumn, AvailabilityMetadataColumn, CreatedAtColumn, CreatedByColumn, UpdatedAtColumn, ArchivedAtColumn, EffectiveFromColumn, EffectiveToColumn, GenerationIDColumn, SchedulerMetadataColumn}
+		mutableColumns             = postgres.ColumnList{TitleColumn, IsActiveColumn, AssignmentsColumn, AvailabilityMetadataColumn, CreatedAtColumn, CreatedByColumn, UpdatedAtColumn, ArchivedAtColumn, EffectiveFromColumn, EffectiveToColumn, GenerationIDColumn, SchedulerMetadataColumn}
+		defaultColumns             = postgres.ColumnList{ScheduleIDColumn, IsActiveColumn, AssignmentsColumn, AvailabilityMetadataColumn, CreatedAtColumn}
 	)
 
 	return schedulesTable{
@@ -100,6 +104,8 @@ func newSchedulesTableImpl(schemaName, tableName, alias string) schedulesTable {
 		ArchivedAt:           ArchivedAtColumn,
 		EffectiveFrom:        EffectiveFromColumn,
 		EffectiveTo:          EffectiveToColumn,
+		GenerationID:         GenerationIDColumn,
+		SchedulerMetadata:    SchedulerMetadataColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

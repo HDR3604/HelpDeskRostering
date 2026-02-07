@@ -1,3 +1,6 @@
+-- Migration: 000001_initial_schema
+-- Description: Create initial database schema with auth and schedule tables, trigger functions, and foreign keys
+
 CREATE SCHEMA IF NOT EXISTS "auth";
 CREATE SCHEMA IF NOT EXISTS "schedule";
 
@@ -71,7 +74,7 @@ CREATE TABLE "auth"."students" (
     "rejected_at" timestamptz,
     PRIMARY KEY ("student_id")
 );
-COMMENT ON COLUMN "auth"."students"."transcript_metadata" IS 'transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; }';
+COMMENT ON COLUMN "auth"."students"."transcript_metadata" IS 'transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; current_level: string; }';
 COMMENT ON COLUMN "auth"."students"."availability" IS 'Availability contains a json indicating the availability of a student for each time slot given. The times a represented in 24-hour format. e.g. 8 represents 8 am - 9am { 0: [8...16], . . 4: [8...16] // 24 hr format }';
 -- Indexes
 CREATE INDEX "students_idx_accepted_at" ON "auth"."students" ("accepted_at");
@@ -120,17 +123,11 @@ CREATE TABLE "schedule"."schedules" (
     "schedule_id" uuid NOT NULL DEFAULT gen_random_uuid(),
     "title" varchar(100) NOT NULL,
     "is_active" boolean NOT NULL DEFAULT false,
-    -- This is used to store the assignments of students for a given schedule.
-    -- {
-    --    [student_id:int] {
-    --    [0...4]: []int
-    --   }
-    -- }
+    -- Assignments from the scheduler output.
+    -- [{assistant_id: string, shift_id: string, day_of_week: int, start: "HH:MM:SS", end: "HH:MM:SS"}]
     "assignments" jsonb NOT NULL DEFAULT '{}'::jsonb,
-    -- This stores the availabilities that were used to generate the schedule.
-    -- {
-    --   [student_id:int]: map[int][]int
-    -- }
+    -- Snapshot of assistant availabilities used as input to generate this schedule.
+    -- [{id: string, courses: []string, availability: [{day_of_week: int, start: "HH:MM:SS", end: "HH:MM:SS"}], min_hours: float, max_hours: float}]
     "availability_metadata" jsonb NOT NULL DEFAULT '{}'::jsonb,
     "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_by" uuid NOT NULL,
@@ -141,8 +138,8 @@ CREATE TABLE "schedule"."schedules" (
     PRIMARY KEY ("schedule_id"),
     CONSTRAINT "chk_schedules_effective_period" CHECK (effective_to IS NULL OR effective_to > effective_from)
 );
-COMMENT ON COLUMN "schedule"."schedules"."assignments" IS 'This is used to store the assignments of students for a given schedule. { [student_id:int] { [0...4]: []int } }';
-COMMENT ON COLUMN "schedule"."schedules"."availability_metadata" IS 'This stores the availabilities that were used to generate the schedule. { [student_id:int]: map[int][]int }';
+COMMENT ON COLUMN "schedule"."schedules"."assignments" IS 'Scheduler output: [{assistant_id, shift_id, day_of_week, start, end}]';
+COMMENT ON COLUMN "schedule"."schedules"."availability_metadata" IS 'Snapshot of assistant availabilities used as scheduler input: [{id, courses, availability, min_hours, max_hours}]';
 
 CREATE TABLE "auth"."payments" (
     "payment_id" uuid NOT NULL DEFAULT gen_random_uuid(),

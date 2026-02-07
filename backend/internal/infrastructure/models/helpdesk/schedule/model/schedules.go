@@ -24,4 +24,6 @@ type Schedules struct {
 	ArchivedAt           *time.Time
 	EffectiveFrom        time.Time
 	EffectiveTo          *time.Time
+	GenerationID         *uuid.UUID
+	SchedulerMetadata    *string // Optimizer results: {objective_value, assistant_hours, shortfalls, solver_status}
 }
