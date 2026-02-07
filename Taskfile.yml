@@ -4,6 +4,7 @@ version: '3'
 vars:
   BACKEND_DIR: ./backend
   FRONTEND_DIR: ./frontend
+  SCHEDULER_DIR: ./scheduler
   MIGRATIONS_DIR: ./migrations
   DATABASE_URL: "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable"
   COMPOSE_FILE: docker-compose.local.yml
@@ -93,6 +94,7 @@ tasks:
     desc: Run all tests
     cmds:
       - task: test:backend
+      - task: test:scheduler
       - task: test:frontend
 
   test:backend:
@@ -100,6 +102,12 @@ tasks:
     dir: "{{.BACKEND_DIR}}"
     cmds:
       - go test ./...
+
+  test:scheduler:
+    desc: Run scheduler tests
+    dir: "{{.SCHEDULER_DIR}}"
+    cmds:
+      - .venv/bin/python -m pytest tests/ -v
 
   test:frontend:
     desc: Run frontend tests
