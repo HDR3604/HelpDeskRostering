@@ -11,8 +11,11 @@ services:
       - /app/tmp  # Exclude tmp dir from mount
     environment:
       - DATABASE_URL=postgres://helpdesk:helpdesk_local@postgres:5432/helpdesk?sslmode=disable
+      - SCHEDULER_URL=http://scheduler:8000
     depends_on:
       postgres:
+        condition: service_healthy
+      scheduler:
         condition: service_healthy
     restart: unless-stopped
 
@@ -20,8 +23,8 @@ services:
     build:
       context: ./scheduler
       dockerfile: Dockerfile.dev
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - ./scheduler:/app
       - /app/tmp  # Exclude tmp dir from mount
