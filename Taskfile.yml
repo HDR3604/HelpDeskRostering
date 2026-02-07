@@ -77,17 +77,22 @@ tasks:
   start:
     desc: Start all services with Docker Compose
     cmds:
-      - docker-compose -f docker-compose.local.yml up -d --build
+      - docker compose -f {{.COMPOSE_FILE}} up -d
+
+  build:
+    desc: Start all services with Docker Compose
+    cmds:
+      - docker compose -f {{.COMPOSE_FILE}} up -d --build
 
   stop:
     desc: Stop all services
     cmds:
-      - docker-compose -f docker-compose.local.yml down
+      - docker compose -f {{.COMPOSE_FILE}} down
 
   logs:
     desc: View service logs
     cmds:
-      - docker-compose -f docker-compose.local.yml logs -f
+      - docker compose -f {{.COMPOSE_FILE}} logs -f
 
   # Testing
   test:
@@ -115,34 +120,28 @@ tasks:
     cmds:
       - pnpm test
 
-  test:coverage:
-    desc: Run backend tests with coverage
-    dir: "{{.BACKEND_DIR}}"
-    cmds:
-      - go test -cover ./...
-
   # Migrations
-  "migrate:up":
+  migrate:up:
     desc: Run all pending migrations
     cmds:
       - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" up
 
-  "migrate:down":
+  migrate:down:
     desc: Rollback the last migration
     cmds:
       - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down 1
 
-  "migrate:reset":
+  migrate:reset:
     desc: Rollback all migrations
     cmds:
       - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down -all
 
-  "migrate:create":
+  migrate:create:
     desc: "Create a new migration (usage: task migrate:create -- name)"
     cmds:
       - migrate create -ext sql -dir {{.MIGRATIONS_DIR}} -seq {{.CLI_ARGS}}
 
-  "generate:models":
+  generate:models:
     desc: Generate Go models from database schema using jet
     dir: "{{.BACKEND_DIR}}"
     cmds:
@@ -150,21 +149,21 @@ tasks:
       - jet -dsn={{.DATABASE_URL}} -schema=schedule -path=./internal/infrastructure/models
 
   # Database
-  "db:start":
+  db:start:
     desc: Start the PostgreSQL database
     cmds:
-      - docker-compose -f docker-compose.local.yml up -d postgres
-      - docker-compose -f docker-compose.local.yml exec postgres pg_isready -U helpdesk -d helpdesk --timeout=30
+      - docker compose -f {{.COMPOSE_FILE}} up -d postgres
+      - docker compose -f {{.COMPOSE_FILE}} exec postgres pg_isready -U helpdesk -d helpdesk --timeout=30
 
-  "db:studio":
+  db:studio:
     desc: Open Drizzle Studio to view the database
     dir: "{{.FRONTEND_DIR}}"
     cmds:
       - pnpm db:studio
 
-  "db:reset":
+  db:reset:
     desc: Drop and recreate the database
     cmds:
-      - docker-compose -f {{.COMPOSE_FILE}} down -v
+      - docker compose -f {{.COMPOSE_FILE}} down -v
       - task: db:start
       - task: migrate:up
