@@ -76,7 +76,7 @@ func newTimeLogsTableImpl(schemaName, tableName, alias string) timeLogsTable {
 		DistanceMetersColumn = postgres.FloatColumn("distance_meters")
 		allColumns           = postgres.ColumnList{IDColumn, StudentIDColumn, EntryAtColumn, ExitAtColumn, CreatedAtColumn, LongitudeColumn, LatitudeColumn, DistanceMetersColumn}
 		mutableColumns       = postgres.ColumnList{StudentIDColumn, EntryAtColumn, ExitAtColumn, CreatedAtColumn, LongitudeColumn, LatitudeColumn, DistanceMetersColumn}
-		defaultColumns       = postgres.ColumnList{}
+		defaultColumns       = postgres.ColumnList{IDColumn, CreatedAtColumn}
 	)
 
 	return timeLogsTable{

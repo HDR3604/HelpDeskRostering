@@ -23,4 +23,6 @@ type Students struct {
 	DeletedAt          *time.Time
 	AcceptedAt         *time.Time
 	RejectedAt         *time.Time
+	MinWeeklyHours     float64  // Minimum hours per week this student should be scheduled (fairness baseline)
+	MaxWeeklyHours     *float64 // Maximum hours per week this student can work
 }

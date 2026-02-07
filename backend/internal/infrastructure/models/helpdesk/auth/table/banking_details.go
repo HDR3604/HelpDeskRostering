@@ -22,6 +22,8 @@ type bankingDetailsTable struct {
 	BranchName    postgres.ColumnString
 	AccountType   postgres.ColumnString
 	AccountNumber postgres.ColumnBytea
+	CreatedAt     postgres.ColumnTimestampz
+	UpdatedAt     postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -68,9 +70,11 @@ func newBankingDetailsTableImpl(schemaName, tableName, alias string) bankingDeta
 		BranchNameColumn    = postgres.StringColumn("branch_name")
 		AccountTypeColumn   = postgres.StringColumn("account_type")
 		AccountNumberColumn = postgres.ByteaColumn("account_number")
-		allColumns          = postgres.ColumnList{StudentIDColumn, BankNameColumn, BranchNameColumn, AccountTypeColumn, AccountNumberColumn}
-		mutableColumns      = postgres.ColumnList{BankNameColumn, BranchNameColumn, AccountTypeColumn, AccountNumberColumn}
-		defaultColumns      = postgres.ColumnList{}
+		CreatedAtColumn     = postgres.TimestampzColumn("created_at")
+		UpdatedAtColumn     = postgres.TimestampzColumn("updated_at")
+		allColumns          = postgres.ColumnList{StudentIDColumn, BankNameColumn, BranchNameColumn, AccountTypeColumn, AccountNumberColumn, CreatedAtColumn, UpdatedAtColumn}
+		mutableColumns      = postgres.ColumnList{BankNameColumn, BranchNameColumn, AccountTypeColumn, AccountNumberColumn, CreatedAtColumn, UpdatedAtColumn}
+		defaultColumns      = postgres.ColumnList{CreatedAtColumn}
 	)
 
 	return bankingDetailsTable{
@@ -82,6 +86,8 @@ func newBankingDetailsTableImpl(schemaName, tableName, alias string) bankingDeta
 		BranchName:    BranchNameColumn,
 		AccountType:   AccountTypeColumn,
 		AccountNumber: AccountNumberColumn,
+		CreatedAt:     CreatedAtColumn,
+		UpdatedAt:     UpdatedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

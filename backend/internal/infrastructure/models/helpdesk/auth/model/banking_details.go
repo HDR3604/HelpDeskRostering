@@ -7,10 +7,16 @@
 
 package model
 
+import (
+	"time"
+)
+
 type BankingDetails struct {
 	StudentID     int32 `sql:"primary_key"`
 	BankName      string
 	BranchName    string
 	AccountType   BankAccountType
 	AccountNumber []byte
+	CreatedAt     time.Time
+	UpdatedAt     *time.Time
 }

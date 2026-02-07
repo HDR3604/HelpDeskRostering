@@ -32,7 +32,7 @@ func (s *SchedulerServiceTestSuite) SetupTest() {
 	s.server = httptest.NewServer(s.mux)
 	s.logger = zap.NewNop()
 
-	os.Setenv("SCHEDULER_SERVICE_URL", s.server.URL)
+	s.Require().NoError(os.Setenv("SCHEDULER_SERVICE_URL", s.server.URL))
 	s.service = service.NewSchedulerService(s.logger)
 }
 
@@ -72,7 +72,7 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_Success() {
 	s.mux.HandleFunc("/api/v1/schedules/generate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprint(w, `{
+		_, _ = fmt.Fprint(w, `{
 			"status": "Optimal",
 			"assignments": [{"assistant_id": "a1", "shift_id": "s1", "day_of_week": 1, "start": "09:00:00", "end": "13:00:00"}],
 			"assistant_hours": {"a1": 4},
@@ -95,7 +95,7 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_SchedulerReturns422() {
 	})
 	s.mux.HandleFunc("/api/v1/schedules/generate", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		fmt.Fprint(w, `{"detail": "validation error"}`)
+		_, _ = fmt.Fprint(w, `{"detail": "validation error"}`)
 	})
 
 	result, err := s.service.GenerateSchedule(s.validRequest())
@@ -134,7 +134,7 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_MalformedResponse() {
 	})
 	s.mux.HandleFunc("/api/v1/schedules/generate", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		fmt.Fprint(w, `not valid json`)
+		_, _ = fmt.Fprint(w, `not valid json`)
 	})
 
 	result, err := s.service.GenerateSchedule(s.validRequest())

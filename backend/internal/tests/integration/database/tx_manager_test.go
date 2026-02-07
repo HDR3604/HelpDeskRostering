@@ -106,10 +106,12 @@ func (s *TxManagerTestSuite) TestInAuthTx_RollsBackOnError() {
 		return err
 	})
 	s.Require().NoError(err)
-	defer s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(s.ctx, "DELETE FROM auth.students WHERE student_id = 88888")
-		return err
-	})
+	defer func() {
+		_ = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(s.ctx, "DELETE FROM auth.students WHERE student_id = 88888")
+			return err
+		})
+	}()
 
 	authCtx := database.AuthContext{
 		UserID: "test-user",
