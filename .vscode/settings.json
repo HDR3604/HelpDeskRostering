@@ -3,5 +3,6 @@
         "helpdesk",
         "testcontainers",
         "VITE"
-    ]
+    ],
+    "python.defaultInterpreterPath": "${workspaceFolder}/scheduler/.venv/bin/python"
 }

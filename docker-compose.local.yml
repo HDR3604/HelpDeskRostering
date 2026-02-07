@@ -11,10 +11,31 @@ services:
       - /app/tmp  # Exclude tmp dir from mount
     environment:
       - DATABASE_URL=postgres://helpdesk:helpdesk_local@postgres:5432/helpdesk?sslmode=disable
+      - SCHEDULER_URL=http://scheduler:8000
     depends_on:
       postgres:
         condition: service_healthy
+      scheduler:
+        condition: service_healthy
     restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile.dev
+    expose:
+      - "8000"
+    volumes:
+      - ./scheduler:/app
+      - /app/tmp  # Exclude tmp dir from mount
+    environment:
+      - LOG_LEVEL=DEBUG
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthy')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   frontend:
     build:
