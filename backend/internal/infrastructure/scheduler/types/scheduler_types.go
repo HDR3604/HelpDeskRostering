@@ -1,4 +1,4 @@
-package scheduler
+package types
 
 type AvailabilityWindow struct {
 	DayOfWeek int    `json:"day_of_week"`

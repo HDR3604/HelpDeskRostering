@@ -1,4 +1,4 @@
-package scheduler
+package service
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"os"
 
-	interfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/interface"
-	types "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/interfaces"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 	"go.uber.org/zap"
 )
 

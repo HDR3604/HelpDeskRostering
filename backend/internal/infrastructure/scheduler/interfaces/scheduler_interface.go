@@ -1,7 +1,7 @@
-package scheduler
+package interfaces
 
 import (
-	types "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 )
 
 type SchedulerServiceInterface interface {
