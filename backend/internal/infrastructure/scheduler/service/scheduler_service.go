@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
@@ -59,8 +60,13 @@ func (s *SchedulerService) GenerateSchedule(req types.GenerateScheduleRequest) (
 	}
 	defer scheduleResponse.Body.Close()
 
-	if scheduleResponse.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("scheduler returned status %d", scheduleResponse.StatusCode)
+	if scheduleResponse.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(scheduleResponse.Body)
+		s.logger.Error("scheduler returned non-201 status",
+			zap.Int("status_code", scheduleResponse.StatusCode),
+			zap.String("response_body", string(body)),
+		)
+		return nil, fmt.Errorf("scheduler returned status %d: %s", scheduleResponse.StatusCode, string(body))
 	}
 
 	var result types.GenerateScheduleResponse

@@ -1,13 +1,18 @@
 package scheduler
 
-import "time"
+type AvailabilityWindow struct {
+	DayOfWeek int    `json:"day_of_week"`
+	Start     string `json:"start"` // "HH:MM:SS"
+	End       string `json:"end"`   // "HH:MM:SS"
+}
 
 type Assistant struct {
-	ID          string   `json:"id"`
-	Courses     []string `json:"courses"`
-	MinHours    float32  `json:"min_hours"`
-	MaxHours    float32  `json:"max_hours"`
-	CostPerHour float32  `json:"cost_per_hour"`
+	ID           string               `json:"id"`
+	Courses      []string             `json:"courses"`
+	Availability []AvailabilityWindow `json:"availability"`
+	MinHours     float32              `json:"min_hours"`
+	MaxHours     float32              `json:"max_hours"`
+	CostPerHour  float32              `json:"cost_per_hour"`
 }
 
 type CourseDemand struct {
@@ -19,12 +24,12 @@ type CourseDemand struct {
 type Shift struct {
 	ID            string            `json:"id"`
 	DayOfWeek     int               `json:"day_of_week"`
-	Start         time.Time         `json:"start"`
-	End           time.Time         `json:"end"`
+	Start         string            `json:"start"` // "HH:MM:SS"
+	End           string            `json:"end"`   // "HH:MM:SS"
 	CourseDemands []CourseDemand    `json:"course_demands"`
 	MinStaff      int               `json:"min_staff"`
 	MaxStaff      *int              `json:"max_staff,omitempty"`
-	Metadata      map[string]string `json:"metadata"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
 type SchedulerConfig struct {
@@ -43,9 +48,9 @@ type SchedulerConfig struct {
 }
 
 type Assignment struct {
-	AssistantID string    `json:"assistant_id"`
-	ShiftID     string    `json:"shift_id"`
-	DayOfWeek   int       `json:"day_of_week"`
-	Start       time.Time `json:"start"`
-	End         time.Time `json:"end"`
+	AssistantID string `json:"assistant_id"`
+	ShiftID     string `json:"shift_id"`
+	DayOfWeek   int    `json:"day_of_week"`
+	Start       string `json:"start"` // "HH:MM:SS"
+	End         string `json:"end"`   // "HH:MM:SS"
 }

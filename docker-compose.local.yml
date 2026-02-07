@@ -9,9 +9,10 @@ services:
     volumes:
       - ./backend:/app
       - /app/tmp  # Exclude tmp dir from mount
+    env_file:
+      - .env.local
     environment:
       - DATABASE_URL=postgres://helpdesk:helpdesk_local@postgres:5432/helpdesk?sslmode=disable
-      - SCHEDULER_URL=http://scheduler:8000
     depends_on:
       postgres:
         condition: service_healthy
