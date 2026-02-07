@@ -2,6 +2,7 @@
 DROP TRIGGER IF EXISTS trg_schedules_created_by ON "schedule"."schedules";
 DROP TRIGGER IF EXISTS trg_schedules_updated_at ON "schedule"."schedules";
 DROP TRIGGER IF EXISTS trg_payments_updated_at ON "auth"."payments";
+DROP TRIGGER IF EXISTS trg_banking_details_updated_at ON "auth"."banking_details";
 DROP TRIGGER IF EXISTS trg_users_updated_at ON "auth"."users";
 DROP TRIGGER IF EXISTS trg_students_updated_at ON "auth"."students";
 
@@ -16,7 +17,7 @@ DROP INDEX IF EXISTS "auth"."payments_idx_period";
 DROP INDEX IF EXISTS "auth"."payments_idx_student_id";
 DROP INDEX IF EXISTS "schedule"."time_logs_idx_student_id";
 DROP INDEX IF EXISTS "schedule"."time_logs_idx_entry_at";
-DROP INDEX IF EXISTS "auth"."students_dx_students_accepted_at";
+DROP INDEX IF EXISTS "auth"."students_idx_accepted_at";
 
 -- Drop tables (reverse order of creation, respecting dependencies)
 DROP TABLE IF EXISTS "auth"."payments";
@@ -29,7 +30,6 @@ DROP TABLE IF EXISTS "auth"."students";
 -- Drop trigger functions
 DROP FUNCTION IF EXISTS set_created_by();
 DROP FUNCTION IF EXISTS set_updated_at();
-DROP FUNCTION IF EXISTS set_created_at();
 
 -- Drop types
 DROP TYPE IF EXISTS "auth"."roles";
