@@ -6,7 +6,11 @@ A help desk and rostering application built with Go and React.
 
 ```bash
 # 1. Install global tools (one-time)
-brew install go-task/tap/go-task
+-- Installing go.Task --
+brew install go-task/tap/go-task (Linux)
+winget install Task.Task (Windows)
+npm install -g @go-task/cli (Cross-Platform)
+----
 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 go install github.com/go-jet/jet/v2/cmd/jet@latest
 
@@ -17,8 +21,6 @@ task migrate:up
 # 3. Generate models (after migrations)
 task generate:models
 
-# 4. Start development
-task dev
 ```
 
 **Services:**
