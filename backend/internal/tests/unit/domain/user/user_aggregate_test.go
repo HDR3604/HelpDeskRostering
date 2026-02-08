@@ -1,15 +1,10 @@
-<<<<<<< HEAD
 package user_test
-=======
-package user
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 import (
 	"testing"
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user"
-<<<<<<< HEAD
 	"github.com/stretchr/testify/suite"
 )
 
@@ -30,51 +25,31 @@ const (
 
 var RoleValues = []Role{Role_Admin, Role_Student}
 
-=======
-)
-
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 // TestNewUser_Success tests creating a valid user
 func TestNewUser_Success(t *testing.T) {
 	tests := []struct {
 		name     string
 		email    string
 		password string
-<<<<<<< HEAD
 		role     Role
-=======
-		role     string
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	}{
 		{
 			name:     "create admin user",
 			email:    "admin@uwi.edu",
 			password: "SecurePassword123",
-<<<<<<< HEAD
 			role:     Role_Admin,
-=======
-			role:     user.RoleAdmin,
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 		},
 		{
 			name:     "create student user",
 			email:    "student@my.uwi.edu",
 			password: "StudentPassword789",
-<<<<<<< HEAD
 			role:     Role_Student,
-=======
-			role:     user.RoleStudent,
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-<<<<<<< HEAD
 			u, err := user.NewUser(tt.email, tt.password, user.Role(tt.role))
-=======
-			u, err := user.NewUser(tt.email, tt.password, tt.role)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 			if err != nil {
 				t.Errorf("NewUser() error = %v, want nil", err)
@@ -92,11 +67,7 @@ func TestNewUser_Success(t *testing.T) {
 			if u.Password != tt.password {
 				t.Errorf("Password = %v, want %v", u.Password, tt.password)
 			}
-<<<<<<< HEAD
 			if u.Role != user.Role(tt.role) {
-=======
-			if u.Role != tt.role {
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 				t.Errorf("Role = %v, want %v", u.Role, tt.role)
 			}
 			if !u.IsActive {
@@ -123,11 +94,7 @@ func TestNewUser_InvalidEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-<<<<<<< HEAD
 			u, err := user.NewUser(tt.email, "ValidPassword123", user.Role_Student)
-=======
-			u, err := user.NewUser(tt.email, "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 			if err != user.ErrInvalidEmail {
 				t.Errorf("NewUser() error = %v, want %v", err, user.ErrInvalidEmail)
@@ -153,11 +120,7 @@ func TestNewUser_InvalidRole(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-<<<<<<< HEAD
 			u, err := user.NewUser("valid@my.uwi.edu", "ValidPassword123", user.Role(tt.role))
-=======
-			u, err := user.NewUser("valid@my.uwi.edu", "ValidPassword123", tt.role)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 			if err != user.ErrInvalidRole {
 				t.Errorf("NewUser() error = %v, want %v", err, user.ErrInvalidRole)
@@ -184,11 +147,7 @@ func TestNewUser_InvalidPassword(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.password == "P12345" {
 				// Minimal valid password should succeed
-<<<<<<< HEAD
 				u, err := user.NewUser("valid@my.uwi.edu", tt.password, user.Role_Student)
-=======
-				u, err := user.NewUser("valid@my.uwi.edu", tt.password, user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 				if err != nil {
 					t.Errorf("NewUser() error = %v, want nil for 6-char password", err)
 				}
@@ -198,11 +157,7 @@ func TestNewUser_InvalidPassword(t *testing.T) {
 				return
 			}
 
-<<<<<<< HEAD
 			u, err := user.NewUser("valid@my.uwi.edu", tt.password, user.Role_Student)
-=======
-			u, err := user.NewUser("valid@my.uwi.edu", tt.password, user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 			if err == nil {
 				t.Errorf("NewUser() error = nil, want error for password %q", tt.password)
@@ -216,11 +171,7 @@ func TestNewUser_InvalidPassword(t *testing.T) {
 
 // TestActivate_Success tests activating an inactive user
 func TestActivate_Success(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -238,11 +189,7 @@ func TestActivate_Success(t *testing.T) {
 
 // TestActivate_AlreadyActive tests activating an already active user
 func TestActivate_AlreadyActive(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -250,21 +197,13 @@ func TestActivate_AlreadyActive(t *testing.T) {
 	err = u.Activate()
 
 	if err == nil {
-<<<<<<< HEAD
 		return // No error expected if already active
-=======
-		t.Error("Activate() error = nil, want error for already active user")
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	}
 }
 
 // TestDeactivate_Success tests deactivating an active user
 func TestDeactivate_Success(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -281,11 +220,7 @@ func TestDeactivate_Success(t *testing.T) {
 
 // TestDeactivate_AlreadyInactive tests deactivating an already inactive user
 func TestDeactivate_AlreadyInactive(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -294,21 +229,13 @@ func TestDeactivate_AlreadyInactive(t *testing.T) {
 	err = u.Deactivate()
 
 	if err == nil {
-<<<<<<< HEAD
 		return // No error expected if already inactive
-=======
-		t.Error("Deactivate() error = nil, want error for already inactive user")
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	}
 }
 
 // TestUpdateEmail_Success tests updating email with valid new email
 func TestUpdateEmail_Success(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("old@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("old@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -326,11 +253,7 @@ func TestUpdateEmail_Success(t *testing.T) {
 
 // TestUpdateEmail_InvalidEmail tests updating to invalid email
 func TestUpdateEmail_InvalidEmail(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("old@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("old@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -347,11 +270,7 @@ func TestUpdateEmail_InvalidEmail(t *testing.T) {
 
 // TestUpdateEmail_SameEmail tests updating to same email
 func TestUpdateEmail_SameEmail(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -365,19 +284,11 @@ func TestUpdateEmail_SameEmail(t *testing.T) {
 
 // TestUpdateRole_Success tests updating role with valid new role
 func TestUpdateRole_Success(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
 	newRole := user.Role_Admin
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
-	if err != nil {
-		t.Fatalf("NewUser() error = %v", err)
-	}
-	newRole := user.RoleAdmin
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 	err = u.UpdateRole(newRole)
 
@@ -391,11 +302,7 @@ func TestUpdateRole_Success(t *testing.T) {
 
 // TestUpdateRole_InvalidRole tests updating to invalid role
 func TestUpdateRole_InvalidRole(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -405,31 +312,19 @@ func TestUpdateRole_InvalidRole(t *testing.T) {
 	if err != user.ErrInvalidRole {
 		t.Errorf("UpdateRole() error = %v, want %v", err, user.ErrInvalidRole)
 	}
-<<<<<<< HEAD
 	if u.Role != user.Role_Student {
-=======
-	if u.Role != user.RoleStudent {
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 		t.Error("Role was changed despite invalid update")
 	}
 }
 
 // TestUpdateRole_SameRole tests updating to same role
 func TestUpdateRole_SameRole(t *testing.T) {
-<<<<<<< HEAD
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
 
-<<<<<<< HEAD
 	err = u.UpdateRole(user.Role_Student)
-=======
-	err = u.UpdateRole(user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 
 	if err == nil {
 		t.Error("UpdateRole() error = nil, want error for same role")
@@ -445,7 +340,6 @@ func TestValidRoles(t *testing.T) {
 		t.Errorf("ValidRoles() returned %d roles, want %d", len(roles), expectedLen)
 	}
 
-<<<<<<< HEAD
 	expectedRoles := map[Role]bool{
 		Role_Admin:   true,
 		Role_Student: true,
@@ -453,47 +347,14 @@ func TestValidRoles(t *testing.T) {
 
 	for _, role := range roles {
 		if !expectedRoles[Role(role)] {
-=======
-	expectedRoles := map[string]bool{
-		user.RoleAdmin:   true,
-		user.RoleStudent: true,
-	}
-
-	for _, role := range roles {
-		if !expectedRoles[role] {
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 			t.Errorf("ValidRoles() returned unexpected role: %v", role)
 		}
 	}
 }
 
-<<<<<<< HEAD
 // TestUserTimestamps_UpdatedOnChange tests that UpdatedAt changes when user is modified
 func TestUserTimestamps_UpdatedOnChange(t *testing.T) {
 	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.Role_Student)
-=======
-// TestUserTimestamps tests that timestamps are set correctly
-func TestUserTimestamps(t *testing.T) {
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
-	if err != nil {
-		t.Fatalf("NewUser() error = %v", err)
-	}
-
-	if u.CreatedAt.IsZero() {
-		t.Error("CreatedAt is zero")
-	}
-	if u.UpdatedAt.IsZero() {
-		t.Error("UpdatedAt is zero")
-	}
-	if u.CreatedAt != u.UpdatedAt {
-		t.Error("CreatedAt and UpdatedAt should be equal for new user")
-	}
-}
-
-// TestUserTimestamps_UpdatedOnChange tests that UpdatedAt changes when user is modified
-func TestUserTimestamps_UpdatedOnChange(t *testing.T) {
-	u, err := user.NewUser("test@my.uwi.edu", "ValidPassword123", user.RoleStudent)
->>>>>>> d39032e56c3bb20da5580468a51cbead1422e689
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
