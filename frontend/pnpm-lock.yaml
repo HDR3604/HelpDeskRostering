@@ -53,6 +53,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -81,9 +84,6 @@ importers:
       shadcn:
         specifier: ^3.8.4
         version: 3.8.4(@types/node@25.2.0)(typescript@5.9.3)
-      tw-animate-css:
-        specifier: ^1.4.0
-        version: 1.4.0
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

@@ -11,4 +11,4 @@ RUN pnpm install
 
 EXPOSE 5173
 
-CMD ["pnpm", "dev", "--host"]
+CMD ["sh", "-c", "pnpm install && pnpm dev --host"]
