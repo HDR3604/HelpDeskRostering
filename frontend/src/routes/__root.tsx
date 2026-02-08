@@ -27,6 +27,15 @@ function RootComponent() {
         >
           About
         </Link>
+        <Link
+          to="/showcase"
+          activeProps={{
+            className: 'font-bold',
+          }}
+        >
+          Component Showcase
+        </Link>
+
       </div>
       <hr />
       <Outlet />
