@@ -11,23 +11,27 @@ import (
 )
 
 // Role constants - mapped to database models
+type Role string
+
 const (
-	RoleAdmin   = "admin"
-	RoleStudent = "student"
+	Role_Admin   Role = "admin"
+	Role_Student Role = "student"
 )
+
+var RoleValues = []Role{Role_Admin, Role_Student}
 
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	Password  string    `json:"password"`
-	Role      string    `json:"role"`
+	Role      Role      `json:"role"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // NewUser creates a new User with validation
-func NewUser(email, password, role string) (*User, error) {
+func NewUser(email, password string, role Role) (*User, error) {
 	// Validate email
 	if isValidEmail(email) != nil {
 		return nil, ErrInvalidEmail
@@ -48,26 +52,23 @@ func NewUser(email, password, role string) (*User, error) {
 		return nil, err
 	}
 
-	now := time.Now()
 	return &User{
-		ID:        uuid.New(),
-		Email:     email,
-		Password:  password,
-		Role:      role,
-		IsActive:  true,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:       uuid.New(),
+		Email:    email,
+		Password: password,
+		Role:     role,
+		IsActive: true,
 	}, nil
 }
 
 func validatePassword(password string) error {
 	if len(password) < 6 {
-		return errors.New("password must be at least 6 characters")
+		return ErrInvalidPasswordLength
 	}
 	hasLetter := regexp.MustCompile(`[A-Za-z]`).MatchString(password)
 	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
 	if !hasLetter || !hasDigit {
-		return errors.New("password must contain at least one letter and one number")
+		return ErrInvalidPasswordComplexity
 	}
 	return nil
 }
@@ -75,7 +76,7 @@ func validatePassword(password string) error {
 // Activate marks the user as active
 func (u *User) Activate() error {
 	if u.IsActive {
-		return errors.New("user is already active")
+		return nil // No error if already active
 	}
 	u.IsActive = true
 	u.UpdatedAt = time.Now()
@@ -85,7 +86,7 @@ func (u *User) Activate() error {
 // Deactivate marks the user as inactive
 func (u *User) Deactivate() error {
 	if !u.IsActive {
-		return errors.New("user is already inactive")
+		return nil // No error if already inactive
 	}
 	u.IsActive = false
 	u.UpdatedAt = time.Now()
@@ -99,7 +100,7 @@ func (u *User) UpdateEmail(newEmail string) error {
 	}
 
 	if newEmail == u.Email {
-		return errors.New("new email must be different from current email")
+		return ErrEmailUnchanged
 	}
 
 	u.Email = newEmail
@@ -108,23 +109,22 @@ func (u *User) UpdateEmail(newEmail string) error {
 }
 
 // UpdateRole updates the user's role with validation
-func (u *User) UpdateRole(newRole string) error {
+func (u *User) UpdateRole(newRole Role) error {
 	if !isValidRole(newRole) {
 		return ErrInvalidRole
 	}
 
 	if newRole == u.Role {
-		return errors.New("new role must be different from current role")
+		return ErrRoleUnchanged
 	}
 
 	u.Role = newRole
-	u.UpdatedAt = time.Now()
 	return nil
 }
 
 // isValidEmail checks if email format is valid
 func isValidEmail(email string) error {
-	if len(email) == 0 {
+	if len(strings.TrimSpace(email)) == 0 {
 		return ErrInvalidEmail
 	}
 	if !strings.HasSuffix(email, "@my.uwi.edu") && !strings.HasSuffix(email, "@uwi.edu") {
@@ -140,17 +140,17 @@ func isValidEmail(email string) error {
 }
 
 // isValidRole checks if role is valid
-func isValidRole(role string) bool {
-	validRoles := map[string]bool{
-		RoleAdmin:   true,
-		RoleStudent: true,
+func isValidRole(role Role) bool {
+	validRoles := map[Role]bool{
+		Role_Admin:   true,
+		Role_Student: true,
 	}
 	return validRoles[role]
 }
 
 // ValidRoles returns a list of valid roles
-func ValidRoles() []string {
-	return []string{RoleAdmin, RoleStudent}
+func ValidRoles() []Role {
+	return []Role{Role_Admin, Role_Student}
 }
 
 // Roles returns the model.Roles enum values
@@ -158,10 +158,10 @@ func Roles() []model.Roles {
 	return model.RolesAllValues
 }
 
-func ValidateRoleAgainstEmail(role, email string) error {
-	if role == RoleAdmin && !strings.HasSuffix(email, "@uwi.edu") {
+func ValidateRoleAgainstEmail(role Role, email string) error {
+	if role == Role_Admin && !strings.HasSuffix(email, "@uwi.edu") {
 		return errors.New("admin email must end with @uwi.edu")
-	} else if role == RoleStudent && !strings.HasSuffix(email, "@my.uwi.edu") {
+	} else if role == Role_Student && !strings.HasSuffix(email, "@my.uwi.edu") {
 		return errors.New("student email must end with @my.uwi.edu")
 	}
 	return nil
