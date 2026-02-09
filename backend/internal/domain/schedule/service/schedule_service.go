@@ -54,8 +54,15 @@ func (s *ScheduleService) Create(ctx context.Context, schedule *aggregate.Schedu
 		return nil, err
 	}
 
+	userID, err := uuid.Parse(authCtx.UserID)
+	if err != nil {
+		s.logger.Error("invalid user ID in auth context", zap.String("user_id", authCtx.UserID), zap.Error(err))
+		return nil, scheduleErrors.ErrMissingAuthContext
+	}
+	schedule.CreatedBy = userID
+
 	var result *aggregate.Schedule
-	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repository.Create(ctx, tx, schedule)
 		return txErr
@@ -140,12 +147,11 @@ func (s *ScheduleService) List(ctx context.Context) ([]*aggregate.Schedule, erro
 func (s *ScheduleService) Archive(ctx context.Context, id uuid.UUID) error {
 	s.logger.Info("archiving schedule", zap.String("schedule_id", id.String()))
 
-	authCtx, err := s.authCtx(ctx)
-	if err != nil {
+	if _, err := s.authCtx(ctx); err != nil {
 		return err
 	}
 
-	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		schedule, txErr := s.repository.GetByID(ctx, tx, id)
 		if txErr != nil {
 			return txErr
@@ -165,12 +171,11 @@ func (s *ScheduleService) Archive(ctx context.Context, id uuid.UUID) error {
 func (s *ScheduleService) Unarchive(ctx context.Context, id uuid.UUID) error {
 	s.logger.Info("unarchiving schedule", zap.String("schedule_id", id.String()))
 
-	authCtx, err := s.authCtx(ctx)
-	if err != nil {
+	if _, err := s.authCtx(ctx); err != nil {
 		return err
 	}
 
-	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		schedule, txErr := s.repository.GetByID(ctx, tx, id)
 		if txErr != nil {
 			return txErr
@@ -190,12 +195,11 @@ func (s *ScheduleService) Unarchive(ctx context.Context, id uuid.UUID) error {
 func (s *ScheduleService) Activate(ctx context.Context, id uuid.UUID) error {
 	s.logger.Info("activating schedule", zap.String("schedule_id", id.String()))
 
-	authCtx, err := s.authCtx(ctx)
-	if err != nil {
+	if _, err := s.authCtx(ctx); err != nil {
 		return err
 	}
 
-	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		schedule, txErr := s.repository.GetByID(ctx, tx, id)
 		if txErr != nil {
 			return txErr
@@ -215,12 +219,11 @@ func (s *ScheduleService) Activate(ctx context.Context, id uuid.UUID) error {
 func (s *ScheduleService) Deactivate(ctx context.Context, id uuid.UUID) error {
 	s.logger.Info("deactivating schedule", zap.String("schedule_id", id.String()))
 
-	authCtx, err := s.authCtx(ctx)
-	if err != nil {
+	if _, err := s.authCtx(ctx); err != nil {
 		return err
 	}
 
-	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		schedule, txErr := s.repository.GetByID(ctx, tx, id)
 		if txErr != nil {
 			return txErr

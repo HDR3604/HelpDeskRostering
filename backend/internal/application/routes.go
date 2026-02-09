@@ -5,13 +5,16 @@ import (
 	"net/http"
 
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
+	"github.com/go-chi/chi/v5"
 )
 
-func registerRoutes(mux *http.ServeMux, scheduleHdl *scheduleHandler.ScheduleHandler) {
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+func registerRoutes(r *chi.Mux, scheduleHdl *scheduleHandler.ScheduleHandler) {
+	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "OK")
 	})
 
-	scheduleHdl.RegisterRoutes(mux)
+	r.Route("/api/v1", func(r chi.Router) {
+		scheduleHdl.RegisterRoutes(r)
+	})
 }

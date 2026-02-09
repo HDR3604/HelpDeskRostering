@@ -13,6 +13,8 @@ import (
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
@@ -62,9 +64,12 @@ func NewApp(cfg Config) (*App, error) {
 	// Handlers
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)
 
-	// Routes
-	mux := http.NewServeMux()
-	registerRoutes(mux, scheduleHdl)
+	// Router
+	r := chi.NewRouter()
+	r.Use(middleware.Recoverer)
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	registerRoutes(r, scheduleHdl)
 
 	app := &App{
 		config: cfg,
@@ -72,7 +77,7 @@ func NewApp(cfg Config) (*App, error) {
 		logger: logger,
 		server: &http.Server{
 			Addr:         ":" + cfg.Port,
-			Handler:      mux,
+			Handler:      r,
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,

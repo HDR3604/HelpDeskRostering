@@ -54,7 +54,7 @@ func (r *ScheduleRepository) Create(ctx context.Context, tx *sql.Tx, schedule *a
 func (r *ScheduleRepository) GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.Schedule, error) {
 	stmt := table.Schedules.
 		SELECT(table.Schedules.AllColumns).
-		WHERE(table.Schedules.ScheduleID.EQ(postgres.String(id.String())))
+		WHERE(table.Schedules.ScheduleID.EQ(postgres.UUID(id)))
 
 	var result model.Schedules
 	err := stmt.QueryContext(ctx, tx, &result)
@@ -141,7 +141,7 @@ func (r *ScheduleRepository) Update(ctx context.Context, tx *sql.Tx, schedule *a
 		table.Schedules.ArchivedAt,
 		table.Schedules.EffectiveFrom,
 		table.Schedules.EffectiveTo,
-	).MODEL(m).WHERE(table.Schedules.ScheduleID.EQ(postgres.String(m.ScheduleID.String())))
+	).MODEL(m).WHERE(table.Schedules.ScheduleID.EQ(postgres.UUID(m.ScheduleID)))
 
 	result, err := stmt.ExecContext(ctx, tx)
 	if err != nil {

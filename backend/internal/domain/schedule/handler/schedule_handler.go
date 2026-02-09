@@ -9,6 +9,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -25,15 +26,17 @@ func NewScheduleHandler(logger *zap.Logger, service service.ScheduleServiceInter
 	}
 }
 
-func (h *ScheduleHandler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/schedules", h.Create)
-	mux.HandleFunc("GET /api/schedules", h.List)
-	mux.HandleFunc("GET /api/schedules/archived", h.ListArchived)
-	mux.HandleFunc("GET /api/schedules/{id}", h.GetByID)
-	mux.HandleFunc("PATCH /api/schedules/{id}/archive", h.Archive)
-	mux.HandleFunc("PATCH /api/schedules/{id}/unarchive", h.Unarchive)
-	mux.HandleFunc("PATCH /api/schedules/{id}/activate", h.Activate)
-	mux.HandleFunc("PATCH /api/schedules/{id}/deactivate", h.Deactivate)
+func (h *ScheduleHandler) RegisterRoutes(r chi.Router) {
+	r.Route("/schedules", func(r chi.Router) {
+		r.Post("/", h.Create)
+		r.Get("/", h.List)
+		r.Get("/archived", h.ListArchived)
+		r.Get("/{id}", h.GetByID)
+		r.Patch("/{id}/archive", h.Archive)
+		r.Patch("/{id}/unarchive", h.Unarchive)
+		r.Patch("/{id}/activate", h.Activate)
+		r.Patch("/{id}/deactivate", h.Deactivate)
+	})
 }
 
 func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +175,7 @@ func (h *ScheduleHandler) Deactivate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ScheduleHandler) parseID(r *http.Request) (uuid.UUID, error) {
-	return uuid.Parse(r.PathValue("id"))
+	return uuid.Parse(chi.URLParam(r, "id"))
 }
 
 func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
