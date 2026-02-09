@@ -20,8 +20,8 @@ type schedulesTable struct {
 	ScheduleID           postgres.ColumnString
 	Title                postgres.ColumnString
 	IsActive             postgres.ColumnBool
-	Assignments          postgres.ColumnString // This is used to store the assignments of students for a given schedule. { [student_id:int] { [0...4]: []int } }
-	AvailabilityMetadata postgres.ColumnString // This stores the availabilities that were used to generate the schedule. { [student_id:int]: map[int][]int }
+	Assignments          postgres.ColumnString // Scheduler output: [{assistant_id, shift_id, day_of_week, start, end}]
+	AvailabilityMetadata postgres.ColumnString // Snapshot of assistant availabilities used as scheduler input: [{id, courses, availability, min_hours, max_hours}]
 	CreatedAt            postgres.ColumnTimestampz
 	CreatedBy            postgres.ColumnString
 	UpdatedAt            postgres.ColumnTimestampz

@@ -21,7 +21,7 @@ type studentsTable struct {
 	EmailAddress       postgres.ColumnString
 	FirstName          postgres.ColumnString
 	LastName           postgres.ColumnString
-	TranscriptMetadata postgres.ColumnString // transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; }
+	TranscriptMetadata postgres.ColumnString // transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; current_level: string; }
 	Availability       postgres.ColumnString // Availability contains a json indicating the availability of a student for each time slot given. The times a represented in 24-hour format. e.g. 8 represents 8 am - 9am { 0: [8...16], . . 4: [8...16] // 24 hr format }
 	CreatedAt          postgres.ColumnTimestampz
 	UpdatedAt          postgres.ColumnTimestampz
