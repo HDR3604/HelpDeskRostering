@@ -13,6 +13,7 @@ import (
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
+	schedulerService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/lib/pq"
@@ -60,8 +61,9 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationRepository := scheduleRepo.NewScheduleGenerationRepository(logger)
 
 	// Services
-	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager)
 	scheduleGenerationSvc := scheduleService.NewScheduleGenerationService(logger, scheduleGenerationRepository, txManager)
+	schedulerSvc := schedulerService.NewSchedulerService(logger)
+	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc)
 
 	// Handlers
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)

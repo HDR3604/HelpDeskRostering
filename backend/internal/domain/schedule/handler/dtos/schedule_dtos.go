@@ -5,12 +5,21 @@ import (
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 )
 
 type CreateScheduleRequest struct {
 	Title         string  `json:"title"`
 	EffectiveFrom string  `json:"effective_from"` // format: "2006-01-02"
 	EffectiveTo   *string `json:"effective_to"`   // format: "2006-01-02"
+}
+
+type GenerateScheduleRequest struct {
+	ConfigID      string                        `json:"config_id"`
+	Title         string                        `json:"title"`
+	EffectiveFrom string                        `json:"effective_from"` // format: "2006-01-02"
+	EffectiveTo   *string                       `json:"effective_to"`   // format: "2006-01-02"
+	Request       types.GenerateScheduleRequest `json:"request"`
 }
 
 type ScheduleResponse struct {
@@ -25,6 +34,8 @@ type ScheduleResponse struct {
 	ArchivedAt           *time.Time      `json:"archived_at"`
 	EffectiveFrom        string          `json:"effective_from"`
 	EffectiveTo          *string         `json:"effective_to,omitempty"`
+	GenerationID         *string         `json:"generation_id,omitempty"`
+	SchedulerMetadata    json.RawMessage `json:"scheduler_metadata,omitempty"`
 }
 
 func ScheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
@@ -44,6 +55,15 @@ func ScheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
 	if s.EffectiveTo != nil {
 		formatted := s.EffectiveTo.Format("2006-01-02")
 		resp.EffectiveTo = &formatted
+	}
+
+	if s.GenerationID != nil {
+		gid := s.GenerationID.String()
+		resp.GenerationID = &gid
+	}
+
+	if s.SchedulerMetadata != nil {
+		resp.SchedulerMetadata = json.RawMessage(*s.SchedulerMetadata)
 	}
 
 	return resp

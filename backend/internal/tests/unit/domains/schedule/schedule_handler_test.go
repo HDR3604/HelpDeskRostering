@@ -12,6 +12,8 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
+	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/tests/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -274,4 +276,123 @@ func (s *ScheduleHandlerTestSuite) TestList_InternalError() {
 	rr := s.doRequest("GET", "/api/v1/schedules", "")
 
 	s.Equal(http.StatusInternalServerError, rr.Code)
+}
+
+// --- GenerateSchedule ---
+
+func (s *ScheduleHandlerTestSuite) generatedSchedule() *aggregate.Schedule {
+	genID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	metadata := `{"solver_status_code":2}`
+	return &aggregate.Schedule{
+		ScheduleID:           uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+		Title:                "Generated Schedule",
+		IsActive:             false,
+		Assignments:          json.RawMessage(`[{"assistant_id":"a1","shift_id":"s1","day_of_week":1,"start":"08:00:00","end":"12:00:00"}]`),
+		AvailabilityMetadata: json.RawMessage(`{}`),
+		CreatedAt:            time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		CreatedBy:            uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+		EffectiveFrom:        time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC),
+		GenerationID:         &genID,
+		SchedulerMetadata:    &metadata,
+	}
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Success() {
+	expected := s.generatedSchedule()
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+		s.Equal("Generated Schedule", params.Title)
+		s.Equal("2025-09-01", params.EffectiveFrom.Format("2006-01-02"))
+		return expected, nil
+	}
+
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Generated Schedule",
+		"effective_from": "2025-09-01",
+		"request": {
+			"assistants": [{"id": "a1", "courses": ["CS101"], "min_hours": 4, "max_hours": 10, "cost_per_hour": 20}],
+			"shifts": [{"id": "s1", "day_of_week": 1, "start": "08:00:00", "end": "12:00:00"}]
+		}
+	}`)
+
+	s.Equal(http.StatusCreated, rr.Code)
+
+	var resp map[string]any
+	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
+	s.Equal("Generated Schedule", resp["title"])
+	s.Equal("33333333-3333-3333-3333-333333333333", resp["generation_id"])
+	s.NotNil(resp["scheduler_metadata"])
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidBody() {
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `not json`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidConfigID() {
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "not-a-uuid",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"request": {"assistants": [], "shifts": []}
+	}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidDateFormat() {
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "Sept 1",
+		"request": {"assistants": [], "shifts": []}
+	}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_SchedulerUnavailable() {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+		return nil, schedulerErrors.ErrSchedulerUnavailable
+	}
+
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"request": {"assistants": [], "shifts": []}
+	}`)
+
+	s.Equal(http.StatusBadGateway, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Infeasible() {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+		return nil, schedulerErrors.ErrInfeasible
+	}
+
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"request": {"assistants": [], "shifts": []}
+	}`)
+
+	s.Equal(http.StatusUnprocessableEntity, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Unauthorized() {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+		return nil, scheduleErrors.ErrMissingAuthContext
+	}
+
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"request": {"assistants": [], "shifts": []}
+	}`)
+
+	s.Equal(http.StatusUnauthorized, rr.Code)
 }

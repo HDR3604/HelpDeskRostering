@@ -56,11 +56,13 @@ func (s *ScheduleRepositoryTestSuite) TearDownTest() {
 
 func (s *ScheduleRepositoryTestSuite) createSchedule(title string, effectiveFrom time.Time, effectiveTo *time.Time) *aggregate.Schedule {
 	schedule := &aggregate.Schedule{
-		ScheduleID:    uuid.New(),
-		Title:         title,
-		CreatedBy:     s.userID,
-		EffectiveFrom: effectiveFrom,
-		EffectiveTo:   effectiveTo,
+		ScheduleID:           uuid.New(),
+		Title:                title,
+		Assignments:          json.RawMessage("{}"),
+		AvailabilityMetadata: json.RawMessage("{}"),
+		CreatedBy:            s.userID,
+		EffectiveFrom:        effectiveFrom,
+		EffectiveTo:          effectiveTo,
 	}
 
 	var result *aggregate.Schedule

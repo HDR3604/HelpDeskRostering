@@ -35,9 +35,13 @@ func (r *ScheduleRepository) Create(ctx context.Context, tx *sql.Tx, schedule *a
 	stmt := table.Schedules.INSERT(
 		table.Schedules.ScheduleID,
 		table.Schedules.Title,
+		table.Schedules.Assignments,
+		table.Schedules.AvailabilityMetadata,
 		table.Schedules.CreatedBy,
 		table.Schedules.EffectiveFrom,
 		table.Schedules.EffectiveTo,
+		table.Schedules.GenerationID,
+		table.Schedules.SchedulerMetadata,
 	).MODEL(m).RETURNING(table.Schedules.AllColumns)
 
 	var result model.Schedules
@@ -141,6 +145,8 @@ func (r *ScheduleRepository) Update(ctx context.Context, tx *sql.Tx, schedule *a
 		table.Schedules.ArchivedAt,
 		table.Schedules.EffectiveFrom,
 		table.Schedules.EffectiveTo,
+		table.Schedules.GenerationID,
+		table.Schedules.SchedulerMetadata,
 	).MODEL(m).WHERE(table.Schedules.ScheduleID.EQ(postgres.UUID(m.ScheduleID)))
 
 	result, err := stmt.ExecContext(ctx, tx)

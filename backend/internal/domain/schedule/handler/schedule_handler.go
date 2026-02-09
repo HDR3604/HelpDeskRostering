@@ -10,6 +10,7 @@ import (
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler/dtos"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,6 +31,7 @@ func NewScheduleHandler(logger *zap.Logger, service service.ScheduleServiceInter
 func (h *ScheduleHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/schedules", func(r chi.Router) {
 		r.Post("/", h.Create)
+		r.Post("/generate", h.GenerateSchedule)
 		r.Get("/", h.List)
 		r.Get("/archived", h.ListArchived)
 		r.Get("/{id}", h.GetByID)
@@ -77,6 +79,53 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, dtos.ScheduleToResponse(created))
+}
+
+func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Request) {
+	var req dtos.GenerateScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid request body", zap.Error(err))
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	configID, err := uuid.Parse(req.ConfigID)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid config_id")
+		return
+	}
+
+	effectiveFrom, err := time.Parse("2006-01-02", req.EffectiveFrom)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid effective_from date format, expected YYYY-MM-DD")
+		return
+	}
+
+	var effectiveTo *time.Time
+	if req.EffectiveTo != nil {
+		parsed, err := time.Parse("2006-01-02", *req.EffectiveTo)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid effective_to date format, expected YYYY-MM-DD")
+			return
+		}
+		effectiveTo = &parsed
+	}
+
+	params := service.GenerateScheduleParams{
+		ConfigID:      configID,
+		Title:         req.Title,
+		EffectiveFrom: effectiveFrom,
+		EffectiveTo:   effectiveTo,
+		Request:       req.Request,
+	}
+
+	schedule, err := h.service.GenerateSchedule(r.Context(), params)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, dtos.ScheduleToResponse(schedule))
 }
 
 func (h *ScheduleHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -188,6 +237,13 @@ func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, scheduleErrors.ErrMissingAuthContext):
 		writeError(w, http.StatusUnauthorized, "unauthorized")
+	case errors.Is(err, schedulerErrors.ErrSchedulerUnavailable),
+		errors.Is(err, schedulerErrors.ErrSchedulerInternal):
+		writeError(w, http.StatusBadGateway, "scheduler service unavailable")
+	case errors.Is(err, schedulerErrors.ErrInvalidRequest):
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+	case errors.Is(err, schedulerErrors.ErrInfeasible):
+		writeError(w, http.StatusUnprocessableEntity, "no feasible schedule found")
 	default:
 		h.logger.Error("unhandled service error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal server error")

@@ -3,14 +3,29 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
+	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/interfaces"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+// GenerateScheduleParams holds the parameters for schedule generation.
+type GenerateScheduleParams struct {
+	ConfigID      uuid.UUID
+	Title         string
+	EffectiveFrom time.Time
+	EffectiveTo   *time.Time
+	Request       types.GenerateScheduleRequest
+}
 
 type ScheduleServiceInterface interface {
 	Create(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
@@ -21,19 +36,30 @@ type ScheduleServiceInterface interface {
 	Unarchive(ctx context.Context, id uuid.UUID) error
 	Activate(ctx context.Context, id uuid.UUID) error
 	Deactivate(ctx context.Context, id uuid.UUID) error
+	GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.Schedule, error)
 }
 
 type ScheduleService struct {
-	logger     *zap.Logger
-	repository repository.ScheduleRepositoryInterface
-	txManager  database.TxManagerInterface
+	logger        *zap.Logger
+	repository    repository.ScheduleRepositoryInterface
+	txManager     database.TxManagerInterface
+	generationSvc ScheduleGenerationServiceInterface
+	schedulerSvc  interfaces.SchedulerServiceInterface
 }
 
-func NewScheduleService(logger *zap.Logger, repository repository.ScheduleRepositoryInterface, txManager database.TxManagerInterface) *ScheduleService {
+func NewScheduleService(
+	logger *zap.Logger,
+	repository repository.ScheduleRepositoryInterface,
+	txManager database.TxManagerInterface,
+	generationSvc ScheduleGenerationServiceInterface,
+	schedulerSvc interfaces.SchedulerServiceInterface,
+) *ScheduleService {
 	return &ScheduleService{
-		logger:     logger,
-		repository: repository,
-		txManager:  txManager,
+		logger:        logger,
+		repository:    repository,
+		txManager:     txManager,
+		generationSvc: generationSvc,
+		schedulerSvc:  schedulerSvc,
 	}
 }
 
@@ -238,4 +264,134 @@ func (s *ScheduleService) Deactivate(ctx context.Context, id uuid.UUID) error {
 
 	s.logger.Info("schedule deactivated", zap.String("schedule_id", id.String()))
 	return nil
+}
+
+func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.Schedule, error) {
+	s.logger.Info("generating schedule",
+		zap.String("title", params.Title),
+		zap.String("config_id", params.ConfigID.String()),
+	)
+
+	// Validate auth context
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	userID, err := uuid.Parse(authCtx.UserID)
+	if err != nil {
+		s.logger.Error("invalid user ID in auth context", zap.String("user_id", authCtx.UserID), zap.Error(err))
+		return nil, scheduleErrors.ErrMissingAuthContext
+	}
+
+	// Marshal request payload for audit
+	requestPayload, err := json.Marshal(params.Request)
+	if err != nil {
+		s.logger.Error("failed to marshal request payload", zap.Error(err))
+		return nil, err
+	}
+
+	// Create generation record and mark started
+	generation, err := s.generationSvc.Create(ctx, params.ConfigID, userID, string(requestPayload))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.generationSvc.MarkStarted(ctx, generation.ID); err != nil {
+		return nil, err
+	}
+
+	// Ensure generation is resolved on any failure after MarkStarted.
+	// On success path, genErr stays nil and the defer is a no-op.
+	var genErr error
+	defer func() {
+		if genErr == nil {
+			return
+		}
+		if errors.Is(genErr, schedulerErrors.ErrInfeasible) {
+			if markErr := s.generationSvc.MarkInfeasible(ctx, generation.ID, "", genErr.Error()); markErr != nil {
+				s.logger.Error("failed to mark generation as infeasible",
+					zap.String("generation_id", generation.ID.String()),
+					zap.Error(markErr),
+				)
+			}
+		} else {
+			if markErr := s.generationSvc.MarkFailed(ctx, generation.ID, genErr.Error()); markErr != nil {
+				s.logger.Error("failed to mark generation as failed",
+					zap.String("generation_id", generation.ID.String()),
+					zap.Error(markErr),
+				)
+			}
+		}
+	}()
+
+	// Call Python scheduler
+	response, err := s.schedulerSvc.GenerateSchedule(params.Request)
+	if err != nil {
+		genErr = err
+		s.logger.Error("scheduler failed", zap.String("generation_id", generation.ID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	// Marshal response for audit trail and schedule storage
+	responsePayload, err := json.Marshal(response)
+	if err != nil {
+		genErr = err
+		s.logger.Error("failed to marshal response payload", zap.Error(err))
+		return nil, err
+	}
+
+	assignmentsBytes, err := json.Marshal(response.Assignments)
+	if err != nil {
+		genErr = err
+		s.logger.Error("failed to marshal assignments", zap.Error(err))
+		return nil, err
+	}
+
+	metadataBytes, err := json.Marshal(response.Metadata)
+	if err != nil {
+		genErr = err
+		s.logger.Error("failed to marshal scheduler metadata", zap.Error(err))
+		return nil, err
+	}
+	schedulerMetadata := string(metadataBytes)
+
+	// Create schedule with generation link
+	schedule, err := aggregate.NewSchedule(params.Title, params.EffectiveFrom, params.EffectiveTo)
+	if err != nil {
+		genErr = err
+		return nil, err
+	}
+	schedule.CreatedBy = userID
+	schedule.Assignments = assignmentsBytes
+	schedule.GenerationID = &generation.ID
+	schedule.SchedulerMetadata = &schedulerMetadata
+
+	var result *aggregate.Schedule
+	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repository.Create(ctx, tx, schedule)
+		return txErr
+	})
+	if err != nil {
+		genErr = err
+		s.logger.Error("failed to create schedule from generation", zap.Error(err))
+		return nil, err
+	}
+
+	// Mark generation completed — genErr stays nil so defer won't fire
+	if err := s.generationSvc.MarkCompleted(ctx, generation.ID, result.ScheduleID, string(responsePayload)); err != nil {
+		s.logger.Error("failed to mark generation as completed",
+			zap.String("generation_id", generation.ID.String()),
+			zap.String("schedule_id", result.ScheduleID.String()),
+			zap.Error(err),
+		)
+	}
+
+	s.logger.Info("schedule generated",
+		zap.String("schedule_id", result.ScheduleID.String()),
+		zap.String("generation_id", generation.ID.String()),
+	)
+
+	return result, nil
 }

@@ -23,6 +23,8 @@ type Schedule struct {
 	ArchivedAt           *time.Time
 	EffectiveFrom        time.Time
 	EffectiveTo          *time.Time
+	GenerationID         *uuid.UUID
+	SchedulerMetadata    *string
 }
 
 // NewSchedule creates a new schedule with validation
@@ -38,10 +40,12 @@ func NewSchedule(title string, effectiveFrom time.Time, effectiveTo *time.Time) 
 	}
 
 	return &Schedule{
-		ScheduleID:    uuid.New(),
-		Title:         title,
-		EffectiveFrom: effectiveFrom,
-		EffectiveTo:   effectiveTo,
+		ScheduleID:           uuid.New(),
+		Title:                title,
+		Assignments:          json.RawMessage("{}"),
+		AvailabilityMetadata: json.RawMessage("{}"),
+		EffectiveFrom:        effectiveFrom,
+		EffectiveTo:          effectiveTo,
 	}, nil
 }
 
@@ -101,6 +105,8 @@ func (a *Schedule) ToModel() model.Schedules {
 		ArchivedAt:           a.ArchivedAt,
 		EffectiveFrom:        a.EffectiveFrom,
 		EffectiveTo:          a.EffectiveTo,
+		GenerationID:         a.GenerationID,
+		SchedulerMetadata:    a.SchedulerMetadata,
 	}
 }
 
@@ -118,5 +124,7 @@ func ScheduleFromModel(m model.Schedules) Schedule {
 		ArchivedAt:           m.ArchivedAt,
 		EffectiveFrom:        m.EffectiveFrom,
 		EffectiveTo:          m.EffectiveTo,
+		GenerationID:         m.GenerationID,
+		SchedulerMetadata:    m.SchedulerMetadata,
 	}
 }
