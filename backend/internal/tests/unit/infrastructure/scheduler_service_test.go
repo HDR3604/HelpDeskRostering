@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	domainErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/interfaces"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
@@ -101,7 +102,7 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_SchedulerReturns422() {
 	result, err := s.service.GenerateSchedule(s.validRequest())
 
 	s.Nil(result)
-	s.True(errors.Is(err, types.ErrInvalidRequest))
+	s.True(errors.Is(err, domainErrors.ErrInvalidRequest))
 }
 
 func (s *SchedulerServiceTestSuite) TestGenerateSchedule_SchedulerReturns500() {
@@ -115,7 +116,7 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_SchedulerReturns500() {
 	result, err := s.service.GenerateSchedule(s.validRequest())
 
 	s.Nil(result)
-	s.True(errors.Is(err, types.ErrSchedulerInternal))
+	s.True(errors.Is(err, domainErrors.ErrSchedulerInternal))
 }
 
 func (s *SchedulerServiceTestSuite) TestGenerateSchedule_HealthCheckFails() {
@@ -125,7 +126,7 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_HealthCheckFails() {
 	result, err := s.service.GenerateSchedule(s.validRequest())
 
 	s.Nil(result)
-	s.True(errors.Is(err, types.ErrSchedulerUnavailable))
+	s.True(errors.Is(err, domainErrors.ErrSchedulerUnavailable))
 }
 
 func (s *SchedulerServiceTestSuite) TestGenerateSchedule_MalformedResponse() {
@@ -140,6 +141,5 @@ func (s *SchedulerServiceTestSuite) TestGenerateSchedule_MalformedResponse() {
 	result, err := s.service.GenerateSchedule(s.validRequest())
 
 	s.Nil(result)
-	s.True(errors.Is(err, types.ErrUnmarshalResponse))
+	s.True(errors.Is(err, domainErrors.ErrUnmarshalResponse))
 }
-

@@ -2,19 +2,12 @@ package aggregate
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
+	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
 	"github.com/google/uuid"
-)
-
-// Domain errors
-var (
-	ErrInvalidTitle           = errors.New("invalid title provided")
-	ErrNotFound               = errors.New("schedule not found")
-	ErrInvalidEffectivePeriod = errors.New("effective from must be before effective to and not equal")
 )
 
 // Schedule
@@ -35,12 +28,12 @@ type Schedule struct {
 // NewSchedule creates a new schedule with validation
 func NewSchedule(title string, effectiveFrom time.Time, effectiveTo *time.Time) (*Schedule, error) {
 	if strings.TrimSpace(title) == "" {
-		return nil, ErrInvalidTitle
+		return nil, errors.ErrInvalidTitle
 	}
 
 	if effectiveTo != nil {
 		if effectiveFrom.After(*effectiveTo) || effectiveFrom.Equal(*effectiveTo) {
-			return nil, ErrInvalidEffectivePeriod
+			return nil, errors.ErrInvalidEffectivePeriod
 		}
 	}
 
