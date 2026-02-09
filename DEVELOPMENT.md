@@ -6,22 +6,24 @@ This guide walks through implementing a new domain feature using Domain-Driven D
 
 - [Architecture Overview](#architecture-overview)
 - [Core Infrastructure](#core-infrastructure)
-  - [Logging with Zap](#logging-with-zap)
+  - [Transaction Manager](#transaction-manager)
+  - [Auth Context](#auth-context)
 - [Example: Adding a "Courses" Domain](#example-adding-a-courses-domain)
   - [Step 1: Database Migration](#step-1-database-migration)
-  - [Step 2: Aggregate (Domain Entity)](#step-2-aggregate-domain-entity)
-  - [Step 3: Repository Interface](#step-3-repository-interface)
-  - [Step 4: Service (Application Layer)](#step-4-service-application-layer)
+  - [Step 2: Domain Errors](#step-2-domain-errors)
+  - [Step 3: Aggregate (Domain Entity)](#step-3-aggregate-domain-entity)
+  - [Step 4: Repository Interface](#step-4-repository-interface)
   - [Step 5: Repository Implementation](#step-5-repository-implementation)
-  - [Step 6: Handler (HTTP Interface)](#step-6-handler-http-interface)
-  - [Step 7: Wire Up Routes](#step-7-wire-up-routes)
+  - [Step 6: Service (Application Layer)](#step-6-service-application-layer)
+  - [Step 7: Handler (HTTP Interface)](#step-7-handler-http-interface)
+  - [Step 8: Wire Up Routes](#step-8-wire-up-routes)
 - [File Structure](#file-structure)
 - [Checklist](#checklist)
 - [Testing](#testing)
-  - [Test Infrastructure](#test-infrastructure)
-  - [Writing Integration Tests](#writing-integration-tests)
+  - [Shared Mocks](#shared-mocks)
+  - [Unit Tests](#unit-tests)
+  - [Integration Tests](#integration-tests)
   - [Running Tests](#running-tests)
-  - [Test Patterns](#test-patterns)
 
 ---
 
@@ -34,26 +36,26 @@ This guide walks through implementing a new domain feature using Domain-Driven D
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     Handlers (interfaces/)                  │
+│                  Handlers (domain/<name>/handler/)           │
 │            Parse request, validate, call service            │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                     Services (domain/)                      │
-│              Business logic, orchestration                  │
+│                  Services (domain/<name>/service/)           │
+│      Business logic, auth validation, tx orchestration      │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Aggregates (domain/)                      │
+│                Aggregates (domain/<name>/aggregate/)         │
 │           Entities, value objects, domain rules             │
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                 Repositories (infrastructure/)              │
-│              Database access via jet models                 │
+│              Repositories (infrastructure/<name>/)           │
+│              Database access via Go-Jet models              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,31 +63,39 @@ This guide walks through implementing a new domain feature using Domain-Driven D
 
 ## Core Infrastructure
 
-### Logging with Zap
+### Transaction Manager
 
-All services use structured logging via `go.uber.org/zap`.
+The `TxManager` provides two transaction types based on PostgreSQL RLS roles:
+
+- **`InAuthTx`** — Sets the `authenticated` role with session variables (`app.current_user_id`, `app.current_role`). Use for **read operations** where RLS policies should filter data per-user.
+- **`InSystemTx`** — Sets the `internal` role which bypasses RLS. Use for **write operations** since `authenticated` typically only has `SELECT` grants on domain tables.
 
 ```go
-// backend/internal/infrastructure/logger/logger.go
-package logger
+// Read — uses authenticated role (RLS filters apply)
+err := s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+    result, err = s.repository.GetByID(ctx, tx, id)
+    return err
+})
 
-import (
-    "go.uber.org/zap"
-    "go.uber.org/zap/zapcore"
-)
+// Write — uses internal role (bypasses RLS)
+err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+    return s.repository.Update(ctx, tx, schedule)
+})
+```
 
-func New(env string) (*zap.Logger, error) {
-    var config zap.Config
+### Auth Context
 
-    if env == "production" {
-        config = zap.NewProductionConfig()
-    } else {
-        config = zap.NewDevelopmentConfig()
-        config.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-    }
+Auth context is propagated via `context.Context` and extracted in the service layer:
 
-    return config.Build()
-}
+```go
+// Set by middleware (or test setup)
+ctx = database.WithAuthContext(ctx, database.AuthContext{
+    UserID: "user-uuid",
+    Role:   "admin",
+})
+
+// Extracted in service
+authCtx, ok := database.AuthContextFromContext(ctx)
 ```
 
 ---
@@ -103,7 +113,7 @@ task migrate:create -- add_courses
 ### Up Migration
 
 ```sql
--- backend/migrations/000003_add_courses.up.sql
+-- migrations/000004_add_courses.up.sql
 
 CREATE TABLE "schedule"."courses" (
     "course_id" uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -111,20 +121,22 @@ CREATE TABLE "schedule"."courses" (
     "name" varchar(100) NOT NULL,
     "department" varchar(50) NOT NULL,
     "is_active" boolean NOT NULL DEFAULT true,
-    "created_at" timestamptz NOT NULL,
+    "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_by" uuid NOT NULL,
     "updated_at" timestamptz,
-    PRIMARY KEY ("course_id")
+    PRIMARY KEY ("course_id"),
+    CONSTRAINT "fk_courses_created_by" FOREIGN KEY("created_by") REFERENCES "auth"."users"("user_id")
 );
 
 CREATE INDEX "courses_idx_department" ON "schedule"."courses" ("department");
 
-CREATE TRIGGER trg_courses_created_at
-    BEFORE INSERT ON "schedule"."courses"
-    FOR EACH ROW EXECUTE FUNCTION set_created_at();
-
 CREATE TRIGGER trg_courses_updated_at
     BEFORE UPDATE ON "schedule"."courses"
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_courses_created_by
+    BEFORE INSERT ON "schedule"."courses"
+    FOR EACH ROW EXECUTE FUNCTION set_created_by();
 
 -- RLS
 ALTER TABLE "schedule"."courses" ENABLE ROW LEVEL SECURITY;
@@ -143,12 +155,12 @@ GRANT ALL ON "schedule"."courses" TO internal;
 ### Down Migration
 
 ```sql
--- backend/migrations/000003_add_courses.down.sql
+-- migrations/000004_add_courses.down.sql
 
 DROP POLICY IF EXISTS courses_select ON "schedule"."courses";
 DROP POLICY IF EXISTS internal_bypass_courses ON "schedule"."courses";
+DROP TRIGGER IF EXISTS trg_courses_created_by ON "schedule"."courses";
 DROP TRIGGER IF EXISTS trg_courses_updated_at ON "schedule"."courses";
-DROP TRIGGER IF EXISTS trg_courses_created_at ON "schedule"."courses";
 DROP INDEX IF EXISTS "schedule"."courses_idx_department";
 DROP TABLE IF EXISTS "schedule"."courses";
 ```
@@ -162,51 +174,64 @@ task generate:models
 
 ---
 
-## Step 2: Aggregate (Domain Entity)
+## Step 2: Domain Errors
 
-The aggregate is the core domain object with its business rules.
+Define domain errors in a separate package so they can be imported without circular dependencies.
 
 ```go
-// backend/internal/domain/course/aggregate.go
-package course
+// backend/internal/domain/course/errors/course_errors.go
+package errors
+
+import "errors"
+
+var (
+    ErrNotFound            = errors.New("course not found")
+    ErrInvalidCode         = errors.New("course code is required")
+    ErrInvalidName         = errors.New("course name is required")
+    ErrMissingAuthContext  = errors.New("missing authentication context")
+)
+```
+
+---
+
+## Step 3: Aggregate (Domain Entity)
+
+The aggregate contains the domain entity, business rules, and model conversion helpers.
+
+```go
+// backend/internal/domain/course/aggregate/course_aggregate.go
+package aggregate
 
 import (
-    "errors"
+    "strings"
     "time"
 
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
     "github.com/google/uuid"
 )
 
-// Domain errors
-var (
-    ErrNotFound      = errors.New("course not found")
-    ErrCodeExists    = errors.New("course code already exists")
-    ErrInvalidCode   = errors.New("course code is required")
-    ErrInvalidName   = errors.New("course name is required")
-)
-
-// Course is the aggregate root
 type Course struct {
-    ID         uuid.UUID
+    CourseID   uuid.UUID
     Code       string
     Name       string
     Department string
     IsActive   bool
     CreatedAt  time.Time
+    CreatedBy  uuid.UUID
     UpdatedAt  *time.Time
 }
 
-// NewCourse creates a new course with validation
 func NewCourse(code, name, department string) (*Course, error) {
-    if code == "" {
-        return nil, ErrInvalidCode
+    if strings.TrimSpace(code) == "" {
+        return nil, courseErrors.ErrInvalidCode
     }
-    if name == "" {
-        return nil, ErrInvalidName
+    if strings.TrimSpace(name) == "" {
+        return nil, courseErrors.ErrInvalidName
     }
 
     return &Course{
-        ID:         uuid.New(),
+        CourseID:   uuid.New(),
         Code:       code,
         Name:       name,
         Department: department,
@@ -214,434 +239,38 @@ func NewCourse(code, name, department string) (*Course, error) {
     }, nil
 }
 
-// Deactivate marks the course as inactive
 func (c *Course) Deactivate() {
     c.IsActive = false
 }
 
-// Activate marks the course as active
 func (c *Course) Activate() {
     c.IsActive = true
 }
 
-// UpdateDetails updates course information
-func (c *Course) UpdateDetails(name, department *string) {
-    if name != nil {
-        c.Name = *name
-    }
-    if department != nil {
-        c.Department = *department
-    }
-}
-```
-
-### Value Objects (if needed)
-
-```go
-// backend/internal/domain/course/value_objects.go
-package course
-
-// CourseCode is a value object for validated course codes
-type CourseCode string
-
-func NewCourseCode(code string) (CourseCode, error) {
-    if code == "" {
-        return "", ErrInvalidCode
-    }
-    if len(code) > 20 {
-        return "", errors.New("course code too long")
-    }
-    return CourseCode(code), nil
-}
-
-func (c CourseCode) String() string {
-    return string(c)
-}
-```
-
----
-
-## Step 3: Repository Interface
-
-Define the repository interface in the domain layer. This keeps the domain independent of infrastructure.
-
-```go
-// backend/internal/domain/course/repository.go
-package course
-
-import (
-    "context"
-    "database/sql"
-
-    "github.com/google/uuid"
-)
-
-// Filter for listing courses
-type Filter struct {
-    Department *string
-    IsActive   *bool
-    Limit      int
-    Offset     int
-}
-
-// Repository defines persistence operations.
-// tx parameter is optional - pass nil to use direct DB connection.
-type Repository interface {
-    // Create persists a new course
-    Create(ctx context.Context, tx *sql.Tx, course *Course) error
-
-    // GetByID retrieves a course by ID
-    GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*Course, error)
-
-    // GetByCode retrieves a course by code
-    GetByCode(ctx context.Context, tx *sql.Tx, code string) (*Course, error)
-
-    // List retrieves courses matching the filter
-    List(ctx context.Context, tx *sql.Tx, filter Filter) ([]*Course, error)
-
-    // Update persists changes to a course
-    Update(ctx context.Context, tx *sql.Tx, course *Course) error
-
-    // Delete removes a course
-    Delete(ctx context.Context, tx *sql.Tx, id uuid.UUID) error
-}
-```
-
----
-
-## Step 4: Service (Application Layer)
-
-The service orchestrates use cases, enforces business rules, and manages transactions.
-
-```go
-// backend/internal/domain/course/service.go
-package course
-
-import (
-    "context"
-
-    "github.com/google/uuid"
-    "go.uber.org/zap"
-
-    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
-)
-
-// CreateInput contains data for creating a course
-type CreateInput struct {
-    Code       string
-    Name       string
-    Department string
-}
-
-// UpdateInput contains data for updating a course
-type UpdateInput struct {
-    Name       *string
-    Department *string
-    IsActive   *bool
-}
-
-// Service handles course business logic
-type Service struct {
-    repo      Repository
-    txManager *database.TxManager
-    logger    *zap.Logger
-}
-
-// NewService creates a new course service
-func NewService(repo Repository, txManager *database.TxManager, logger *zap.Logger) *Service {
-    return &Service{
-        repo:      repo,
-        txManager: txManager,
-        logger:    logger.Named("course"),
+// ToModel maps the aggregate to a database model
+func (c *Course) ToModel() model.Courses {
+    return model.Courses{
+        CourseID:   c.CourseID,
+        Code:       c.Code,
+        Name:       c.Name,
+        Department: c.Department,
+        IsActive:   c.IsActive,
+        CreatedAt:  c.CreatedAt,
+        CreatedBy:  c.CreatedBy,
+        UpdatedAt:  c.UpdatedAt,
     }
 }
 
-// Create creates a new course (requires system access to create)
-func (s *Service) Create(ctx context.Context, input CreateInput) (*Course, error) {
-    s.logger.Info("creating course", zap.String("code", input.Code))
-
-    // Check for duplicate code
-    existing, err := s.repo.GetByCode(ctx, nil, input.Code)
-    if err != nil && err != ErrNotFound {
-        s.logger.Error("failed to check existing course", zap.Error(err))
-        return nil, err
-    }
-    if existing != nil {
-        s.logger.Warn("course code already exists", zap.String("code", input.Code))
-        return nil, ErrCodeExists
-    }
-
-    // Create aggregate
-    course, err := NewCourse(input.Code, input.Name, input.Department)
-    if err != nil {
-        return nil, err
-    }
-
-    // Persist within system transaction (admin operation)
-    err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-        return s.repo.Create(ctx, tx, course)
-    })
-    if err != nil {
-        s.logger.Error("failed to create course", zap.Error(err))
-        return nil, err
-    }
-
-    s.logger.Info("course created", zap.String("id", course.ID.String()))
-    return course, nil
-}
-
-// GetByID retrieves a course by ID
-func (s *Service) GetByID(ctx context.Context, id uuid.UUID) (*Course, error) {
-    s.logger.Debug("fetching course", zap.String("id", id.String()))
-
-    var course *Course
-    err := s.txManager.ReadOnly(ctx, func(db *sql.DB) error {
-        var err error
-        course, err = s.repo.GetByID(ctx, nil, id)
-        return err
-    })
-    if err != nil {
-        s.logger.Error("failed to fetch course", zap.Error(err))
-        return nil, err
-    }
-    return course, nil
-}
-
-// List retrieves courses with optional filtering
-func (s *Service) List(ctx context.Context, filter Filter) ([]*Course, error) {
-    s.logger.Debug("listing courses", zap.Any("filter", filter))
-
-    var courses []*Course
-    err := s.txManager.ReadOnly(ctx, func(db *sql.DB) error {
-        var err error
-        courses, err = s.repo.List(ctx, nil, filter)
-        return err
-    })
-    if err != nil {
-        s.logger.Error("failed to list courses", zap.Error(err))
-        return nil, err
-    }
-    return courses, nil
-}
-
-// Update updates a course
-func (s *Service) Update(ctx context.Context, id uuid.UUID, input UpdateInput) (*Course, error) {
-    s.logger.Info("updating course", zap.String("id", id.String()))
-
-    var course *Course
-    err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-        var err error
-        course, err = s.repo.GetByID(ctx, tx, id)
-        if err != nil {
-            return err
-        }
-
-        // Apply changes via aggregate methods
-        course.UpdateDetails(input.Name, input.Department)
-
-        if input.IsActive != nil {
-            if *input.IsActive {
-                course.Activate()
-            } else {
-                course.Deactivate()
-            }
-        }
-
-        // Persist within the same transaction
-        return s.repo.Update(ctx, tx, course)
-    })
-
-    if err != nil {
-        s.logger.Error("failed to update course", zap.Error(err))
-        return nil, err
-    }
-
-    s.logger.Info("course updated", zap.String("id", id.String()))
-    return course, nil
-}
-
-// Delete removes a course
-func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
-    s.logger.Info("deleting course", zap.String("id", id.String()))
-
-    err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-        return s.repo.Delete(ctx, tx, id)
-    })
-
-    if err != nil {
-        s.logger.Error("failed to delete course", zap.Error(err))
-        return err
-    }
-
-    s.logger.Info("course deleted", zap.String("id", id.String()))
-    return nil
-}
-```
-
----
-
-## Step 5: Repository Implementation
-
-Implement the repository interface using jet-generated models.
-
-```go
-// backend/internal/infrastructure/repository/course_repository.go
-package repository
-
-import (
-    "context"
-    "database/sql"
-    "errors"
-
-    "github.com/go-jet/jet/v2/qrm"
-    "github.com/google/uuid"
-    . "github.com/go-jet/jet/v2/postgres"
-
-    "github.com/HDR3604/HelpDeskApp/internal/domain/course"
-    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
-    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/table"
-)
-
-type CourseRepository struct {
-    db *sql.DB
-}
-
-func NewCourseRepository(db *sql.DB) *CourseRepository {
-    return &CourseRepository{db: db}
-}
-
-// queryable returns the transaction if provided, otherwise returns the db connection.
-// This allows repository methods to work with or without an active transaction.
-func (r *CourseRepository) queryable(tx *sql.Tx) qrm.Queryable {
-    if tx != nil {
-        return tx
-    }
-    return r.db
-}
-
-func (r *CourseRepository) Create(ctx context.Context, tx *sql.Tx, c *course.Course) error {
-    stmt := table.Courses.INSERT(
-        table.Courses.CourseID,
-        table.Courses.Code,
-        table.Courses.Name,
-        table.Courses.Department,
-        table.Courses.IsActive,
-    ).VALUES(
-        c.ID,
-        c.Code,
-        c.Name,
-        c.Department,
-        c.IsActive,
-    )
-
-    _, err := stmt.ExecContext(ctx, r.queryable(tx))
-    return err
-}
-
-func (r *CourseRepository) GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*course.Course, error) {
-    stmt := SELECT(table.Courses.AllColumns).
-        FROM(table.Courses).
-        WHERE(table.Courses.CourseID.EQ(UUID(id)))
-
-    var dest model.Courses
-    err := stmt.QueryContext(ctx, r.queryable(tx), &dest)
-    if err != nil {
-        if errors.Is(err, qrm.ErrNoRows) {
-            return nil, course.ErrNotFound
-        }
-        return nil, err
-    }
-
-    return r.toDomain(&dest), nil
-}
-
-func (r *CourseRepository) GetByCode(ctx context.Context, tx *sql.Tx, code string) (*course.Course, error) {
-    stmt := SELECT(table.Courses.AllColumns).
-        FROM(table.Courses).
-        WHERE(table.Courses.Code.EQ(String(code)))
-
-    var dest model.Courses
-    err := stmt.QueryContext(ctx, r.queryable(tx), &dest)
-    if err != nil {
-        if errors.Is(err, qrm.ErrNoRows) {
-            return nil, course.ErrNotFound
-        }
-        return nil, err
-    }
-
-    return r.toDomain(&dest), nil
-}
-
-func (r *CourseRepository) List(ctx context.Context, tx *sql.Tx, filter course.Filter) ([]*course.Course, error) {
-    stmt := SELECT(table.Courses.AllColumns).FROM(table.Courses)
-
-    var conditions []BoolExpression
-    if filter.Department != nil {
-        conditions = append(conditions, table.Courses.Department.EQ(String(*filter.Department)))
-    }
-    if filter.IsActive != nil {
-        conditions = append(conditions, table.Courses.IsActive.EQ(Bool(*filter.IsActive)))
-    }
-
-    if len(conditions) > 0 {
-        stmt = stmt.WHERE(AND(conditions...))
-    }
-
-    stmt = stmt.ORDER_BY(table.Courses.Code.ASC())
-
-    if filter.Limit > 0 {
-        stmt = stmt.LIMIT(int64(filter.Limit))
-    }
-    if filter.Offset > 0 {
-        stmt = stmt.OFFSET(int64(filter.Offset))
-    }
-
-    var dest []model.Courses
-    err := stmt.QueryContext(ctx, r.queryable(tx), &dest)
-    if err != nil {
-        return nil, err
-    }
-
-    courses := make([]*course.Course, len(dest))
-    for i := range dest {
-        courses[i] = r.toDomain(&dest[i])
-    }
-
-    return courses, nil
-}
-
-func (r *CourseRepository) Update(ctx context.Context, tx *sql.Tx, c *course.Course) error {
-    stmt := table.Courses.UPDATE(
-        table.Courses.Name,
-        table.Courses.Department,
-        table.Courses.IsActive,
-    ).SET(
-        c.Name,
-        c.Department,
-        c.IsActive,
-    ).WHERE(table.Courses.CourseID.EQ(UUID(c.ID)))
-
-    _, err := stmt.ExecContext(ctx, r.queryable(tx))
-    return err
-}
-
-func (r *CourseRepository) Delete(ctx context.Context, tx *sql.Tx, id uuid.UUID) error {
-    stmt := table.Courses.DELETE().
-        WHERE(table.Courses.CourseID.EQ(UUID(id)))
-
-    _, err := stmt.ExecContext(ctx, r.queryable(tx))
-    return err
-}
-
-// toDomain maps database model to domain aggregate
-func (r *CourseRepository) toDomain(m *model.Courses) *course.Course {
-    return &course.Course{
-        ID:         m.CourseID,
+// CourseFromModel maps a database model to the aggregate
+func CourseFromModel(m model.Courses) Course {
+    return Course{
+        CourseID:   m.CourseID,
         Code:       m.Code,
         Name:       m.Name,
         Department: m.Department,
         IsActive:   m.IsActive,
         CreatedAt:  m.CreatedAt,
+        CreatedBy:  m.CreatedBy,
         UpdatedAt:  m.UpdatedAt,
     }
 }
@@ -649,256 +278,449 @@ func (r *CourseRepository) toDomain(m *model.Courses) *course.Course {
 
 ---
 
-## Step 6: Handler (HTTP Interface)
+## Step 4: Repository Interface
 
-The handler translates HTTP requests to service calls and formats responses.
+Define the repository interface in the domain layer. Every method takes a `*sql.Tx` — the service layer manages transactions.
 
 ```go
-// backend/internal/interfaces/http/course_handler.go
-package http
+// backend/internal/domain/course/repository/course_repository_interface.go
+package repository
 
 import (
-    "encoding/json"
-    "net/http"
-    "strconv"
-    "time"
+    "context"
+    "database/sql"
 
-    "github.com/go-chi/chi/v5"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
     "github.com/google/uuid"
-
-    "github.com/HDR3604/HelpDeskApp/internal/domain/course"
 )
 
-type CourseHandler struct {
-    service *course.Service
+type CourseRepositoryInterface interface {
+    Create(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error)
+    GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.Course, error)
+    List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Course, error)
+    Update(ctx context.Context, tx *sql.Tx, course *aggregate.Course) error
+}
+```
+
+---
+
+## Step 5: Repository Implementation
+
+Implement using Go-Jet generated models. Use `postgres.UUID()` for UUID column comparisons (not `postgres.String()`).
+
+```go
+// backend/internal/infrastructure/course/course_repository.go
+package course
+
+import (
+    "context"
+    "database/sql"
+    "errors"
+    "fmt"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/repository"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/table"
+    "github.com/go-jet/jet/v2/postgres"
+    "github.com/go-jet/jet/v2/qrm"
+    "github.com/google/uuid"
+    "go.uber.org/zap"
+)
+
+var _ repository.CourseRepositoryInterface = (*CourseRepository)(nil)
+
+type CourseRepository struct {
+    logger *zap.Logger
 }
 
-func NewCourseHandler(service *course.Service) *CourseHandler {
-    return &CourseHandler{service: service}
+func NewCourseRepository(logger *zap.Logger) repository.CourseRepositoryInterface {
+    return &CourseRepository{logger: logger}
 }
 
-// Request DTOs
+func (r *CourseRepository) Create(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error) {
+    m := course.ToModel()
+
+    stmt := table.Courses.INSERT(
+        table.Courses.CourseID,
+        table.Courses.Code,
+        table.Courses.Name,
+        table.Courses.Department,
+        table.Courses.CreatedBy,
+    ).MODEL(m).RETURNING(table.Courses.AllColumns)
+
+    var result model.Courses
+    err := stmt.QueryContext(ctx, tx, &result)
+    if err != nil {
+        r.logger.Error("failed to create course", zap.Error(err))
+        return nil, fmt.Errorf("failed to create course: %w", err)
+    }
+
+    c := aggregate.CourseFromModel(result)
+    return &c, nil
+}
+
+func (r *CourseRepository) GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.Course, error) {
+    stmt := table.Courses.
+        SELECT(table.Courses.AllColumns).
+        WHERE(table.Courses.CourseID.EQ(postgres.UUID(id)))
+
+    var result model.Courses
+    err := stmt.QueryContext(ctx, tx, &result)
+    if err != nil {
+        if errors.Is(err, qrm.ErrNoRows) {
+            return nil, courseErrors.ErrNotFound
+        }
+        return nil, fmt.Errorf("failed to get course by ID: %w", err)
+    }
+
+    c := aggregate.CourseFromModel(result)
+    return &c, nil
+}
+
+func (r *CourseRepository) Update(ctx context.Context, tx *sql.Tx, course *aggregate.Course) error {
+    m := course.ToModel()
+
+    stmt := table.Courses.UPDATE(
+        table.Courses.Name,
+        table.Courses.Department,
+        table.Courses.IsActive,
+    ).MODEL(m).WHERE(table.Courses.CourseID.EQ(postgres.UUID(m.CourseID)))
+
+    result, err := stmt.ExecContext(ctx, tx)
+    if err != nil {
+        return fmt.Errorf("failed to update course: %w", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("failed to check rows affected: %w", err)
+    }
+    if rowsAffected == 0 {
+        return courseErrors.ErrNotFound
+    }
+
+    return nil
+}
+```
+
+---
+
+## Step 6: Service (Application Layer)
+
+The service validates auth context, orchestrates transactions, and applies business logic. Use `InAuthTx` for reads, `InSystemTx` for writes.
+
+```go
+// backend/internal/domain/course/service/course_service.go
+package service
+
+import (
+    "context"
+    "database/sql"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/repository"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
+    "github.com/google/uuid"
+    "go.uber.org/zap"
+)
+
+type CourseServiceInterface interface {
+    Create(ctx context.Context, course *aggregate.Course) (*aggregate.Course, error)
+    GetByID(ctx context.Context, id uuid.UUID) (*aggregate.Course, error)
+    List(ctx context.Context) ([]*aggregate.Course, error)
+    Deactivate(ctx context.Context, id uuid.UUID) error
+}
+
+type CourseService struct {
+    logger     *zap.Logger
+    repository repository.CourseRepositoryInterface
+    txManager  database.TxManagerInterface
+}
+
+func NewCourseService(logger *zap.Logger, repository repository.CourseRepositoryInterface, txManager database.TxManagerInterface) *CourseService {
+    return &CourseService{
+        logger:     logger,
+        repository: repository,
+        txManager:  txManager,
+    }
+}
+
+func (s *CourseService) authCtx(ctx context.Context) (database.AuthContext, error) {
+    authCtx, ok := database.AuthContextFromContext(ctx)
+    if !ok {
+        s.logger.Error("missing auth context in request")
+        return database.AuthContext{}, courseErrors.ErrMissingAuthContext
+    }
+    return authCtx, nil
+}
+
+// Create — write operation, uses InSystemTx
+func (s *CourseService) Create(ctx context.Context, course *aggregate.Course) (*aggregate.Course, error) {
+    s.logger.Info("creating course", zap.String("code", course.Code))
+
+    authCtx, err := s.authCtx(ctx)
+    if err != nil {
+        return nil, err
+    }
+
+    userID, err := uuid.Parse(authCtx.UserID)
+    if err != nil {
+        s.logger.Error("invalid user ID in auth context", zap.Error(err))
+        return nil, courseErrors.ErrMissingAuthContext
+    }
+    course.CreatedBy = userID
+
+    var result *aggregate.Course
+    err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+        var txErr error
+        result, txErr = s.repository.Create(ctx, tx, course)
+        return txErr
+    })
+    if err != nil {
+        s.logger.Error("failed to create course", zap.Error(err))
+        return nil, err
+    }
+
+    s.logger.Info("course created", zap.String("course_id", result.CourseID.String()))
+    return result, nil
+}
+
+// GetByID — read operation, uses InAuthTx
+func (s *CourseService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate.Course, error) {
+    s.logger.Debug("getting course by ID", zap.String("course_id", id.String()))
+
+    authCtx, err := s.authCtx(ctx)
+    if err != nil {
+        return nil, err
+    }
+
+    var result *aggregate.Course
+    err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+        var txErr error
+        result, txErr = s.repository.GetByID(ctx, tx, id)
+        return txErr
+    })
+    if err != nil {
+        s.logger.Error("failed to get course", zap.Error(err))
+        return nil, err
+    }
+
+    return result, nil
+}
+
+// Deactivate — write operation, uses InSystemTx
+func (s *CourseService) Deactivate(ctx context.Context, id uuid.UUID) error {
+    s.logger.Info("deactivating course", zap.String("course_id", id.String()))
+
+    if _, err := s.authCtx(ctx); err != nil {
+        return err
+    }
+
+    err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+        course, txErr := s.repository.GetByID(ctx, tx, id)
+        if txErr != nil {
+            return txErr
+        }
+        course.Deactivate()
+        return s.repository.Update(ctx, tx, course)
+    })
+    if err != nil {
+        s.logger.Error("failed to deactivate course", zap.Error(err))
+        return err
+    }
+
+    s.logger.Info("course deactivated", zap.String("course_id", id.String()))
+    return nil
+}
+```
+
+---
+
+## Step 7: Handler (HTTP Interface)
+
+The handler parses HTTP requests, calls the service, and returns JSON responses. DTOs live in a separate file. Routes are registered via `RegisterRoutes(r chi.Router)`.
+
+### DTOs
+
+```go
+// backend/internal/domain/course/handler/course_dtos.go
+package handler
+
+import (
+    "time"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+)
+
 type CreateCourseRequest struct {
     Code       string `json:"code"`
     Name       string `json:"name"`
     Department string `json:"department"`
 }
 
-type UpdateCourseRequest struct {
-    Name       *string `json:"name,omitempty"`
-    Department *string `json:"department,omitempty"`
-    IsActive   *bool   `json:"is_active,omitempty"`
-}
-
-// Response DTOs
 type CourseResponse struct {
-    ID         string  `json:"id"`
-    Code       string  `json:"code"`
-    Name       string  `json:"name"`
-    Department string  `json:"department"`
-    IsActive   bool    `json:"is_active"`
-    CreatedAt  string  `json:"created_at"`
-    UpdatedAt  *string `json:"updated_at,omitempty"`
+    CourseID   string     `json:"course_id"`
+    Code       string     `json:"code"`
+    Name       string     `json:"name"`
+    Department string     `json:"department"`
+    IsActive   bool       `json:"is_active"`
+    CreatedAt  time.Time  `json:"created_at"`
+    CreatedBy  string     `json:"created_by"`
+    UpdatedAt  *time.Time `json:"updated_at"`
 }
 
-type ErrorResponse struct {
-    Error string `json:"error"`
+func courseToResponse(c *aggregate.Course) CourseResponse {
+    return CourseResponse{
+        CourseID:   c.CourseID.String(),
+        Code:       c.Code,
+        Name:       c.Name,
+        Department: c.Department,
+        IsActive:   c.IsActive,
+        CreatedAt:  c.CreatedAt,
+        CreatedBy:  c.CreatedBy.String(),
+        UpdatedAt:  c.UpdatedAt,
+    }
+}
+```
+
+### Handler
+
+```go
+// backend/internal/domain/course/handler/course_handler.go
+package handler
+
+import (
+    "encoding/json"
+    "errors"
+    "net/http"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/service"
+    "github.com/go-chi/chi/v5"
+    "github.com/google/uuid"
+    "go.uber.org/zap"
+)
+
+type CourseHandler struct {
+    logger  *zap.Logger
+    service service.CourseServiceInterface
 }
 
-// Create handles POST /api/courses
+func NewCourseHandler(logger *zap.Logger, service service.CourseServiceInterface) *CourseHandler {
+    return &CourseHandler{logger: logger, service: service}
+}
+
+func (h *CourseHandler) RegisterRoutes(r chi.Router) {
+    r.Route("/courses", func(r chi.Router) {
+        r.Post("/", h.Create)
+        r.Get("/", h.List)
+        r.Get("/{id}", h.GetByID)
+        r.Patch("/{id}/deactivate", h.Deactivate)
+    })
+}
+
 func (h *CourseHandler) Create(w http.ResponseWriter, r *http.Request) {
     var req CreateCourseRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        h.writeError(w, "invalid request body", http.StatusBadRequest)
+        writeError(w, http.StatusBadRequest, "invalid request body")
         return
     }
 
-    c, err := h.service.Create(r.Context(), course.CreateInput{
-        Code:       req.Code,
-        Name:       req.Name,
-        Department: req.Department,
-    })
+    course, err := aggregate.NewCourse(req.Code, req.Name, req.Department)
     if err != nil {
-        h.handleError(w, err)
+        writeError(w, http.StatusBadRequest, err.Error())
         return
     }
 
-    h.writeJSON(w, http.StatusCreated, h.toResponse(c))
+    created, err := h.service.Create(r.Context(), course)
+    if err != nil {
+        h.handleServiceError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusCreated, courseToResponse(created))
 }
 
-// GetByID handles GET /api/courses/{id}
 func (h *CourseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
     id, err := uuid.Parse(chi.URLParam(r, "id"))
     if err != nil {
-        h.writeError(w, "invalid id", http.StatusBadRequest)
+        writeError(w, http.StatusBadRequest, "invalid course ID")
         return
     }
 
-    c, err := h.service.GetByID(r.Context(), id)
+    course, err := h.service.GetByID(r.Context(), id)
     if err != nil {
-        h.handleError(w, err)
+        h.handleServiceError(w, err)
         return
     }
 
-    h.writeJSON(w, http.StatusOK, h.toResponse(c))
+    writeJSON(w, http.StatusOK, courseToResponse(course))
 }
 
-// List handles GET /api/courses
-func (h *CourseHandler) List(w http.ResponseWriter, r *http.Request) {
-    filter := course.Filter{}
-
-    if dept := r.URL.Query().Get("department"); dept != "" {
-        filter.Department = &dept
-    }
-    if active := r.URL.Query().Get("is_active"); active != "" {
-        b := active == "true"
-        filter.IsActive = &b
-    }
-    if limit := r.URL.Query().Get("limit"); limit != "" {
-        if l, err := strconv.Atoi(limit); err == nil {
-            filter.Limit = l
-        }
-    }
-
-    courses, err := h.service.List(r.Context(), filter)
-    if err != nil {
-        h.handleError(w, err)
-        return
-    }
-
-    response := make([]CourseResponse, len(courses))
-    for i, c := range courses {
-        response[i] = *h.toResponse(c)
-    }
-
-    h.writeJSON(w, http.StatusOK, response)
-}
-
-// Update handles PUT /api/courses/{id}
-func (h *CourseHandler) Update(w http.ResponseWriter, r *http.Request) {
-    id, err := uuid.Parse(chi.URLParam(r, "id"))
-    if err != nil {
-        h.writeError(w, "invalid id", http.StatusBadRequest)
-        return
-    }
-
-    var req UpdateCourseRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        h.writeError(w, "invalid request body", http.StatusBadRequest)
-        return
-    }
-
-    c, err := h.service.Update(r.Context(), id, course.UpdateInput{
-        Name:       req.Name,
-        Department: req.Department,
-        IsActive:   req.IsActive,
-    })
-    if err != nil {
-        h.handleError(w, err)
-        return
-    }
-
-    h.writeJSON(w, http.StatusOK, h.toResponse(c))
-}
-
-// Delete handles DELETE /api/courses/{id}
-func (h *CourseHandler) Delete(w http.ResponseWriter, r *http.Request) {
-    id, err := uuid.Parse(chi.URLParam(r, "id"))
-    if err != nil {
-        h.writeError(w, "invalid id", http.StatusBadRequest)
-        return
-    }
-
-    if err := h.service.Delete(r.Context(), id); err != nil {
-        h.handleError(w, err)
-        return
-    }
-
-    w.WriteHeader(http.StatusNoContent)
-}
-
-// Helper methods
-
-func (h *CourseHandler) handleError(w http.ResponseWriter, err error) {
-    switch err {
-    case course.ErrNotFound:
-        h.writeError(w, "course not found", http.StatusNotFound)
-    case course.ErrCodeExists:
-        h.writeError(w, "course code already exists", http.StatusConflict)
-    case course.ErrInvalidCode, course.ErrInvalidName:
-        h.writeError(w, err.Error(), http.StatusBadRequest)
+func (h *CourseHandler) handleServiceError(w http.ResponseWriter, err error) {
+    switch {
+    case errors.Is(err, courseErrors.ErrNotFound):
+        writeError(w, http.StatusNotFound, err.Error())
+    case errors.Is(err, courseErrors.ErrInvalidCode),
+        errors.Is(err, courseErrors.ErrInvalidName):
+        writeError(w, http.StatusBadRequest, err.Error())
+    case errors.Is(err, courseErrors.ErrMissingAuthContext):
+        writeError(w, http.StatusUnauthorized, "unauthorized")
     default:
-        h.writeError(w, "internal server error", http.StatusInternalServerError)
+        h.logger.Error("unhandled service error", zap.Error(err))
+        writeError(w, http.StatusInternalServerError, "internal server error")
     }
 }
 
-func (h *CourseHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
+func writeJSON(w http.ResponseWriter, status int, data any) {
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(status)
     json.NewEncoder(w).Encode(data)
 }
 
-func (h *CourseHandler) writeError(w http.ResponseWriter, message string, status int) {
-    h.writeJSON(w, status, ErrorResponse{Error: message})
-}
-
-func (h *CourseHandler) toResponse(c *course.Course) *CourseResponse {
-    resp := &CourseResponse{
-        ID:         c.ID.String(),
-        Code:       c.Code,
-        Name:       c.Name,
-        Department: c.Department,
-        IsActive:   c.IsActive,
-        CreatedAt:  c.CreatedAt.Format(time.RFC3339),
-    }
-    if c.UpdatedAt != nil {
-        s := c.UpdatedAt.Format(time.RFC3339)
-        resp.UpdatedAt = &s
-    }
-    return resp
+func writeError(w http.ResponseWriter, status int, message string) {
+    writeJSON(w, status, map[string]string{"error": message})
 }
 ```
 
 ---
 
-## Step 7: Wire Up Routes
+## Step 8: Wire Up Routes
+
+### Register in `routes.go`
+
+Handlers register their own routes via `RegisterRoutes`. Mount them under the `/api/v1` group:
 
 ```go
 // backend/internal/application/routes.go
-package application
+func registerRoutes(r *chi.Mux, scheduleHdl *scheduleHandler.ScheduleHandler, courseHdl *courseHandler.CourseHandler) {
+    r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+        w.WriteHeader(http.StatusOK)
+        fmt.Fprintln(w, "OK")
+    })
 
-import (
-    "database/sql"
-
-    "github.com/go-chi/chi/v5"
-    "github.com/go-chi/chi/v5/middleware"
-    "go.uber.org/zap"
-
-    "github.com/HDR3604/HelpDeskApp/internal/domain/course"
-    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
-    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/repository"
-    httpHandler "github.com/HDR3604/HelpDeskApp/internal/interfaces/http"
-)
-
-func SetupRoutes(r chi.Router, db *sql.DB, txManager *database.TxManager, logger *zap.Logger) {
-    // Middleware
-    r.Use(middleware.Logger)
-    r.Use(middleware.Recoverer)
-    r.Use(middleware.RequestID)
-
-    // Courses domain
-    courseRepo := repository.NewCourseRepository(db)
-    courseService := course.NewService(courseRepo, txManager, logger)
-    courseHandler := httpHandler.NewCourseHandler(courseService)
-
-    r.Route("/api/courses", func(r chi.Router) {
-        r.Post("/", courseHandler.Create)
-        r.Get("/", courseHandler.List)
-        r.Get("/{id}", courseHandler.GetByID)
-        r.Put("/{id}", courseHandler.Update)
-        r.Delete("/{id}", courseHandler.Delete)
+    r.Route("/api/v1", func(r chi.Router) {
+        scheduleHdl.RegisterRoutes(r)
+        courseHdl.RegisterRoutes(r)
     })
 }
+```
+
+### Wire in `app.go`
+
+Instantiate repository, service, and handler in `NewApp`:
+
+```go
+// In NewApp():
+courseRepository := courseRepo.NewCourseRepository(logger)
+courseSvc := courseService.NewCourseService(logger, courseRepository, txManager)
+courseHdl := courseHandler.NewCourseHandler(logger, courseSvc)
+
+registerRoutes(r, scheduleHdl, courseHdl)
 ```
 
 ---
@@ -907,25 +729,46 @@ func SetupRoutes(r chi.Router, db *sql.DB, txManager *database.TxManager, logger
 
 ```
 backend/internal/
+├── application/
+│   ├── app.go              # App setup, wiring, server
+│   ├── config.go           # Environment config loading
+│   └── routes.go           # Route registration
 ├── domain/
 │   └── course/
-│       ├── aggregate.go      # Course entity + business rules
-│       ├── repository.go     # Repository interface
-│       ├── service.go        # Application service
-│       └── value_objects.go  # Value objects (optional)
+│       ├── aggregate/
+│       │   └── course_aggregate.go    # Entity + business rules + model mapping
+│       ├── errors/
+│       │   └── course_errors.go       # Domain errors
+│       ├── handler/
+│       │   ├── course_handler.go      # HTTP handler + route registration
+│       │   └── course_dtos.go         # Request/response DTOs + conversion
+│       ├── repository/
+│       │   └── course_repository_interface.go  # Repository interface
+│       └── service/
+│           └── course_service.go      # Service interface + implementation
 ├── infrastructure/
-│   ├── models/               # Generated by jet
-│   │   └── helpdesk/
-│   │       └── schedule/
-│   │           ├── model/courses.go
-│   │           └── table/courses.go
-│   └── repository/
-│       └── course_repository.go
-├── interfaces/
-│   └── http/
-│       └── course_handler.go
-└── application/
-    └── routes.go
+│   ├── database/
+│   │   ├── tx_manager.go             # InAuthTx / InSystemTx
+│   │   └── tx_manager_types.go       # AuthContext, context helpers
+│   ├── course/
+│   │   └── course_repository.go      # Go-Jet repository implementation
+│   └── models/                       # Generated by Go-Jet (do not edit)
+└── tests/
+    ├── mocks/
+    │   ├── mock_tx_manager.go         # StubTxManager (executes fn with nil tx)
+    │   ├── mock_course_repository.go  # Function-based mock
+    │   └── mock_course_service.go     # Function-based mock
+    ├── integration/
+    │   └── course/
+    │       └── course_repository_test.go
+    ├── unit/
+    │   └── domains/
+    │       └── course/
+    │           ├── course_test.go              # Aggregate unit tests
+    │           ├── course_service_test.go       # Service unit tests
+    │           └── course_handler_test.go       # Handler unit tests
+    └── utils/
+        └── test_db.go                 # Testcontainers PostgreSQL setup
 ```
 
 ---
@@ -934,111 +777,149 @@ backend/internal/
 
 When implementing a new domain:
 
-- [ ] **Migration**: Create up/down SQL files with RLS policies
-- [ ] **Generate**: Run `task generate:models`
-- [ ] **Aggregate**: Define entity with business rules in `domain/<name>/aggregate.go`
-- [ ] **Repository Interface**: Define in `domain/<name>/repository.go`
-- [ ] **Service**: Business logic in `domain/<name>/service.go`
-- [ ] **Repository Impl**: Database access in `infrastructure/repository/<name>_repository.go`
-- [ ] **Handler**: HTTP interface in `interfaces/http/<name>_handler.go`
-- [ ] **Routes**: Wire up in `application/routes.go`
-- [ ] **Tests**: Unit tests for service, integration tests for repository
+- [ ] **Migration**: Create up/down SQL files with triggers, RLS policies, and grants
+- [ ] **Generate**: Run `task migrate:up` then `task generate:models`
+- [ ] **Errors**: Define domain errors in `domain/<name>/errors/`
+- [ ] **Aggregate**: Define entity with business rules and model mapping in `domain/<name>/aggregate/`
+- [ ] **Repository Interface**: Define in `domain/<name>/repository/`
+- [ ] **Repository Impl**: Implement with Go-Jet in `infrastructure/<name>/` (use `postgres.UUID()` for UUID comparisons)
+- [ ] **Service**: Business logic with auth + tx management in `domain/<name>/service/`
+- [ ] **Handler + DTOs**: HTTP interface in `domain/<name>/handler/`
+- [ ] **Routes**: Wire up in `application/routes.go` and `application/app.go`
+- [ ] **Mocks**: Add function-based mocks in `tests/mocks/`
+- [ ] **Unit Tests**: Aggregate, service (with mock repo), handler (with mock service + Chi router)
+- [ ] **Integration Tests**: Repository tests with testcontainers
 
 ---
 
 ## Testing
 
-### Test Infrastructure
+### Shared Mocks
 
-Integration tests use [testcontainers-go](https://golang.testcontainers.org/) to spin up a PostgreSQL container with migrations applied.
+Mocks live in `tests/mocks/` and use a function-based pattern. Each mock field can be set per test case:
 
 ```go
-// backend/internal/tests/utils/test_db.go
-package utils
+// backend/internal/tests/mocks/mock_course_repository.go
+package mocks
 
-import (
-    "testing"
-    "github.com/golang-migrate/migrate/v4"
-    "github.com/testcontainers/testcontainers-go/modules/postgres"
-)
-
-type TestDB struct {
-    DB        *sql.DB
-    Logger    *zap.Logger
-    ctx       context.Context
-    container *postgres.PostgresContainer
+type MockCourseRepository struct {
+    CreateFn  func(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error)
+    GetByIDFn func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.Course, error)
+    ListFn    func(ctx context.Context, tx *sql.Tx) ([]*aggregate.Course, error)
+    UpdateFn  func(ctx context.Context, tx *sql.Tx, course *aggregate.Course) error
 }
 
-func NewTestDB(t *testing.T) *TestDB {
-    // Starts PostgreSQL container, runs migrations, returns connected DB
-    // Cleanup is automatic via t.Cleanup()
+func (m *MockCourseRepository) Create(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error) {
+    return m.CreateFn(ctx, tx, course)
+}
+// ... other methods delegate to their Fn fields
+```
+
+The `StubTxManager` executes transaction functions directly with a `nil` tx (since the repository is also mocked in unit tests):
+
+```go
+type StubTxManager struct{}
+
+func (s *StubTxManager) InAuthTx(_ context.Context, _ database.AuthContext, fn func(tx *sql.Tx) error) error {
+    return fn(nil)
 }
 
-func (tdb *TestDB) Truncate(t *testing.T, tables ...string) {
-    // Truncates specified tables between tests
+func (s *StubTxManager) InSystemTx(_ context.Context, fn func(tx *sql.Tx) error) error {
+    return fn(nil)
 }
 ```
 
-### Writing Integration Tests
+### Unit Tests
 
-Use testify/suite for organized test setup:
+All unit tests use `testify/suite`:
 
 ```go
-package myfeature_test
-
-import (
-    "testing"
-    "github.com/stretchr/testify/suite"
-    "github.com/HDR3604/HelpDeskApp/internal/tests/utils"
-)
-
-type MyFeatureTestSuite struct {
+// Service test — uses mock repository + stub tx manager
+type CourseServiceTestSuite struct {
     suite.Suite
-    testDB *utils.TestDB
-    ctx    context.Context
+    repo    *mocks.MockCourseRepository
+    service service.CourseServiceInterface
+    authCtx context.Context
 }
 
-func TestMyFeatureTestSuite(t *testing.T) {
-    suite.Run(t, new(MyFeatureTestSuite))
+func (s *CourseServiceTestSuite) SetupTest() {
+    s.repo = &mocks.MockCourseRepository{}
+    svc := service.NewCourseService(zap.NewNop(), s.repo, &mocks.StubTxManager{})
+    s.service = svc
+    s.authCtx = database.WithAuthContext(context.Background(), database.AuthContext{
+        UserID: uuid.New().String(),
+        Role:   "admin",
+    })
 }
 
-func (s *MyFeatureTestSuite) SetupSuite() {
+// Handler test — uses mock service + Chi router
+type CourseHandlerTestSuite struct {
+    suite.Suite
+    mockSvc *mocks.MockCourseService
+    router  *chi.Mux
+}
+
+func (s *CourseHandlerTestSuite) SetupTest() {
+    s.mockSvc = &mocks.MockCourseService{}
+    hdl := handler.NewCourseHandler(zap.NewNop(), s.mockSvc)
+    s.router = chi.NewRouter()
+    s.router.Route("/api/v1", func(r chi.Router) {
+        hdl.RegisterRoutes(r)
+    })
+}
+```
+
+### Integration Tests
+
+Integration tests use testcontainers to spin up a real PostgreSQL instance with migrations:
+
+```go
+type CourseRepositoryTestSuite struct {
+    suite.Suite
+    testDB    *utils.TestDB
+    txManager database.TxManagerInterface
+    repo      *courseRepo.CourseRepository
+    ctx       context.Context
+    userID    uuid.UUID
+}
+
+func (s *CourseRepositoryTestSuite) SetupSuite() {
     s.testDB = utils.NewTestDB(s.T())
+    s.txManager = database.NewTxManager(s.testDB.DB, s.testDB.Logger)
+    s.repo = courseRepo.NewCourseRepository(s.testDB.Logger).(*courseRepo.CourseRepository)
     s.ctx = context.Background()
+
+    // Seed a user for the created_by FK
+    s.userID = uuid.New()
+    _ = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+        _, err := tx.ExecContext(s.ctx,
+            `INSERT INTO auth.users (user_id, email_address, password, role) VALUES ($1, $2, $3, $4)`,
+            s.userID, "test@test.com", "hashed", "admin",
+        )
+        return err
+    })
 }
 
-func (s *MyFeatureTestSuite) TestSomething() {
-    // Use s.testDB.DB for queries
-    s.Require().NoError(err)
+func (s *CourseRepositoryTestSuite) TearDownTest() {
+    s.testDB.Truncate(s.T(), "schedule.courses")
 }
 ```
 
 ### Running Tests
 
 ```bash
-# Run all tests
-task test
+# All tests (unit + integration)
+go test ./... -count=1
 
-# Run specific test
-go test -v ./internal/tests/integration/...
+# Unit tests only
+go test ./internal/tests/unit/... -count=1
 
-# Run with race detection
-go test -race ./...
-```
+# Integration tests only (requires Docker)
+go test ./internal/tests/integration/... -v -count=1
 
-### Test Patterns
+# Specific domain
+go test ./internal/tests/unit/domains/schedule/... -v
 
-**Direct database queries:**
-
-```go
-func (s *MySuite) TestInsert() {
-    _, err := s.testDB.DB.ExecContext(s.ctx, "INSERT INTO ...")
-    s.Require().NoError(err)
-}
-
-func (s *MySuite) TestQuery() {
-    var result string
-    err := s.testDB.DB.QueryRowContext(s.ctx, "SELECT ...").Scan(&result)
-    s.Require().NoError(err)
-}
+# Build + vet + test
+go build ./... && go vet ./... && go test ./... -count=1
 ```
