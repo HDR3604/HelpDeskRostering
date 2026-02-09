@@ -1,4 +1,4 @@
-package handler
+package dtos
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ type ScheduleResponse struct {
 	EffectiveTo          *string         `json:"effective_to,omitempty"`
 }
 
-func scheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
+func ScheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
 	resp := ScheduleResponse{
 		ScheduleID:           s.ScheduleID.String(),
 		Title:                s.Title,
@@ -49,10 +49,10 @@ func scheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
 	return resp
 }
 
-func schedulesToResponse(schedules []*aggregate.Schedule) []ScheduleResponse {
+func SchedulesToResponse(schedules []*aggregate.Schedule) []ScheduleResponse {
 	responses := make([]ScheduleResponse, len(schedules))
 	for i, s := range schedules {
-		responses[i] = scheduleToResponse(s)
+		responses[i] = ScheduleToResponse(s)
 	}
 	return responses
 }

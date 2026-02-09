@@ -8,6 +8,7 @@ import (
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
+	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler/dtos"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -40,7 +41,7 @@ func (h *ScheduleHandler) RegisterRoutes(r chi.Router) {
 }
 
 func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req CreateScheduleRequest
+	var req dtos.CreateScheduleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.logger.Warn("invalid request body", zap.Error(err))
 		writeError(w, http.StatusBadRequest, "invalid request body")
@@ -75,7 +76,7 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, scheduleToResponse(created))
+	writeJSON(w, http.StatusCreated, dtos.ScheduleToResponse(created))
 }
 
 func (h *ScheduleHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +92,7 @@ func (h *ScheduleHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, scheduleToResponse(schedule))
+	writeJSON(w, http.StatusOK, dtos.ScheduleToResponse(schedule))
 }
 
 func (h *ScheduleHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +102,7 @@ func (h *ScheduleHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, schedulesToResponse(schedules))
+	writeJSON(w, http.StatusOK, dtos.SchedulesToResponse(schedules))
 }
 
 func (h *ScheduleHandler) ListArchived(w http.ResponseWriter, r *http.Request) {
@@ -111,7 +112,7 @@ func (h *ScheduleHandler) ListArchived(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, schedulesToResponse(schedules))
+	writeJSON(w, http.StatusOK, dtos.SchedulesToResponse(schedules))
 }
 
 func (h *ScheduleHandler) Archive(w http.ResponseWriter, r *http.Request) {
