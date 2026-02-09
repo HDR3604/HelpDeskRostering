@@ -1,4 +1,4 @@
-package user
+package errors
 
 import "errors"
 
@@ -14,4 +14,6 @@ var (
 	ErrInvalidPasswordComplexity = errors.New("Password must contain at least one letter and one number")
 	ErrEmailUnchanged            = errors.New("new email must be different from current email")
 	ErrRoleUnchanged             = errors.New("new role must be different from current role")
+	ErrEmailAdmin                = errors.New("admin email must end with @uwi.edu")
+	ErrEmailStudent              = errors.New("student email must end with @my.uwi.edu")
 )

@@ -1,16 +1,25 @@
-package user
+package aggregate
 
 import (
-	"errors"
 	"regexp"
 	"strings"
 	"time"
 
+	"github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
 	"github.com/google/uuid"
 )
 
 // Role constants - mapped to database models
+type EmailDomain string
+
+const (
+	EmailDomain_Staff   EmailDomain = "@uwi.edu"
+	EmailDomain_Student EmailDomain = "@my.uwi.edu"
+)
+
+var EmailDomains = []EmailDomain{EmailDomain_Staff, EmailDomain_Student}
+
 type Role string
 
 const (
@@ -34,12 +43,12 @@ type User struct {
 func NewUser(email, password string, role Role) (*User, error) {
 	// Validate email
 	if isValidEmail(email) != nil {
-		return nil, ErrInvalidEmail
+		return nil, errors.ErrInvalidEmail
 	}
 
 	// Validate role
 	if !isValidRole(role) {
-		return nil, ErrInvalidRole
+		return nil, errors.ErrInvalidRole
 	}
 
 	// Validate role against email domain
@@ -63,12 +72,12 @@ func NewUser(email, password string, role Role) (*User, error) {
 
 func validatePassword(password string) error {
 	if len(password) < 6 {
-		return ErrInvalidPasswordLength
+		return errors.ErrInvalidPasswordLength
 	}
 	hasLetter := regexp.MustCompile(`[A-Za-z]`).MatchString(password)
 	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
 	if !hasLetter || !hasDigit {
-		return ErrInvalidPasswordComplexity
+		return errors.ErrInvalidPasswordComplexity
 	}
 	return nil
 }
@@ -96,11 +105,11 @@ func (u *User) Deactivate() error {
 // UpdateEmail updates the user's email with validation
 func (u *User) UpdateEmail(newEmail string) error {
 	if isValidEmail(newEmail) != nil {
-		return ErrInvalidEmail
+		return errors.ErrInvalidEmail
 	}
 
 	if newEmail == u.Email {
-		return ErrEmailUnchanged
+		return errors.ErrEmailUnchanged
 	}
 
 	u.Email = newEmail
@@ -111,11 +120,11 @@ func (u *User) UpdateEmail(newEmail string) error {
 // UpdateRole updates the user's role with validation
 func (u *User) UpdateRole(newRole Role) error {
 	if !isValidRole(newRole) {
-		return ErrInvalidRole
+		return errors.ErrInvalidRole
 	}
 
 	if newRole == u.Role {
-		return ErrRoleUnchanged
+		return errors.ErrRoleUnchanged
 	}
 
 	u.Role = newRole
@@ -125,16 +134,16 @@ func (u *User) UpdateRole(newRole Role) error {
 // isValidEmail checks if email format is valid
 func isValidEmail(email string) error {
 	if len(strings.TrimSpace(email)) == 0 {
-		return ErrInvalidEmail
+		return errors.ErrInvalidEmail
 	}
-	if !strings.HasSuffix(email, "@my.uwi.edu") && !strings.HasSuffix(email, "@uwi.edu") {
-		return ErrInvalidEmail
+	if !strings.HasSuffix(email, string(EmailDomain_Student)) && !strings.HasSuffix(email, string(EmailDomain_Staff)) {
+		return errors.ErrInvalidEmail
 	}
 
 	// Simple email regex validation
 	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(email) {
-		return ErrInvalidEmail
+		return errors.ErrInvalidEmail
 	}
 	return nil
 }
@@ -160,9 +169,35 @@ func Roles() []model.Roles {
 
 func ValidateRoleAgainstEmail(role Role, email string) error {
 	if role == Role_Admin && !strings.HasSuffix(email, "@uwi.edu") {
-		return errors.New("admin email must end with @uwi.edu")
+		return errors.ErrEmailAdmin
 	} else if role == Role_Student && !strings.HasSuffix(email, "@my.uwi.edu") {
-		return errors.New("student email must end with @my.uwi.edu")
+		return errors.ErrEmailStudent
 	}
 	return nil
+}
+
+// ToModel converts the User aggregate to the database model
+func (u *User) ToModel() *model.Users {
+	return &model.Users{
+		UserID:       u.ID,
+		EmailAddress: u.Email,
+		Password:     u.Password,
+		Role:         model.Roles(u.Role),
+		IsActive:     u.IsActive,
+		CreatedAt:    u.CreatedAt,
+		UpdatedAt:    &u.UpdatedAt,
+	}
+}
+
+// UserFromModel converts the database model to a User aggregate
+func UserFromModel(m *model.Users) *User {
+	return &User{
+		ID:        m.UserID,
+		Email:     m.EmailAddress,
+		Password:  m.Password,
+		Role:      Role(m.Role),
+		IsActive:  m.IsActive,
+		CreatedAt: m.CreatedAt,
+		UpdatedAt: *m.UpdatedAt,
+	}
 }
