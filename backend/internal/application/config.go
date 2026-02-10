@@ -9,6 +9,7 @@ type Config struct {
 	Port        string
 	DatabaseURL string
 	Environment string
+	DevUserID   string
 }
 
 func LoadConfig() (Config, error) {
@@ -29,6 +30,8 @@ func LoadConfig() (Config, error) {
 	if cfg.Environment == "" {
 		cfg.Environment = "development"
 	}
+
+	cfg.DevUserID = os.Getenv("DEV_USER_ID")
 
 	return cfg, nil
 }

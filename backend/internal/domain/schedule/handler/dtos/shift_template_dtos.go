@@ -22,6 +22,10 @@ type CreateShiftTemplateRequest struct {
 	CourseDemands []CourseDemandDTO `json:"course_demands"`
 }
 
+type BulkCreateShiftTemplatesRequest struct {
+	Templates []CreateShiftTemplateRequest `json:"templates"`
+}
+
 type UpdateShiftTemplateRequest struct {
 	Name          string            `json:"name"`
 	DayOfWeek     int32             `json:"day_of_week"`

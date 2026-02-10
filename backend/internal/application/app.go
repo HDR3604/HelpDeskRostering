@@ -80,6 +80,13 @@ func NewApp(cfg Config) (*App, error) {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	
+	// TODO: Delete when proper auth middleware has been implemented
+	if cfg.Environment != "production" && cfg.DevUserID != "" {
+		logger.Warn("dev auth middleware enabled — all requests use a hardcoded user",
+			zap.String("dev_user_id", cfg.DevUserID))
+		r.Use(devAuthMiddleware(cfg.DevUserID))
+	}
 	registerRoutes(r, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl)
 
 	app := &App{
@@ -130,6 +137,18 @@ func (a *App) Run() error {
 
 	a.logger.Info("server stopped")
 	return nil
+}
+
+func devAuthMiddleware(userID string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := database.WithAuthContext(r.Context(), database.AuthContext{
+				UserID: userID,
+				Role:   "admin",
+			})
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
 }
 
 func (a *App) Shutdown() {

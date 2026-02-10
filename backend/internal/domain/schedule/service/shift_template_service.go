@@ -25,6 +25,7 @@ type UpdateShiftTemplateParams struct {
 
 type ShiftTemplateServiceInterface interface {
 	Create(ctx context.Context, t *aggregate.ShiftTemplate) (*aggregate.ShiftTemplate, error)
+	BulkCreate(ctx context.Context, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*aggregate.ShiftTemplate, error)
 	List(ctx context.Context) ([]*aggregate.ShiftTemplate, error)
 	ListAll(ctx context.Context) ([]*aggregate.ShiftTemplate, error)
@@ -80,6 +81,28 @@ func (s *ShiftTemplateService) Create(ctx context.Context, t *aggregate.ShiftTem
 
 	s.logger.Info("shift template created", zap.String("id", result.ID.String()))
 	return result, nil
+}
+
+func (s *ShiftTemplateService) BulkCreate(ctx context.Context, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error) {
+	s.logger.Info("bulk creating shift templates", zap.Int("count", len(templates)))
+
+	if _, err := s.authCtx(ctx); err != nil {
+		return nil, err
+	}
+
+	var results []*aggregate.ShiftTemplate
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		var txErr error
+		results, txErr = s.repository.BulkCreate(ctx, tx, templates)
+		return txErr
+	})
+	if err != nil {
+		s.logger.Error("failed to bulk create shift templates", zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("shift templates bulk created", zap.Int("count", len(results)))
+	return results, nil
 }
 
 func (s *ShiftTemplateService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate.ShiftTemplate, error) {

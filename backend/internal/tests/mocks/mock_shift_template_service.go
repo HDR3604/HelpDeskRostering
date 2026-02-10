@@ -12,6 +12,7 @@ var _ service.ShiftTemplateServiceInterface = (*MockShiftTemplateService)(nil)
 
 type MockShiftTemplateService struct {
 	CreateFn     func(ctx context.Context, t *aggregate.ShiftTemplate) (*aggregate.ShiftTemplate, error)
+	BulkCreateFn func(ctx context.Context, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error)
 	GetByIDFn    func(ctx context.Context, id uuid.UUID) (*aggregate.ShiftTemplate, error)
 	ListFn       func(ctx context.Context) ([]*aggregate.ShiftTemplate, error)
 	ListAllFn    func(ctx context.Context) ([]*aggregate.ShiftTemplate, error)
@@ -22,6 +23,10 @@ type MockShiftTemplateService struct {
 
 func (m *MockShiftTemplateService) Create(ctx context.Context, t *aggregate.ShiftTemplate) (*aggregate.ShiftTemplate, error) {
 	return m.CreateFn(ctx, t)
+}
+
+func (m *MockShiftTemplateService) BulkCreate(ctx context.Context, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error) {
+	return m.BulkCreateFn(ctx, templates)
 }
 
 func (m *MockShiftTemplateService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate.ShiftTemplate, error) {

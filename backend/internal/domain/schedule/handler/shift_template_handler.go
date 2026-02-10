@@ -30,6 +30,7 @@ func NewShiftTemplateHandler(logger *zap.Logger, service service.ShiftTemplateSe
 func (h *ShiftTemplateHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/shift-templates", func(r chi.Router) {
 		r.Post("/", h.Create)
+		r.Post("/bulk", h.BulkCreate)
 		r.Get("/", h.List)
 		r.Get("/all", h.ListAll)
 		r.Get("/{id}", h.GetByID)
@@ -74,6 +75,53 @@ func (h *ShiftTemplateHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, dtos.ShiftTemplateToResponse(created))
+}
+
+func (h *ShiftTemplateHandler) BulkCreate(w http.ResponseWriter, r *http.Request) {
+	var req dtos.BulkCreateShiftTemplatesRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid request body", zap.Error(err))
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if len(req.Templates) == 0 {
+		writeError(w, http.StatusBadRequest, "templates array must not be empty")
+		return
+	}
+
+	templates := make([]*aggregate.ShiftTemplate, 0, len(req.Templates))
+	for _, item := range req.Templates {
+		startTime, err := time.Parse("15:04", item.StartTime)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid start_time format, expected HH:MM")
+			return
+		}
+
+		endTime, err := time.Parse("15:04", item.EndTime)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid end_time format, expected HH:MM")
+			return
+		}
+
+		demands := dtos.CourseDemandDTOsToAggregate(item.CourseDemands)
+
+		t, err := aggregate.NewShiftTemplate(item.Name, item.DayOfWeek, startTime, endTime, item.MinStaff, item.MaxStaff, demands)
+		if err != nil {
+			h.handleServiceError(w, err)
+			return
+		}
+
+		templates = append(templates, t)
+	}
+
+	created, err := h.service.BulkCreate(r.Context(), templates)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, dtos.ShiftTemplatesToResponse(created))
 }
 
 func (h *ShiftTemplateHandler) GetByID(w http.ResponseWriter, r *http.Request) {

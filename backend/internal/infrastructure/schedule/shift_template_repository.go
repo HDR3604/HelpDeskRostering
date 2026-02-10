@@ -55,6 +55,34 @@ func (r *ShiftTemplateRepository) Create(ctx context.Context, tx *sql.Tx, t *agg
 	return &s, nil
 }
 
+func (r *ShiftTemplateRepository) BulkCreate(ctx context.Context, tx *sql.Tx, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error) {
+	models := make([]model.ShiftTemplates, len(templates))
+	for i, t := range templates {
+		models[i] = t.ToModel()
+	}
+
+	stmt := table.ShiftTemplates.INSERT(
+		table.ShiftTemplates.ID,
+		table.ShiftTemplates.Name,
+		table.ShiftTemplates.DayOfWeek,
+		table.ShiftTemplates.StartTime,
+		table.ShiftTemplates.EndTime,
+		table.ShiftTemplates.MinStaff,
+		table.ShiftTemplates.MaxStaff,
+		table.ShiftTemplates.CourseDemands,
+		table.ShiftTemplates.IsActive,
+	).MODELS(models).RETURNING(table.ShiftTemplates.AllColumns)
+
+	var results []model.ShiftTemplates
+	err := stmt.QueryContext(ctx, tx, &results)
+	if err != nil {
+		r.logger.Error("failed to bulk create shift templates", zap.Error(err))
+		return nil, fmt.Errorf("failed to bulk create shift templates: %w", err)
+	}
+
+	return toShiftTemplateAggregates(results), nil
+}
+
 func (r *ShiftTemplateRepository) GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ShiftTemplate, error) {
 	stmt := table.ShiftTemplates.
 		SELECT(table.ShiftTemplates.AllColumns).

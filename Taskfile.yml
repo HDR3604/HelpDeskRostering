@@ -153,7 +153,17 @@ tasks:
     desc: Start the PostgreSQL database
     cmds:
       - docker compose -f {{.COMPOSE_FILE}} up -d postgres
-      - docker compose -f {{.COMPOSE_FILE}} exec postgres pg_isready -U helpdesk -d helpdesk --timeout=30
+      - |
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in $(seq 1 30); do
+          if docker compose -f {{.COMPOSE_FILE}} exec postgres pg_isready -U helpdesk -d helpdesk -q 2>/dev/null; then
+            echo "PostgreSQL is ready."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Timed out waiting for PostgreSQL."
+        exit 1
 
   db:studio:
     desc: Open Drizzle Studio to view the database
@@ -162,8 +172,47 @@ tasks:
       - pnpm db:studio
 
   db:reset:
-    desc: Drop and recreate the database
+    desc: Drop and recreate the database, run migrations, start services and seed
     cmds:
       - docker compose -f {{.COMPOSE_FILE}} down -v
       - task: db:start
       - task: migrate:up
+      - docker compose -f {{.COMPOSE_FILE}} up -d
+      - |
+        echo "Waiting for backend to be ready..."
+        for i in $(seq 1 60); do
+          if curl -sf http://localhost:8080/health >/dev/null 2>&1; then
+            echo "Backend is ready."
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Timed out waiting for backend."
+        exit 1
+      - task: db:seed
+
+  db:seed:
+    desc: Seed the database with dev data (requires backend to be running)
+    cmds:
+      - ./scripts/seed_dev.sh
+
+  # Visualize
+  visualize:
+    desc: "Show shifts, schedule grid, and availability (usage: task visualize [-- <id>])"
+    cmds:
+      - ./scripts/visualize.sh all {{.CLI_ARGS}}
+
+  visualize:shifts:
+    desc: Show shift templates as a weekly grid
+    cmds:
+      - ./scripts/visualize.sh shifts
+
+  visualize:schedule:
+    desc: "Show a schedule grid (usage: task visualize:schedule [-- <id>], omit id to list)"
+    cmds:
+      - ./scripts/visualize.sh schedule {{.CLI_ARGS}}
+
+  visualize:availability:
+    desc: "Show assistant availability for a schedule (usage: task visualize:availability -- <id>)"
+    cmds:
+      - ./scripts/visualize.sh availability {{.CLI_ARGS}}

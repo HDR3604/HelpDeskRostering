@@ -12,15 +12,20 @@ import (
 var _ repository.ShiftTemplateRepositoryInterface = (*MockShiftTemplateRepository)(nil)
 
 type MockShiftTemplateRepository struct {
-	CreateFn  func(ctx context.Context, tx *sql.Tx, t *aggregate.ShiftTemplate) (*aggregate.ShiftTemplate, error)
-	GetByIDFn func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ShiftTemplate, error)
-	ListFn    func(ctx context.Context, tx *sql.Tx) ([]*aggregate.ShiftTemplate, error)
-	ListAllFn func(ctx context.Context, tx *sql.Tx) ([]*aggregate.ShiftTemplate, error)
-	UpdateFn  func(ctx context.Context, tx *sql.Tx, t *aggregate.ShiftTemplate) error
+	CreateFn     func(ctx context.Context, tx *sql.Tx, t *aggregate.ShiftTemplate) (*aggregate.ShiftTemplate, error)
+	BulkCreateFn func(ctx context.Context, tx *sql.Tx, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error)
+	GetByIDFn    func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ShiftTemplate, error)
+	ListFn       func(ctx context.Context, tx *sql.Tx) ([]*aggregate.ShiftTemplate, error)
+	ListAllFn    func(ctx context.Context, tx *sql.Tx) ([]*aggregate.ShiftTemplate, error)
+	UpdateFn     func(ctx context.Context, tx *sql.Tx, t *aggregate.ShiftTemplate) error
 }
 
 func (m *MockShiftTemplateRepository) Create(ctx context.Context, tx *sql.Tx, t *aggregate.ShiftTemplate) (*aggregate.ShiftTemplate, error) {
 	return m.CreateFn(ctx, tx, t)
+}
+
+func (m *MockShiftTemplateRepository) BulkCreate(ctx context.Context, tx *sql.Tx, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error) {
+	return m.BulkCreateFn(ctx, tx, templates)
 }
 
 func (m *MockShiftTemplateRepository) GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ShiftTemplate, error) {

@@ -147,6 +147,106 @@ func (s *ShiftTemplateHandlerTestSuite) TestCreate_Unauthorized() {
 	s.Equal(http.StatusUnauthorized, rr.Code)
 }
 
+// --- BulkCreate ---
+
+func (s *ShiftTemplateHandlerTestSuite) TestBulkCreate_Success() {
+	s.mockSvc.BulkCreateFn = func(_ context.Context, templates []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error) {
+		s.Len(templates, 2)
+		for i := range templates {
+			templates[i].CreatedAt = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		}
+		return templates, nil
+	}
+
+	rr := s.doRequest("POST", "/api/v1/shift-templates/bulk", `{
+		"templates": [
+			{
+				"name": "Monday 9-10am",
+				"day_of_week": 0,
+				"start_time": "09:00",
+				"end_time": "10:00",
+				"min_staff": 2,
+				"max_staff": 3,
+				"course_demands": [{"course_code": "CS101", "tutors_required": 1, "weight": 1.0}]
+			},
+			{
+				"name": "Monday 10-11am",
+				"day_of_week": 0,
+				"start_time": "10:00",
+				"end_time": "11:00",
+				"min_staff": 1,
+				"course_demands": []
+			}
+		]
+	}`)
+
+	s.Equal(http.StatusCreated, rr.Code)
+
+	var resp []map[string]any
+	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
+	s.Len(resp, 2)
+	s.Equal("Monday 9-10am", resp[0]["name"])
+	s.Equal("Monday 10-11am", resp[1]["name"])
+}
+
+func (s *ShiftTemplateHandlerTestSuite) TestBulkCreate_InvalidBody() {
+	rr := s.doRequest("POST", "/api/v1/shift-templates/bulk", `not json`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ShiftTemplateHandlerTestSuite) TestBulkCreate_EmptyTemplates() {
+	rr := s.doRequest("POST", "/api/v1/shift-templates/bulk", `{"templates": []}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ShiftTemplateHandlerTestSuite) TestBulkCreate_InvalidStartTime() {
+	rr := s.doRequest("POST", "/api/v1/shift-templates/bulk", `{
+		"templates": [{
+			"name": "Monday 9-10am",
+			"day_of_week": 0,
+			"start_time": "bad",
+			"end_time": "10:00",
+			"min_staff": 2
+		}]
+	}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ShiftTemplateHandlerTestSuite) TestBulkCreate_ValidationError() {
+	rr := s.doRequest("POST", "/api/v1/shift-templates/bulk", `{
+		"templates": [{
+			"name": "",
+			"day_of_week": 0,
+			"start_time": "09:00",
+			"end_time": "10:00",
+			"min_staff": 2
+		}]
+	}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ShiftTemplateHandlerTestSuite) TestBulkCreate_Unauthorized() {
+	s.mockSvc.BulkCreateFn = func(_ context.Context, _ []*aggregate.ShiftTemplate) ([]*aggregate.ShiftTemplate, error) {
+		return nil, scheduleErrors.ErrMissingAuthContext
+	}
+
+	rr := s.doRequest("POST", "/api/v1/shift-templates/bulk", `{
+		"templates": [{
+			"name": "Monday 9-10am",
+			"day_of_week": 0,
+			"start_time": "09:00",
+			"end_time": "10:00",
+			"min_staff": 2
+		}]
+	}`)
+
+	s.Equal(http.StatusUnauthorized, rr.Code)
+}
+
 // --- GetByID ---
 
 func (s *ShiftTemplateHandlerTestSuite) TestGetByID_Success() {
