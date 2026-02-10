@@ -2,9 +2,10 @@
 version: '3'
 
 vars:
-  BACKEND_DIR: ./backend
-  FRONTEND_DIR: ./frontend
-  SCHEDULER_DIR: ./scheduler
+  BACKEND_DIR: ./apps/backend
+  FRONTEND_DIR: ./apps/frontend
+  SCHEDULER_DIR: ./apps/scheduler
+  TRANSCRIPT_DIR: ./apps/transcript_extraction_function
   MIGRATIONS_DIR: ./migrations
   DATABASE_URL: "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable"
   COMPOSE_FILE: docker-compose.local.yml

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from main import parse_transcript, extract_clean_text, extract_clean_text_from_bytes
+from app.extractor import parse_transcript, extract_clean_text, extract_clean_text_from_bytes
 
 
 # ── Sample transcript text fixtures ──────────────────────────────────────────
@@ -289,8 +289,8 @@ class TestExtractCleanText:
     def test_filters_watermark_and_joins_pages(self):
         mock_pdf = _make_mock_pdf(["Page content", "Page content"])
 
-        with patch("main.pdfplumber") as mock_pdfplumber, \
-             patch("main.os.path.isfile", return_value=True):
+        with patch("app.extractor.pdfplumber") as mock_pdfplumber, \
+             patch("app.extractor.os.path.isfile", return_value=True):
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text("dummy.pdf")
 
@@ -299,21 +299,21 @@ class TestExtractCleanText:
     def test_handles_empty_page(self):
         mock_pdf = _make_mock_pdf([None])
 
-        with patch("main.pdfplumber") as mock_pdfplumber, \
-             patch("main.os.path.isfile", return_value=True):
+        with patch("app.extractor.pdfplumber") as mock_pdfplumber, \
+             patch("app.extractor.os.path.isfile", return_value=True):
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text("dummy.pdf")
 
         assert result == ""
 
     def test_missing_file_returns_empty_string(self):
-        with patch("main.os.path.isfile", return_value=False):
+        with patch("app.extractor.os.path.isfile", return_value=False):
             result = extract_clean_text("nonexistent.pdf")
         assert result == ""
 
     def test_corrupt_pdf_returns_empty_string(self):
-        with patch("main.os.path.isfile", return_value=True), \
-             patch("main.pdfplumber") as mock_pdfplumber:
+        with patch("app.extractor.os.path.isfile", return_value=True), \
+             patch("app.extractor.pdfplumber") as mock_pdfplumber:
             mock_pdfplumber.open.side_effect = Exception("corrupt PDF")
             result = extract_clean_text("corrupt.pdf")
         assert result == ""
@@ -333,8 +333,8 @@ class TestExtractCleanText:
         mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
         mock_pdf.__exit__ = MagicMock(return_value=False)
 
-        with patch("main.pdfplumber") as mock_pdfplumber, \
-             patch("main.os.path.isfile", return_value=True):
+        with patch("app.extractor.pdfplumber") as mock_pdfplumber, \
+             patch("app.extractor.os.path.isfile", return_value=True):
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text("partial.pdf")
 
@@ -348,7 +348,7 @@ class TestExtractCleanTextFromBytes:
     def test_extracts_text_from_bytes(self):
         mock_pdf = _make_mock_pdf(["Page 1", "Page 2"])
 
-        with patch("main.pdfplumber") as mock_pdfplumber:
+        with patch("app.extractor.pdfplumber") as mock_pdfplumber:
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text_from_bytes(b"%PDF-fake-content")
 
@@ -363,7 +363,7 @@ class TestExtractCleanTextFromBytes:
         assert result == ""
 
     def test_corrupt_bytes_returns_empty_string(self):
-        with patch("main.pdfplumber") as mock_pdfplumber:
+        with patch("app.extractor.pdfplumber") as mock_pdfplumber:
             mock_pdfplumber.open.side_effect = Exception("not a valid PDF")
             result = extract_clean_text_from_bytes(b"not-a-pdf")
         assert result == ""
@@ -383,7 +383,7 @@ class TestExtractCleanTextFromBytes:
         mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
         mock_pdf.__exit__ = MagicMock(return_value=False)
 
-        with patch("main.pdfplumber") as mock_pdfplumber:
+        with patch("app.extractor.pdfplumber") as mock_pdfplumber:
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text_from_bytes(b"%PDF-fake")
 

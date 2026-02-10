@@ -2,12 +2,12 @@ name: help-desk-rostering
 services:
   backend:
     build:
-      context: ./backend
+      context: ./apps/backend
       dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
     volumes:
-      - ./backend:/app
+      - ./apps/backend:/app
       - /app/tmp  # Exclude tmp dir from mount
     env_file:
       - .env.local
@@ -22,12 +22,12 @@ services:
 
   scheduler:
     build:
-      context: ./scheduler
+      context: ./apps/scheduler
       dockerfile: Dockerfile.dev
     expose:
       - "8000"
     volumes:
-      - ./scheduler:/app
+      - ./apps/scheduler:/app
       - /app/tmp  # Exclude tmp dir from mount
     environment:
       - LOG_LEVEL=DEBUG
@@ -38,14 +38,32 @@ services:
       timeout: 5s
       retries: 3
 
+  transcript-extraction:
+    build:
+      context: ./apps/transcript_extraction_function
+      dockerfile: Dockerfile.dev
+    expose:
+      - "8001"
+    volumes:
+      - ./apps/transcript_extraction_function:/app
+      - /app/tmp  # Exclude tmp dir from mount
+    environment:
+      - LOG_LEVEL=DEBUG
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/healthy')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   frontend:
     build:
-      context: ./frontend
+      context: ./apps/frontend
       dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./apps/frontend:/app
       - /app/node_modules  # Exclude node_modules from mount
     restart: unless-stopped
 

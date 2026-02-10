@@ -6,11 +6,11 @@ A stateless FastAPI service that generates optimal helpdesk schedules using mixe
 
 ```bash
 # Local development (with hot reload)
-cd scheduler
+cd apps/scheduler
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/uvicorn app.main:app --reload --port 8000
 
-# Or via Docker
+# Or via Docker (from project root)
 docker compose -f docker-compose.local.yml up scheduler
 
 # Run tests
