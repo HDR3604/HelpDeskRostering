@@ -8,7 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func registerRoutes(r *chi.Mux, scheduleHdl *scheduleHandler.ScheduleHandler, scheduleGenerationHdl *scheduleHandler.ScheduleGenerationHandler) {
+func registerRoutes(
+	r *chi.Mux,
+	scheduleHdl *scheduleHandler.ScheduleHandler,
+	scheduleGenerationHdl *scheduleHandler.ScheduleGenerationHandler,
+	shiftTemplateHdl *scheduleHandler.ShiftTemplateHandler,
+	schedulerConfigHdl *scheduleHandler.SchedulerConfigHandler,
+) {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "OK")
@@ -17,5 +23,7 @@ func registerRoutes(r *chi.Mux, scheduleHdl *scheduleHandler.ScheduleHandler, sc
 	r.Route("/api/v1", func(r chi.Router) {
 		scheduleHdl.RegisterRoutes(r)
 		scheduleGenerationHdl.RegisterRoutes(r)
+		shiftTemplateHdl.RegisterRoutes(r)
+		schedulerConfigHdl.RegisterRoutes(r)
 	})
 }

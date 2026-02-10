@@ -59,22 +59,28 @@ func NewApp(cfg Config) (*App, error) {
 	// Repositories
 	scheduleRepository := scheduleRepo.NewScheduleRepository(logger)
 	scheduleGenerationRepository := scheduleRepo.NewScheduleGenerationRepository(logger)
+	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
+	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 
 	// Services
 	scheduleGenerationSvc := scheduleService.NewScheduleGenerationService(logger, scheduleGenerationRepository, txManager)
 	schedulerSvc := schedulerService.NewSchedulerService(logger)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc)
+	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
+	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 
 	// Handlers
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
+	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
+	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
 
 	// Router
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	registerRoutes(r, scheduleHdl, scheduleGenerationHdl)
+	registerRoutes(r, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl)
 
 	app := &App{
 		config: cfg,
