@@ -1,5 +1,7 @@
 package types
 
+// TODO: Move these types to a more appropriate location, such as a shared "dtos" package, if they are used across multiple services.
+
 type ScheduleStatus string
 
 const (
