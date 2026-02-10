@@ -8,6 +8,10 @@ from app.main import app
 client = TestClient(app, raise_server_exceptions=False)
 
 SAMPLE_RESULT = {
+    "first_name": "John",
+    "middle_name": "",
+    "last_name": "Doe",
+    "student_id": "123456789",
     "current_programme": "BSc",
     "major": "Computer Science",
     "current_term": "2023/2024 Semester II",

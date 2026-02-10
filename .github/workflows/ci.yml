@@ -64,14 +64,14 @@ jobs:
           python-version: '3.14'
 
       - name: Install dependencies
-        working-directory: ./apps/transcript_extraction_function
+        working-directory: ./apps/transcripts
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
           .venv/bin/pip install -r requirements-dev.txt
 
       - name: Run tests
-        working-directory: ./apps/transcript_extraction_function
+        working-directory: ./apps/transcripts
         run: .venv/bin/python -m pytest tests/ -v
 
   frontend:

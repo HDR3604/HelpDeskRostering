@@ -6,7 +6,7 @@ A stateless FastAPI service that extracts structured data from UWI unofficial tr
 
 ```bash
 # Local development (with hot reload)
-cd apps/transcript_extraction_function
+cd apps/transcripts
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/uvicorn app.main:app --reload --port 8001
 
@@ -144,7 +144,7 @@ Each extraction step is isolated — a failure in one section does not prevent t
 ## Project Structure
 
 ```
-transcript_extraction_function/
+transcripts/
 ├── app/
 │   ├── main.py                         # FastAPI app, routes, error handling
 │   ├── extractor.py                    # PDF extraction + transcript parsing logic

@@ -101,7 +101,7 @@ Database: helpdesk
 │   │       └── tests/               # Unit & integration tests
 │   ├── frontend/                    # React SPA (TanStack Router, Tailwind)
 │   ├── scheduler/                   # Python FastAPI — schedule optimizer (PuLP)
-│   └── transcript_extraction_function/  # Python FastAPI — PDF transcript parser
+│   └── transcripts/                    # Python FastAPI — PDF transcript parser
 ├── migrations/                      # SQL migrations (golang-migrate)
 ├── docker-compose.local.yml         # Local dev services
 └── Taskfile.yml                     # Task definitions
