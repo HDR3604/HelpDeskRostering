@@ -174,6 +174,105 @@ func (s *ScheduleGenerationHandlerTestSuite) TestList_InternalError() {
 	s.Equal(http.StatusInternalServerError, rr.Code)
 }
 
+// --- GetStatus ---
+
+func (s *ScheduleGenerationHandlerTestSuite) TestGetStatus_Success() {
+	expected := s.sampleGeneration()
+	s.mockSvc.GetByIDFn = func(_ context.Context, id uuid.UUID) (*aggregate.ScheduleGeneration, error) {
+		s.Equal(expected.ID, id)
+		return expected, nil
+	}
+
+	rr := s.doRequest("GET", "/api/v1/schedule-generations/11111111-1111-1111-1111-111111111111/status")
+
+	s.Equal(http.StatusOK, rr.Code)
+
+	var resp map[string]any
+	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
+	s.Equal("11111111-1111-1111-1111-111111111111", resp["id"])
+	s.Equal("completed", resp["status"])
+	s.Equal("33333333-3333-3333-3333-333333333333", resp["schedule_id"])
+	// Payloads should not be included in status response
+	s.Nil(resp["request_payload"])
+	s.Nil(resp["response_payload"])
+	s.Nil(resp["config_id"])
+	s.Nil(resp["created_by"])
+}
+
+func (s *ScheduleGenerationHandlerTestSuite) TestGetStatus_Pending() {
+	gen := &aggregate.ScheduleGeneration{
+		ID:        uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+		ConfigID:  uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+		Status:    aggregate.GenerationStatus_Pending,
+		CreatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		CreatedBy: uuid.MustParse("44444444-4444-4444-4444-444444444444"),
+	}
+
+	s.mockSvc.GetByIDFn = func(_ context.Context, _ uuid.UUID) (*aggregate.ScheduleGeneration, error) {
+		return gen, nil
+	}
+
+	rr := s.doRequest("GET", "/api/v1/schedule-generations/11111111-1111-1111-1111-111111111111/status")
+
+	s.Equal(http.StatusOK, rr.Code)
+
+	var resp map[string]any
+	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
+	s.Equal("pending", resp["status"])
+	s.Nil(resp["schedule_id"])
+	s.Nil(resp["error_message"])
+	s.Nil(resp["started_at"])
+	s.Nil(resp["completed_at"])
+}
+
+func (s *ScheduleGenerationHandlerTestSuite) TestGetStatus_Failed() {
+	errorMsg := "scheduler service is not available"
+	startedAt := time.Date(2025, 1, 1, 0, 1, 0, 0, time.UTC)
+	completedAt := time.Date(2025, 1, 1, 0, 2, 0, 0, time.UTC)
+
+	gen := &aggregate.ScheduleGeneration{
+		ID:           uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+		ConfigID:     uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+		Status:       aggregate.GenerationStatus_Failed,
+		ErrorMessage: &errorMsg,
+		StartedAt:    &startedAt,
+		CompletedAt:  &completedAt,
+		CreatedAt:    time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		CreatedBy:    uuid.MustParse("44444444-4444-4444-4444-444444444444"),
+	}
+
+	s.mockSvc.GetByIDFn = func(_ context.Context, _ uuid.UUID) (*aggregate.ScheduleGeneration, error) {
+		return gen, nil
+	}
+
+	rr := s.doRequest("GET", "/api/v1/schedule-generations/11111111-1111-1111-1111-111111111111/status")
+
+	s.Equal(http.StatusOK, rr.Code)
+
+	var resp map[string]any
+	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
+	s.Equal("failed", resp["status"])
+	s.Equal("scheduler service is not available", resp["error_message"])
+	s.NotNil(resp["started_at"])
+	s.NotNil(resp["completed_at"])
+}
+
+func (s *ScheduleGenerationHandlerTestSuite) TestGetStatus_InvalidUUID() {
+	rr := s.doRequest("GET", "/api/v1/schedule-generations/not-a-uuid/status")
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *ScheduleGenerationHandlerTestSuite) TestGetStatus_NotFound() {
+	s.mockSvc.GetByIDFn = func(_ context.Context, _ uuid.UUID) (*aggregate.ScheduleGeneration, error) {
+		return nil, scheduleErrors.ErrGenerationNotFound
+	}
+
+	rr := s.doRequest("GET", "/api/v1/schedule-generations/11111111-1111-1111-1111-111111111111/status")
+
+	s.Equal(http.StatusNotFound, rr.Code)
+}
+
 // --- JSON payload rendering ---
 
 func (s *ScheduleGenerationHandlerTestSuite) TestGetByID_PayloadsRenderedAsJSON() {

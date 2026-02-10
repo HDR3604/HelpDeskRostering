@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -68,7 +69,7 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	schedule, err := aggregate.NewSchedule(req.Title, effectiveFrom, effectiveTo)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
+		h.handleServiceError(w, err)
 		return
 	}
 
@@ -231,17 +232,18 @@ func (h *ScheduleHandler) parseID(r *http.Request) (uuid.UUID, error) {
 func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, scheduleErrors.ErrNotFound):
-		writeError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, scheduleErrors.ErrInvalidTitle),
-		errors.Is(err, scheduleErrors.ErrInvalidEffectivePeriod):
-		writeError(w, http.StatusBadRequest, err.Error())
+		writeError(w, http.StatusNotFound, "schedule not found")
+	case errors.Is(err, scheduleErrors.ErrInvalidTitle):
+		writeError(w, http.StatusBadRequest, "invalid title provided")
+	case errors.Is(err, scheduleErrors.ErrInvalidEffectivePeriod):
+		writeError(w, http.StatusBadRequest, "effective from must be before effective to and not equal")
 	case errors.Is(err, scheduleErrors.ErrMissingAuthContext):
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 	case errors.Is(err, schedulerErrors.ErrSchedulerUnavailable),
 		errors.Is(err, schedulerErrors.ErrSchedulerInternal):
 		writeError(w, http.StatusBadGateway, "scheduler service unavailable")
 	case errors.Is(err, schedulerErrors.ErrInvalidRequest):
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		writeError(w, http.StatusUnprocessableEntity, "invalid schedule request")
 	case errors.Is(err, schedulerErrors.ErrInfeasible):
 		writeError(w, http.StatusUnprocessableEntity, "no feasible schedule found")
 	default:
@@ -253,7 +255,9 @@ func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		log.Printf("failed to encode JSON response: %v", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {

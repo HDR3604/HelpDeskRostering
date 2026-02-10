@@ -28,6 +28,7 @@ func (h *ScheduleGenerationHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/schedule-generations", func(r chi.Router) {
 		r.Get("/", h.List)
 		r.Get("/{id}", h.GetByID)
+		r.Get("/{id}/status", h.GetStatus)
 	})
 }
 
@@ -47,6 +48,22 @@ func (h *ScheduleGenerationHandler) GetByID(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, dtos.ScheduleGenerationToResponse(generation))
 }
 
+func (h *ScheduleGenerationHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid schedule generation ID")
+		return
+	}
+
+	generation, err := h.service.GetByID(r.Context(), id)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.ScheduleGenerationToStatusResponse(generation))
+}
+
 func (h *ScheduleGenerationHandler) List(w http.ResponseWriter, r *http.Request) {
 	generations, err := h.service.List(r.Context())
 	if err != nil {
@@ -60,7 +77,7 @@ func (h *ScheduleGenerationHandler) List(w http.ResponseWriter, r *http.Request)
 func (h *ScheduleGenerationHandler) handleServiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, scheduleErrors.ErrGenerationNotFound):
-		writeError(w, http.StatusNotFound, err.Error())
+		writeError(w, http.StatusNotFound, "schedule generation not found")
 	case errors.Is(err, scheduleErrors.ErrMissingAuthContext):
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 	default:

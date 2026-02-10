@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
@@ -284,6 +285,13 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 		return nil, scheduleErrors.ErrMissingAuthContext
 	}
 
+	// Validate schedule params before creating generation record
+	schedule, err := aggregate.NewSchedule(params.Title, params.EffectiveFrom, params.EffectiveTo)
+	if err != nil {
+		return nil, err
+	}
+	schedule.CreatedBy = userID
+
 	// Marshal request payload for audit
 	requestPayload, err := json.Marshal(params.Request)
 	if err != nil {
@@ -298,18 +306,23 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 	}
 
 	if err := s.generationSvc.MarkStarted(ctx, generation.ID); err != nil {
+		s.logger.Error("failed to mark generation as started, generation left in pending state",
+			zap.String("generation_id", generation.ID.String()),
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
 	// Ensure generation is resolved on any failure after MarkStarted.
 	// On success path, genErr stays nil and the defer is a no-op.
 	var genErr error
+	var infeasiblePayload string
 	defer func() {
 		if genErr == nil {
 			return
 		}
 		if errors.Is(genErr, schedulerErrors.ErrInfeasible) {
-			if markErr := s.generationSvc.MarkInfeasible(ctx, generation.ID, "", genErr.Error()); markErr != nil {
+			if markErr := s.generationSvc.MarkInfeasible(ctx, generation.ID, infeasiblePayload, genErr.Error()); markErr != nil {
 				s.logger.Error("failed to mark generation as infeasible",
 					zap.String("generation_id", generation.ID.String()),
 					zap.Error(markErr),
@@ -333,12 +346,19 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 		return nil, err
 	}
 
-	// Marshal response for audit trail and schedule storage
+	// Marshal response for audit trail
 	responsePayload, err := json.Marshal(response)
 	if err != nil {
 		genErr = err
 		s.logger.Error("failed to marshal response payload", zap.Error(err))
 		return nil, err
+	}
+
+	// Check for infeasible result
+	if response.Status == types.ScheduleStatus_Infeasible {
+		infeasiblePayload = string(responsePayload)
+		genErr = fmt.Errorf("%w: solver returned status %s", schedulerErrors.ErrInfeasible, response.Status)
+		return nil, genErr
 	}
 
 	assignmentsBytes, err := json.Marshal(response.Assignments)
@@ -356,13 +376,7 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 	}
 	schedulerMetadata := string(metadataBytes)
 
-	// Create schedule with generation link
-	schedule, err := aggregate.NewSchedule(params.Title, params.EffectiveFrom, params.EffectiveTo)
-	if err != nil {
-		genErr = err
-		return nil, err
-	}
-	schedule.CreatedBy = userID
+	// Populate schedule with generation results
 	schedule.Assignments = assignmentsBytes
 	schedule.GenerationID = &generation.ID
 	schedule.SchedulerMetadata = &schedulerMetadata

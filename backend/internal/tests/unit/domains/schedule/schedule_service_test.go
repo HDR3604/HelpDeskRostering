@@ -347,13 +347,18 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Infeasible() {
 	s.setupGenerationMocks(generationID)
 
 	var infeasibleGenID uuid.UUID
-	s.generationSvc.MarkInfeasibleFn = func(_ context.Context, id uuid.UUID, _ string, _ string) error {
+	var infeasiblePayload string
+	s.generationSvc.MarkInfeasibleFn = func(_ context.Context, id uuid.UUID, payload string, _ string) error {
 		infeasibleGenID = id
+		infeasiblePayload = payload
 		return nil
 	}
 
 	s.schedulerSvc.GenerateScheduleFn = func(_ types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
-		return nil, schedulerErrors.ErrInfeasible
+		return &types.GenerateScheduleResponse{
+			Status:   types.ScheduleStatus_Infeasible,
+			Metadata: types.GenerateScheduleMetadata{SolverStatusCode: 3},
+		}, nil
 	}
 
 	result, err := s.service.GenerateSchedule(s.authCtx, params)
@@ -361,6 +366,24 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Infeasible() {
 	s.ErrorIs(err, schedulerErrors.ErrInfeasible)
 	s.Nil(result)
 	s.Equal(generationID, infeasibleGenID)
+	s.NotEmpty(infeasiblePayload, "response payload should be captured for audit")
+}
+
+func (s *ScheduleServiceTestSuite) TestGenerateSchedule_InvalidTitle() {
+	params := s.newGenerateParams()
+	params.Title = ""
+
+	var createCalled bool
+	s.generationSvc.CreateFn = func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string) (*aggregate.ScheduleGeneration, error) {
+		createCalled = true
+		return nil, nil
+	}
+
+	result, err := s.service.GenerateSchedule(s.authCtx, params)
+
+	s.ErrorIs(err, scheduleErrors.ErrInvalidTitle)
+	s.Nil(result)
+	s.False(createCalled, "generation should not be created for invalid input")
 }
 
 func (s *ScheduleServiceTestSuite) TestGenerateSchedule_CreateGenerationFails() {

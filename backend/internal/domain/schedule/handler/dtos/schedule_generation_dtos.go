@@ -49,6 +49,32 @@ func ScheduleGenerationToResponse(g *aggregate.ScheduleGeneration) ScheduleGener
 	return resp
 }
 
+type ScheduleGenerationStatusResponse struct {
+	ID           string     `json:"id"`
+	Status       string     `json:"status"`
+	ScheduleID   *string    `json:"schedule_id,omitempty"`
+	ErrorMessage *string    `json:"error_message,omitempty"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+}
+
+func ScheduleGenerationToStatusResponse(g *aggregate.ScheduleGeneration) ScheduleGenerationStatusResponse {
+	resp := ScheduleGenerationStatusResponse{
+		ID:           g.ID.String(),
+		Status:       string(g.Status),
+		ErrorMessage: g.ErrorMessage,
+		StartedAt:    g.StartedAt,
+		CompletedAt:  g.CompletedAt,
+	}
+
+	if g.ScheduleID != nil {
+		sid := g.ScheduleID.String()
+		resp.ScheduleID = &sid
+	}
+
+	return resp
+}
+
 func ScheduleGenerationsToResponse(generations []*aggregate.ScheduleGeneration) []ScheduleGenerationResponse {
 	responses := make([]ScheduleGenerationResponse, len(generations))
 	for i, g := range generations {
