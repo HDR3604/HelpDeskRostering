@@ -52,6 +52,28 @@ jobs:
         working-directory: ./scheduler
         run: .venv/bin/python -m pytest tests/ -v
 
+  transcript-extraction:
+    name: Transcript Extraction
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        working-directory: ./transcript_extraction_function
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements-dev.txt
+
+      - name: Run tests
+        working-directory: ./transcript_extraction_function
+        run: .venv/bin/python -m pytest tests/ -v
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
