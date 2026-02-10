@@ -4,8 +4,8 @@ services:
     build:
       context: ./apps/backend
       dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     env_file:
       - .env
     environment:
@@ -60,8 +60,8 @@ services:
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
-    ports:
-      - "80:5173"
+    expose:
+      - "5173"
     restart: unless-stopped
 
   postgres:
