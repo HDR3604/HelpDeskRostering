@@ -5,8 +5,6 @@
 -- Drop RLS Policies           --
 ---------------------------------
 
-DROP POLICY IF EXISTS schedule_generations_update ON "schedule"."schedule_generations";
-DROP POLICY IF EXISTS schedule_generations_insert ON "schedule"."schedule_generations";
 DROP POLICY IF EXISTS schedule_generations_select ON "schedule"."schedule_generations";
 
 DROP POLICY IF EXISTS scheduler_configs_delete ON "schedule"."scheduler_configs";
@@ -61,6 +59,8 @@ ALTER TABLE "schedule"."schedules"
 ---------------------------------
 
 ALTER TABLE "auth"."students"
+    DROP CONSTRAINT IF EXISTS "chk_students_max_weekly_hours",
+    DROP CONSTRAINT IF EXISTS "chk_students_min_weekly_hours",
     DROP COLUMN IF EXISTS "max_weekly_hours",
     DROP COLUMN IF EXISTS "min_weekly_hours";
 

@@ -78,7 +78,7 @@ func newPaymentsTableImpl(schemaName, tableName, alias string) paymentsTable {
 		UpdatedAtColumn   = postgres.TimestampzColumn("updated_at")
 		allColumns        = postgres.ColumnList{PaymentIDColumn, StudentIDColumn, PeriodStartColumn, PeriodEndColumn, HoursWorkedColumn, GrossAmountColumn, ProcessedAtColumn, CreatedAtColumn, UpdatedAtColumn}
 		mutableColumns    = postgres.ColumnList{StudentIDColumn, PeriodStartColumn, PeriodEndColumn, HoursWorkedColumn, GrossAmountColumn, ProcessedAtColumn, CreatedAtColumn, UpdatedAtColumn}
-		defaultColumns    = postgres.ColumnList{}
+		defaultColumns    = postgres.ColumnList{PaymentIDColumn, CreatedAtColumn}
 	)
 
 	return paymentsTable{

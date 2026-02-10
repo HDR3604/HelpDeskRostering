@@ -95,7 +95,7 @@ func NewTestDB(t *testing.T) *TestDB {
 
 func (tdb *TestDB) close() {
 	if tdb.DB != nil {
-		tdb.DB.Close()
+		_ = tdb.DB.Close()
 	}
 
 	if tdb.container != nil {

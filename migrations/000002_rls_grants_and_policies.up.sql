@@ -1,3 +1,6 @@
+-- Migration: 000002_rls_grants_and_policies
+-- Description: Set up database roles, row-level security, grants, and access policies
+
 -- Database roles (use DO block for idempotent role creation)
 DO $$
 BEGIN

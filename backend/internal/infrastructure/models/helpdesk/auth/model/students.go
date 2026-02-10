@@ -16,11 +16,13 @@ type Students struct {
 	EmailAddress       string
 	FirstName          string
 	LastName           string
-	TranscriptMetadata string // transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; }
+	TranscriptMetadata string // transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; current_level: string; }
 	Availability       string // Availability contains a json indicating the availability of a student for each time slot given. The times a represented in 24-hour format. e.g. 8 represents 8 am - 9am { 0: [8...16], . . 4: [8...16] // 24 hr format }
 	CreatedAt          time.Time
 	UpdatedAt          *time.Time
 	DeletedAt          *time.Time
 	AcceptedAt         *time.Time
 	RejectedAt         *time.Time
+	MinWeeklyHours     float64  // Minimum hours per week this student should be scheduled (fairness baseline)
+	MaxWeeklyHours     *float64 // Maximum hours per week this student can work
 }

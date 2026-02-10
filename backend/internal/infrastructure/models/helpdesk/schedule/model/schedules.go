@@ -16,12 +16,14 @@ type Schedules struct {
 	ScheduleID           uuid.UUID `sql:"primary_key"`
 	Title                string
 	IsActive             bool
-	Assignments          string // This is used to store the assignments of students for a given schedule. { [student_id:int] { [0...4]: []int } }
-	AvailabilityMetadata string // This stores the availabilities that were used to generate the schedule. { [student_id:int]: map[int][]int }
+	Assignments          string // Scheduler output: [{assistant_id, shift_id, day_of_week, start, end}]
+	AvailabilityMetadata string // Snapshot of assistant availabilities used as scheduler input: [{id, courses, availability, min_hours, max_hours}]
 	CreatedAt            time.Time
 	CreatedBy            uuid.UUID
 	UpdatedAt            *time.Time
 	ArchivedAt           *time.Time
 	EffectiveFrom        time.Time
 	EffectiveTo          *time.Time
+	GenerationID         *uuid.UUID
+	SchedulerMetadata    *string // Optimizer results: {objective_value, assistant_hours, shortfalls, solver_status}
 }

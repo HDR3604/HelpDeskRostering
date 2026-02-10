@@ -1,19 +1,24 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
+
+	"github.com/HDR3604/HelpDeskApp/internal/application"
 )
 
 func main() {
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "OK")
-	})
+	cfg, err := application.LoadConfig()
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
 
-	log.Println("Server starting on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
+	app, err := application.NewApp(cfg)
+	if err != nil {
+		log.Fatalf("failed to create application: %v", err)
+	}
+	defer app.Shutdown()
+
+	if err := app.Run(); err != nil {
+		log.Fatalf("application error: %v", err)
 	}
 }

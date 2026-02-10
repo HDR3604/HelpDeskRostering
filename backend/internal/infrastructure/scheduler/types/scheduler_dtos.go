@@ -3,8 +3,9 @@ package types
 type ScheduleStatus string
 
 const (
-	ScheduleStatus_Optimal  ScheduleStatus = "Optimal"
-	ScheduleStatus_Feasible ScheduleStatus = "Feasible"
+	ScheduleStatus_Optimal    ScheduleStatus = "Optimal"
+	ScheduleStatus_Feasible   ScheduleStatus = "Feasible"
+	ScheduleStatus_Infeasible ScheduleStatus = "Infeasible"
 )
 
 type GenerateScheduleRequest struct {
