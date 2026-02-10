@@ -31,7 +31,7 @@ func NewTestDB(t *testing.T) *TestDB {
 
 	// Get migrations path
 	_, currentFile, _, _ := runtime.Caller(0)
-	migrationsDir := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "..", "migrations")
+	migrationsDir := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "..", "..", "migrations")
 
 	// Start PostgreSQL container
 	pgContainer, err := postgres.Run(ctx,
