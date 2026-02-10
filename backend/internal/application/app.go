@@ -65,9 +65,9 @@ func NewApp(cfg Config) (*App, error) {
 	// Services
 	scheduleGenerationSvc := scheduleService.NewScheduleGenerationService(logger, scheduleGenerationRepository, txManager)
 	schedulerSvc := schedulerService.NewSchedulerService(logger)
-	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc)
 	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
+	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
 
 	// Handlers
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)

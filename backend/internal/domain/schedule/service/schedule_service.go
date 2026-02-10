@@ -25,7 +25,7 @@ type GenerateScheduleParams struct {
 	Title         string
 	EffectiveFrom time.Time
 	EffectiveTo   *time.Time
-	Request       types.GenerateScheduleRequest
+	Assistants    []types.Assistant
 }
 
 type ScheduleServiceInterface interface {
@@ -41,11 +41,13 @@ type ScheduleServiceInterface interface {
 }
 
 type ScheduleService struct {
-	logger        *zap.Logger
-	repository    repository.ScheduleRepositoryInterface
-	txManager     database.TxManagerInterface
-	generationSvc ScheduleGenerationServiceInterface
-	schedulerSvc  interfaces.SchedulerServiceInterface
+	logger             *zap.Logger
+	repository         repository.ScheduleRepositoryInterface
+	txManager          database.TxManagerInterface
+	generationSvc      ScheduleGenerationServiceInterface
+	schedulerSvc       interfaces.SchedulerServiceInterface
+	shiftTemplateSvc   ShiftTemplateServiceInterface
+	schedulerConfigSvc SchedulerConfigServiceInterface
 }
 
 func NewScheduleService(
@@ -54,13 +56,17 @@ func NewScheduleService(
 	txManager database.TxManagerInterface,
 	generationSvc ScheduleGenerationServiceInterface,
 	schedulerSvc interfaces.SchedulerServiceInterface,
+	shiftTemplateSvc ShiftTemplateServiceInterface,
+	schedulerConfigSvc SchedulerConfigServiceInterface,
 ) *ScheduleService {
 	return &ScheduleService{
-		logger:        logger,
-		repository:    repository,
-		txManager:     txManager,
-		generationSvc: generationSvc,
-		schedulerSvc:  schedulerSvc,
+		logger:             logger,
+		repository:         repository,
+		txManager:          txManager,
+		generationSvc:      generationSvc,
+		schedulerSvc:       schedulerSvc,
+		shiftTemplateSvc:   shiftTemplateSvc,
+		schedulerConfigSvc: schedulerConfigSvc,
 	}
 }
 
@@ -292,8 +298,32 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 	}
 	schedule.CreatedBy = userID
 
+	// Fetch active shift templates from DB
+	shiftTemplates, err := s.shiftTemplateSvc.List(ctx)
+	if err != nil {
+		s.logger.Error("failed to fetch shift templates", zap.Error(err))
+		return nil, err
+	}
+	if len(shiftTemplates) == 0 {
+		return nil, scheduleErrors.ErrNoActiveShiftTemplates
+	}
+
+	// Fetch scheduler config from DB
+	schedulerConfig, err := s.schedulerConfigSvc.GetByID(ctx, params.ConfigID)
+	if err != nil {
+		s.logger.Error("failed to fetch scheduler config", zap.String("config_id", params.ConfigID.String()), zap.Error(err))
+		return nil, err
+	}
+
+	// Build scheduler request from DB data + client-provided assistants
+	schedulerRequest := types.GenerateScheduleRequest{
+		Assistants:      params.Assistants,
+		Shifts:          shiftTemplatesToSchedulerShifts(shiftTemplates),
+		SchedulerConfig: schedulerConfigToSchedulerConfig(schedulerConfig),
+	}
+
 	// Marshal request payload for audit
-	requestPayload, err := json.Marshal(params.Request)
+	requestPayload, err := json.Marshal(schedulerRequest)
 	if err != nil {
 		s.logger.Error("failed to marshal request payload", zap.Error(err))
 		return nil, err
@@ -339,7 +369,7 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 	}()
 
 	// Call Python scheduler
-	response, err := s.schedulerSvc.GenerateSchedule(params.Request)
+	response, err := s.schedulerSvc.GenerateSchedule(schedulerRequest)
 	if err != nil {
 		genErr = err
 		s.logger.Error("scheduler failed", zap.String("generation_id", generation.ID.String()), zap.Error(err))
@@ -408,4 +438,57 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 	)
 
 	return result, nil
+}
+
+func shiftTemplatesToSchedulerShifts(templates []*aggregate.ShiftTemplate) []types.Shift {
+	shifts := make([]types.Shift, len(templates))
+	for i, t := range templates {
+		demands := make([]types.CourseDemand, len(t.CourseDemands))
+		for j, d := range t.CourseDemands {
+			demands[j] = types.CourseDemand{
+				CourseCode:     d.CourseCode,
+				TutorsRequired: d.TutorsRequired,
+				Weight:         float32(d.Weight),
+			}
+		}
+
+		var maxStaff *int
+		if t.MaxStaff != nil {
+			v := int(*t.MaxStaff)
+			maxStaff = &v
+		}
+
+		shifts[i] = types.Shift{
+			ID:            t.ID.String(),
+			DayOfWeek:     int(t.DayOfWeek),
+			Start:         t.StartTime.Format("15:04:05"),
+			End:           t.EndTime.Format("15:04:05"),
+			CourseDemands: demands,
+			MinStaff:      int(t.MinStaff),
+			MaxStaff:      maxStaff,
+			Metadata:      map[string]string{"name": t.Name},
+		}
+	}
+	return shifts
+}
+
+func schedulerConfigToSchedulerConfig(config *aggregate.SchedulerConfig) *types.SchedulerConfig {
+	var solverGap *float32
+	if config.SolverGap != nil {
+		v := float32(*config.SolverGap)
+		solverGap = &v
+	}
+
+	return &types.SchedulerConfig{
+		CourseShortfallPenalty: float32(config.CourseShortfallPenalty),
+		MinHoursPenalty:       float32(config.MinHoursPenalty),
+		MaxHoursPenalty:       float32(config.MaxHoursPenalty),
+		UnderstaffedPenalty:   float32(config.UnderstaffedPenalty),
+		ExtraHoursPenalty:     float32(config.ExtraHoursPenalty),
+		MaxExtraPenalty:       float32(config.MaxExtraPenalty),
+		BaselineHoursTarget:   config.BaselineHoursTarget,
+		SolverTimeLimit:       config.SolverTimeLimit,
+		SolverGap:             solverGap,
+		LogSolverOutput:       config.LogSolverOutput,
+	}
 }

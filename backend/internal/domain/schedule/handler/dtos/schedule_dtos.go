@@ -15,11 +15,11 @@ type CreateScheduleRequest struct {
 }
 
 type GenerateScheduleRequest struct {
-	ConfigID      string                        `json:"config_id"`
-	Title         string                        `json:"title"`
-	EffectiveFrom string                        `json:"effective_from"` // format: "2006-01-02"
-	EffectiveTo   *string                       `json:"effective_to"`   // format: "2006-01-02"
-	Request       types.GenerateScheduleRequest `json:"request"`
+	ConfigID      string            `json:"config_id"`
+	Title         string            `json:"title"`
+	EffectiveFrom string            `json:"effective_from"` // format: "2006-01-02"
+	EffectiveTo   *string           `json:"effective_to"`   // format: "2006-01-02"
+	Assistants    []types.Assistant `json:"assistants"`
 }
 
 type ScheduleResponse struct {

@@ -309,10 +309,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Success() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Generated Schedule",
 		"effective_from": "2025-09-01",
-		"request": {
-			"assistants": [{"id": "a1", "courses": ["CS101"], "min_hours": 4, "max_hours": 10, "cost_per_hour": 20}],
-			"shifts": [{"id": "s1", "day_of_week": 1, "start": "08:00:00", "end": "12:00:00"}]
-		}
+		"assistants": [{"id": "a1", "courses": ["CS101"], "min_hours": 4, "max_hours": 10, "cost_per_hour": 20}]
 	}`)
 
 	s.Equal(http.StatusCreated, rr.Code)
@@ -335,7 +332,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidConfigID() {
 		"config_id": "not-a-uuid",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"request": {"assistants": [], "shifts": []}
+		"assistants": []
 	}`)
 
 	s.Equal(http.StatusBadRequest, rr.Code)
@@ -346,7 +343,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidDateFormat() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "Sept 1",
-		"request": {"assistants": [], "shifts": []}
+		"assistants": []
 	}`)
 
 	s.Equal(http.StatusBadRequest, rr.Code)
@@ -361,7 +358,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_SchedulerUnavailable() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"request": {"assistants": [], "shifts": []}
+		"assistants": []
 	}`)
 
 	s.Equal(http.StatusBadGateway, rr.Code)
@@ -376,7 +373,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Infeasible() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"request": {"assistants": [], "shifts": []}
+		"assistants": []
 	}`)
 
 	s.Equal(http.StatusUnprocessableEntity, rr.Code)
@@ -391,8 +388,38 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Unauthorized() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"request": {"assistants": [], "shifts": []}
+		"assistants": []
 	}`)
 
 	s.Equal(http.StatusUnauthorized, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_NoActiveShiftTemplates() {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+		return nil, scheduleErrors.ErrNoActiveShiftTemplates
+	}
+
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"assistants": []
+	}`)
+
+	s.Equal(http.StatusUnprocessableEntity, rr.Code)
+}
+
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_ConfigNotFound() {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+		return nil, scheduleErrors.ErrSchedulerConfigNotFound
+	}
+
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"assistants": []
+	}`)
+
+	s.Equal(http.StatusNotFound, rr.Code)
 }

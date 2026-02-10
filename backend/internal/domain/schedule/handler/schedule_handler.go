@@ -117,7 +117,7 @@ func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Reques
 		Title:         req.Title,
 		EffectiveFrom: effectiveFrom,
 		EffectiveTo:   effectiveTo,
-		Request:       req.Request,
+		Assistants:    req.Assistants,
 	}
 
 	schedule, err := h.service.GenerateSchedule(r.Context(), params)
@@ -246,6 +246,10 @@ func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusUnprocessableEntity, "invalid schedule request")
 	case errors.Is(err, schedulerErrors.ErrInfeasible):
 		writeError(w, http.StatusUnprocessableEntity, "no feasible schedule found")
+	case errors.Is(err, scheduleErrors.ErrNoActiveShiftTemplates):
+		writeError(w, http.StatusUnprocessableEntity, "no active shift templates configured")
+	case errors.Is(err, scheduleErrors.ErrSchedulerConfigNotFound):
+		writeError(w, http.StatusNotFound, "scheduler config not found")
 	default:
 		h.logger.Error("unhandled service error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal server error")

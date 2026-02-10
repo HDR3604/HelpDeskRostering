@@ -22,12 +22,14 @@ import (
 
 type ScheduleServiceTestSuite struct {
 	suite.Suite
-	repo          *mocks.MockScheduleRepository
-	generationSvc *mocks.MockScheduleGenerationService
-	schedulerSvc  *mocks.MockSchedulerService
-	service       service.ScheduleServiceInterface
-	authCtx       context.Context
-	userID        uuid.UUID
+	repo               *mocks.MockScheduleRepository
+	generationSvc      *mocks.MockScheduleGenerationService
+	schedulerSvc       *mocks.MockSchedulerService
+	shiftTemplateSvc   *mocks.MockShiftTemplateService
+	schedulerConfigSvc *mocks.MockSchedulerConfigService
+	service            service.ScheduleServiceInterface
+	authCtx            context.Context
+	userID             uuid.UUID
 }
 
 func TestScheduleServiceTestSuite(t *testing.T) {
@@ -38,8 +40,10 @@ func (s *ScheduleServiceTestSuite) SetupTest() {
 	s.repo = &mocks.MockScheduleRepository{}
 	s.generationSvc = &mocks.MockScheduleGenerationService{}
 	s.schedulerSvc = &mocks.MockSchedulerService{}
+	s.shiftTemplateSvc = &mocks.MockShiftTemplateService{}
+	s.schedulerConfigSvc = &mocks.MockSchedulerConfigService{}
 	s.userID = uuid.New()
-	svc := service.NewScheduleService(zap.NewNop(), s.repo, &mocks.StubTxManager{}, s.generationSvc, s.schedulerSvc)
+	svc := service.NewScheduleService(zap.NewNop(), s.repo, &mocks.StubTxManager{}, s.generationSvc, s.schedulerSvc, s.shiftTemplateSvc, s.schedulerConfigSvc)
 	s.service = svc
 	s.authCtx = database.WithAuthContext(context.Background(), database.AuthContext{
 		UserID: s.userID.String(),
@@ -232,17 +236,45 @@ func (s *ScheduleServiceTestSuite) TestDeactivate_Success() {
 
 func (s *ScheduleServiceTestSuite) newGenerateParams() service.GenerateScheduleParams {
 	return service.GenerateScheduleParams{
-		ConfigID:      uuid.New(),
+		ConfigID:      uuid.MustParse("44444444-4444-4444-4444-444444444444"),
 		Title:         "Generated Schedule",
 		EffectiveFrom: time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC),
-		Request: types.GenerateScheduleRequest{
-			Assistants: []types.Assistant{
-				{ID: "a1", Courses: []string{"CS101"}, MinHours: 4, MaxHours: 10},
-			},
-			Shifts: []types.Shift{
-				{ID: "s1", DayOfWeek: 1, Start: "08:00:00", End: "12:00:00"},
-			},
+		Assistants: []types.Assistant{
+			{ID: "a1", Courses: []string{"CS101"}, MinHours: 4, MaxHours: 10},
 		},
+	}
+}
+
+func (s *ScheduleServiceTestSuite) setupShiftTemplateAndConfigMocks() {
+	s.shiftTemplateSvc.ListFn = func(_ context.Context) ([]*aggregate.ShiftTemplate, error) {
+		return []*aggregate.ShiftTemplate{
+			{
+				ID:        uuid.MustParse("55555555-5555-5555-5555-555555555555"),
+				Name:      "Morning Shift",
+				DayOfWeek: 1,
+				StartTime: time.Date(0, 1, 1, 8, 0, 0, 0, time.UTC),
+				EndTime:   time.Date(0, 1, 1, 12, 0, 0, 0, time.UTC),
+				MinStaff:  2,
+				CourseDemands: []aggregate.CourseDemand{
+					{CourseCode: "CS101", TutorsRequired: 1, Weight: 1.0},
+				},
+				IsActive: true,
+			},
+		}, nil
+	}
+	s.schedulerConfigSvc.GetByIDFn = func(_ context.Context, id uuid.UUID) (*aggregate.SchedulerConfig, error) {
+		return &aggregate.SchedulerConfig{
+			ID:                    id,
+			Name:                  "Default",
+			CourseShortfallPenalty: 1.0,
+			MinHoursPenalty:       10.0,
+			MaxHoursPenalty:       5.0,
+			UnderstaffedPenalty:   100.0,
+			ExtraHoursPenalty:     5.0,
+			MaxExtraPenalty:       20.0,
+			BaselineHoursTarget:   6,
+			LogSolverOutput:       false,
+		}, nil
 	}
 }
 
@@ -281,8 +313,16 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Success() {
 	generationID := uuid.New()
 	params := s.newGenerateParams()
 
+	s.setupShiftTemplateAndConfigMocks()
 	s.setupGenerationMocks(generationID)
-	s.schedulerSvc.GenerateScheduleFn = func(_ types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
+	s.schedulerSvc.GenerateScheduleFn = func(req types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
+		// Verify shifts were built from templates
+		s.Len(req.Shifts, 1)
+		s.Equal("55555555-5555-5555-5555-555555555555", req.Shifts[0].ID)
+		s.Equal("08:00:00", req.Shifts[0].Start)
+		// Verify config was fetched
+		s.Require().NotNil(req.SchedulerConfig)
+		s.Equal(float32(100.0), req.SchedulerConfig.UnderstaffedPenalty)
 		return s.newSchedulerResponse(), nil
 	}
 	s.repo.CreateFn = func(_ context.Context, _ *sql.Tx, schedule *aggregate.Schedule) (*aggregate.Schedule, error) {
@@ -318,6 +358,7 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_SchedulerFailure() {
 	generationID := uuid.New()
 	params := s.newGenerateParams()
 
+	s.setupShiftTemplateAndConfigMocks()
 	s.setupGenerationMocks(generationID)
 
 	var failedGenID uuid.UUID
@@ -344,6 +385,7 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Infeasible() {
 	generationID := uuid.New()
 	params := s.newGenerateParams()
 
+	s.setupShiftTemplateAndConfigMocks()
 	s.setupGenerationMocks(generationID)
 
 	var infeasibleGenID uuid.UUID
@@ -389,6 +431,7 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_InvalidTitle() {
 func (s *ScheduleServiceTestSuite) TestGenerateSchedule_CreateGenerationFails() {
 	params := s.newGenerateParams()
 
+	s.setupShiftTemplateAndConfigMocks()
 	s.generationSvc.CreateFn = func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string) (*aggregate.ScheduleGeneration, error) {
 		return nil, fmt.Errorf("db error")
 	}
@@ -404,6 +447,7 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_PersistScheduleFails() {
 	generationID := uuid.New()
 	params := s.newGenerateParams()
 
+	s.setupShiftTemplateAndConfigMocks()
 	s.setupGenerationMocks(generationID)
 	s.schedulerSvc.GenerateScheduleFn = func(_ types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
 		return s.newSchedulerResponse(), nil
@@ -424,4 +468,43 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_PersistScheduleFails() {
 	s.Require().Error(err)
 	s.Nil(result)
 	s.Equal(generationID, failedGenID)
+}
+
+func (s *ScheduleServiceTestSuite) TestGenerateSchedule_NoActiveShiftTemplates() {
+	params := s.newGenerateParams()
+
+	s.shiftTemplateSvc.ListFn = func(_ context.Context) ([]*aggregate.ShiftTemplate, error) {
+		return []*aggregate.ShiftTemplate{}, nil
+	}
+
+	result, err := s.service.GenerateSchedule(s.authCtx, params)
+
+	s.ErrorIs(err, scheduleErrors.ErrNoActiveShiftTemplates)
+	s.Nil(result)
+}
+
+func (s *ScheduleServiceTestSuite) TestGenerateSchedule_ConfigNotFound() {
+	params := s.newGenerateParams()
+
+	s.shiftTemplateSvc.ListFn = func(_ context.Context) ([]*aggregate.ShiftTemplate, error) {
+		return []*aggregate.ShiftTemplate{
+			{
+				ID:        uuid.New(),
+				Name:      "Shift",
+				DayOfWeek: 0,
+				StartTime: time.Date(0, 1, 1, 9, 0, 0, 0, time.UTC),
+				EndTime:   time.Date(0, 1, 1, 10, 0, 0, 0, time.UTC),
+				MinStaff:  1,
+				IsActive:  true,
+			},
+		}, nil
+	}
+	s.schedulerConfigSvc.GetByIDFn = func(_ context.Context, _ uuid.UUID) (*aggregate.SchedulerConfig, error) {
+		return nil, scheduleErrors.ErrSchedulerConfigNotFound
+	}
+
+	result, err := s.service.GenerateSchedule(s.authCtx, params)
+
+	s.ErrorIs(err, scheduleErrors.ErrSchedulerConfigNotFound)
+	s.Nil(result)
 }
