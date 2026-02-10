@@ -12,33 +12,73 @@ Dependencies: pip install pdfplumber
 Usage: python3 extract_transcript.py <transcript.pdf>
 """
 
+import io
 import sys
+import os
 import re
 import json
+import logging
 import pdfplumber
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_pages(pdf) -> list[str]:
+    """Extract text from an already-opened pdfplumber PDF, filtering watermark chars."""
+    pages = []
+    for page in pdf.pages:
+        try:
+            filtered = page.filter(
+                lambda obj: obj.get("size", 0) < 20 if "size" in obj else True
+            )
+            pages.append(filtered.extract_text() or "")
+        except Exception:
+            logger.warning("Failed to extract page %s, skipping", page.page_number)
+            pages.append("")
+    return pages
 
 
 def extract_clean_text(pdf_path: str) -> str:
-    """Extract text from PDF with watermark characters (size > 20) filtered out."""
-    pdf = pdfplumber.open(pdf_path)
-    pages = []
-    for page in pdf.pages:
-        filtered = page.filter(
-            lambda obj: obj.get("size", 0) < 20 if "size" in obj else True
-        )
-        pages.append(filtered.extract_text() or "")
-    pdf.close()
-    return "\n".join(pages)
+    """Extract text from a PDF file path with watermark characters filtered out.
+
+    Returns empty string on any error (missing file, corrupt PDF, etc.).
+    """
+    if not os.path.isfile(pdf_path):
+        logger.error("PDF file not found: %s", pdf_path)
+        return ""
+
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            return "\n".join(_extract_pages(pdf))
+    except Exception:
+        logger.error("Failed to open or read PDF: %s", pdf_path, exc_info=True)
+        return ""
 
 
-def parse_transcript(text: str) -> dict:
-    lines = text.split("\n")
+def extract_clean_text_from_bytes(pdf_bytes: bytes) -> str:
+    """Extract text from PDF bytes (e.g. an HTTP upload blob) with watermark filtered out.
 
-    # ---- Courses (code + title) ----
+    Returns empty string on any error (corrupt PDF, empty bytes, etc.).
+    """
+    if not pdf_bytes:
+        logger.error("Empty PDF bytes provided")
+        return ""
+
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+            return "\n".join(_extract_pages(pdf))
+    except Exception:
+        logger.error("Failed to read PDF from bytes", exc_info=True)
+        return ""
+
+
+def _parse_courses(lines: list[str]) -> list[dict]:
+    """Extract course records from transcript lines."""
     re_course = re.compile(
         r"^([A-Z]{2,4})\s+(\d{4})\s+S\s+UG\s+"
         r"(.+?)\s+"
-        r"(?:(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|HD|P)\s+)?"
+        r"(?:(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|HD|P|"
+        r"W|MC|AB|DEF|NC|EX|NP|INC)\s+)?"
         r"(\d+\.\d+)\s+(?:\d+\.\d+\s+)?\d+\.\d+"
     )
     re_not_cont = re.compile(
@@ -61,56 +101,120 @@ def parse_transcript(text: str) -> dict:
                 if nxt and nxt[0].isupper() and not re_not_cont.match(nxt):
                     title += " " + nxt
             courses.append({"code": code, "title": title, "grade": grade})
+    return courses
 
-    codes = [c["code"] for c in courses]
 
-    # ---- GPAs from TRANSCRIPT TOTALS ----
-    overall = re.search(
+def _parse_gpas(text: str) -> tuple[float | None, float | None]:
+    """Extract overall and degree GPAs from TRANSCRIPT TOTALS section."""
+    overall_match = re.search(
         r"Overall:\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)", text
     )
-    degree = re.search(
+    degree_match = re.search(
         r"Degree:\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)", text
     )
+    overall_gpa = float(overall_match.group(6)) if overall_match else None
+    degree_gpa = float(degree_match.group(6)) if degree_match else None
+    return overall_gpa, degree_gpa
 
-    # ---- Current programme from CURRENT PROGRAMME block ----
+
+def _parse_programme(lines: list[str]) -> dict[str, str]:
+    """Extract CURRENT PROGRAMME block fields."""
     prog = {}
     in_block = False
+    stop_markers = ("DEGREE GPA TOTALS", "TRANSCRIPT TOTALS")
+    field_map = {
+        "Degree": "degree",
+        "Programme": "programme",
+        "Faculty": "faculty",
+        "Major": "major",
+        "Department": "department",
+        "Campus": "campus",
+    }
+    re_course_line = re.compile(r"^[A-Z]{2,4}\s+\d{4}\s+S\s+UG\s+")
+
     for line in lines:
         tr = line.strip()
         if "CURRENT PROGRAMME" in tr:
             in_block = True
             continue
-        if "DEGREE GPA TOTALS" in tr:
-            break
+        if any(marker in tr for marker in stop_markers) or re_course_line.match(tr):
+            if in_block:
+                break
+            continue
         if in_block:
             parts = tr.split(":", 1)
             if len(parts) == 2 and parts[1].strip():
                 key, val = parts[0].strip(), parts[1].strip()
-                field_map = {
-                    "Degree": "degree",
-                    "Programme": "programme",
-                    "Faculty": "faculty",
-                    "Major": "major",
-                    "Department": "department",
-                    "Campus": "campus",
-                }
                 if key in field_map:
                     prog[field_map[key]] = val
+    return prog
 
-    # ---- Current year from highest course level ----
-    current_year = max((int(c.split()[1]) // 1000 for c in codes), default=0)
 
-    # ---- Current term (last semester in document) ----
-    semesters = re.findall(r"(20\d{2}/20\d{2}\s+Semester\s+I{1,2})", text)
-    current_term = semesters[-1] if semesters else ""
+def _parse_current_year(courses: list[dict]) -> int:
+    """Derive current year from the highest course-code level number."""
+    year = 0
+    for c in courses:
+        try:
+            level = int(c["code"].split()[1]) // 1000
+            year = max(year, level)
+        except (IndexError, ValueError):
+            continue
+    return year
+
+
+def _parse_current_term(text: str) -> str:
+    """Find the last semester/term reference in the document."""
+    semesters = re.findall(
+        r"(20\d{2}/20\d{2}\s+(?:Semester\s+I{1,3}|Summer))", text
+    )
+    return semesters[-1] if semesters else ""
+
+
+def parse_transcript(text: str) -> dict:
+    lines = text.split("\n")
+
+    # ---- Courses ----
+    try:
+        courses = _parse_courses(lines)
+    except Exception:
+        logger.warning("Failed to parse courses", exc_info=True)
+        courses = []
+
+    # ---- GPAs ----
+    try:
+        overall_gpa, degree_gpa = _parse_gpas(text)
+    except Exception:
+        logger.warning("Failed to parse GPAs", exc_info=True)
+        overall_gpa, degree_gpa = None, None
+
+    # ---- Programme ----
+    try:
+        prog = _parse_programme(lines)
+    except Exception:
+        logger.warning("Failed to parse programme block", exc_info=True)
+        prog = {}
+
+    # ---- Current year ----
+    try:
+        current_year = _parse_current_year(courses)
+    except Exception:
+        logger.warning("Failed to parse current year", exc_info=True)
+        current_year = 0
+
+    # ---- Current term ----
+    try:
+        current_term = _parse_current_term(text)
+    except Exception:
+        logger.warning("Failed to parse current term", exc_info=True)
+        current_term = ""
 
     return {
         "current_programme": prog.get("degree", ""),
         "major": prog.get("major", ""),
         "current_term": current_term,
         "current_year": current_year,
-        "degree_gpa": float(degree.group(6)) if degree else None,
-        "overall_gpa": float(overall.group(6)) if overall else None,
+        "degree_gpa": degree_gpa,
+        "overall_gpa": overall_gpa,
         "courses": courses,
     }
 
@@ -120,9 +224,18 @@ def main():
         print(f"Usage: {sys.argv[0]} <transcript.pdf>", file=sys.stderr)
         sys.exit(1)
 
-    text = extract_clean_text(sys.argv[1])
-    result = parse_transcript(text)
-    print(json.dumps(result, indent=2))
+    pdf_path = sys.argv[1]
+    if not os.path.isfile(pdf_path):
+        print(f"Error: file not found: {pdf_path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        text = extract_clean_text(pdf_path)
+        result = parse_transcript(text)
+        print(json.dumps(result, indent=2))
+    except Exception as e:
+        print(f"Error processing transcript: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

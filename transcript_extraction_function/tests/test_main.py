@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from main import parse_transcript, extract_clean_text
+from main import parse_transcript, extract_clean_text, extract_clean_text_from_bytes
 
 
 # ── Sample transcript text fixtures ──────────────────────────────────────────
@@ -60,6 +60,62 @@ PHYS 1001 S UG Introduction to Physics A 3.00 12.00 4.00
 
 DEGREE GPA TOTALS
 TRANSCRIPT TOTALS
+"""
+
+TRANSCRIPT_EXTRA_GRADES = """\
+CURRENT PROGRAMME
+Degree: BSc
+Major: Chemistry
+
+Term 2024/2025 Semester I
+
+CHEM 1001 S UG General Chemistry W 3.00 0.00 0.00
+CHEM 1002 S UG Organic Chemistry I 3.00 0.00 0.00
+CHEM 2001 S UG Analytical Chemistry DEF 3.00 0.00 0.00
+CHEM 2002 S UG Physical Chemistry MC 3.00 0.00 0.00
+
+DEGREE GPA TOTALS
+TRANSCRIPT TOTALS
+"""
+
+TRANSCRIPT_SUMMER_TERM = """\
+CURRENT PROGRAMME
+Degree: BSc
+Major: Biology
+
+Term 2024/2025 Semester I
+
+BIOL 1001 S UG Cell Biology A 3.00 12.00 4.00
+
+Term 2024/2025 Summer
+
+BIOL 1002 S UG Genetics B 3.00 9.00 3.00
+
+DEGREE GPA TOTALS
+TRANSCRIPT TOTALS
+"""
+
+TRANSCRIPT_SEMESTER_III = """\
+Term 2024/2025 Semester III
+
+PHYS 2001 S UG Quantum Mechanics A 3.00 12.00 4.00
+
+DEGREE GPA TOTALS
+TRANSCRIPT TOTALS
+"""
+
+TRANSCRIPT_NO_DEGREE_GPA_MARKER = """\
+CURRENT PROGRAMME
+Degree: MSc
+Major: Mathematics
+
+Term 2024/2025 Semester II
+
+MATH 3001 S UG Abstract Algebra A 3.00 12.00 4.00
+
+TRANSCRIPT TOTALS
+Attempt Hours Passed Hours Earned Hours GPA Hours Quality Points GPA
+Overall: 3.00 3.00 3.00 3.00 12.00 4.00
 """
 
 
@@ -153,37 +209,182 @@ class TestParseTranscriptMinimal:
         assert result["courses"][0]["code"] == "PHYS 1001"
 
 
+class TestExtraGrades:
+    def test_withdrawn_grade(self):
+        result = parse_transcript(TRANSCRIPT_EXTRA_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["CHEM 1001"] == "W"
+
+    def test_in_progress_course_no_grade(self):
+        result = parse_transcript(TRANSCRIPT_EXTRA_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["CHEM 1002"] is None
+
+    def test_deferred_grade(self):
+        result = parse_transcript(TRANSCRIPT_EXTRA_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["CHEM 2001"] == "DEF"
+
+    def test_medical_comp_grade(self):
+        result = parse_transcript(TRANSCRIPT_EXTRA_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["CHEM 2002"] == "MC"
+
+
+class TestTermVariations:
+    def test_summer_term(self):
+        result = parse_transcript(TRANSCRIPT_SUMMER_TERM)
+        assert result["current_term"] == "2024/2025 Summer"
+
+    def test_semester_iii(self):
+        result = parse_transcript(TRANSCRIPT_SEMESTER_III)
+        assert result["current_term"] == "2024/2025 Semester III"
+
+
+class TestProgrammeBlockFallback:
+    def test_stops_at_transcript_totals_when_no_degree_gpa_marker(self):
+        result = parse_transcript(TRANSCRIPT_NO_DEGREE_GPA_MARKER)
+        assert result["current_programme"] == "MSc"
+        assert result["major"] == "Mathematics"
+        assert result["overall_gpa"] == 4.00
+
+
+class TestSafeYearCalculation:
+    def test_malformed_course_code_does_not_crash(self):
+        text = """\
+BADCODE S UG Some Course A 3.00 12.00 4.00
+COMP 2001 S UG Good Course B 3.00 9.00 3.00
+
+DEGREE GPA TOTALS
+TRANSCRIPT TOTALS
+"""
+        result = parse_transcript(text)
+        assert result["current_year"] == 2
+
+    def test_no_courses_yields_year_zero(self):
+        result = parse_transcript("no courses here")
+        assert result["current_year"] == 0
+
+
 # ── extract_clean_text tests ─────────────────────────────────────────────────
+
+
+def _make_mock_pdf(pages_text):
+    """Build a mock pdfplumber PDF with the given page texts."""
+    mock_pdf = MagicMock()
+    mock_pages = []
+    for text in pages_text:
+        mock_page = MagicMock()
+        mock_filtered = MagicMock()
+        mock_filtered.extract_text.return_value = text
+        mock_page.filter.return_value = mock_filtered
+        mock_pages.append(mock_page)
+    mock_pdf.pages = mock_pages
+    mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
+    mock_pdf.__exit__ = MagicMock(return_value=False)
+    return mock_pdf
 
 
 class TestExtractCleanText:
     def test_filters_watermark_and_joins_pages(self):
-        mock_page = MagicMock()
-        mock_filtered = MagicMock()
-        mock_filtered.extract_text.return_value = "Page content"
-        mock_page.filter.return_value = mock_filtered
+        mock_pdf = _make_mock_pdf(["Page content", "Page content"])
 
-        mock_pdf = MagicMock()
-        mock_pdf.pages = [mock_page, mock_page]
-
-        with patch("main.pdfplumber") as mock_pdfplumber:
+        with patch("main.pdfplumber") as mock_pdfplumber, \
+             patch("main.os.path.isfile", return_value=True):
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text("dummy.pdf")
 
         assert result == "Page content\nPage content"
-        mock_pdf.close.assert_called_once()
 
     def test_handles_empty_page(self):
-        mock_page = MagicMock()
-        mock_filtered = MagicMock()
-        mock_filtered.extract_text.return_value = None
-        mock_page.filter.return_value = mock_filtered
+        mock_pdf = _make_mock_pdf([None])
 
-        mock_pdf = MagicMock()
-        mock_pdf.pages = [mock_page]
-
-        with patch("main.pdfplumber") as mock_pdfplumber:
+        with patch("main.pdfplumber") as mock_pdfplumber, \
+             patch("main.os.path.isfile", return_value=True):
             mock_pdfplumber.open.return_value = mock_pdf
             result = extract_clean_text("dummy.pdf")
 
         assert result == ""
+
+    def test_missing_file_returns_empty_string(self):
+        with patch("main.os.path.isfile", return_value=False):
+            result = extract_clean_text("nonexistent.pdf")
+        assert result == ""
+
+    def test_corrupt_pdf_returns_empty_string(self):
+        with patch("main.os.path.isfile", return_value=True), \
+             patch("main.pdfplumber") as mock_pdfplumber:
+            mock_pdfplumber.open.side_effect = Exception("corrupt PDF")
+            result = extract_clean_text("corrupt.pdf")
+        assert result == ""
+
+    def test_page_extraction_failure_skips_page(self):
+        good_page = MagicMock()
+        good_filtered = MagicMock()
+        good_filtered.extract_text.return_value = "Good page"
+        good_page.filter.return_value = good_filtered
+
+        bad_page = MagicMock()
+        bad_page.filter.side_effect = Exception("page error")
+        bad_page.page_number = 2
+
+        mock_pdf = MagicMock()
+        mock_pdf.pages = [good_page, bad_page]
+        mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
+        mock_pdf.__exit__ = MagicMock(return_value=False)
+
+        with patch("main.pdfplumber") as mock_pdfplumber, \
+             patch("main.os.path.isfile", return_value=True):
+            mock_pdfplumber.open.return_value = mock_pdf
+            result = extract_clean_text("partial.pdf")
+
+        assert result == "Good page\n"
+
+
+# ── extract_clean_text_from_bytes tests ──────────────────────────────────────
+
+
+class TestExtractCleanTextFromBytes:
+    def test_extracts_text_from_bytes(self):
+        mock_pdf = _make_mock_pdf(["Page 1", "Page 2"])
+
+        with patch("main.pdfplumber") as mock_pdfplumber:
+            mock_pdfplumber.open.return_value = mock_pdf
+            result = extract_clean_text_from_bytes(b"%PDF-fake-content")
+
+        assert result == "Page 1\nPage 2"
+
+    def test_empty_bytes_returns_empty_string(self):
+        result = extract_clean_text_from_bytes(b"")
+        assert result == ""
+
+    def test_none_bytes_returns_empty_string(self):
+        result = extract_clean_text_from_bytes(None)
+        assert result == ""
+
+    def test_corrupt_bytes_returns_empty_string(self):
+        with patch("main.pdfplumber") as mock_pdfplumber:
+            mock_pdfplumber.open.side_effect = Exception("not a valid PDF")
+            result = extract_clean_text_from_bytes(b"not-a-pdf")
+        assert result == ""
+
+    def test_page_failure_skips_page(self):
+        good_page = MagicMock()
+        good_filtered = MagicMock()
+        good_filtered.extract_text.return_value = "Good page"
+        good_page.filter.return_value = good_filtered
+
+        bad_page = MagicMock()
+        bad_page.filter.side_effect = Exception("page error")
+        bad_page.page_number = 2
+
+        mock_pdf = MagicMock()
+        mock_pdf.pages = [good_page, bad_page]
+        mock_pdf.__enter__ = MagicMock(return_value=mock_pdf)
+        mock_pdf.__exit__ = MagicMock(return_value=False)
+
+        with patch("main.pdfplumber") as mock_pdfplumber:
+            mock_pdfplumber.open.return_value = mock_pdf
+            result = extract_clean_text_from_bytes(b"%PDF-fake")
+
+        assert result == "Good page\n"
