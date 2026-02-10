@@ -8,6 +8,10 @@ class CourseResponse(BaseModel):
 
 
 class ExtractTranscriptResponse(BaseModel):
+    first_name: str
+    middle_name: str
+    last_name: str
+    student_id: str
     current_programme: str
     major: str
     current_term: str

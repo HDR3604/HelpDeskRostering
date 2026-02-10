@@ -78,6 +78,22 @@ DEGREE GPA TOTALS
 TRANSCRIPT TOTALS
 """
 
+TRANSCRIPT_F_GRADES = """\
+CURRENT PROGRAMME
+Degree: BSc
+Major: Computer Science
+
+Term 2024/2025 Semester I
+
+COMP 1601 S UG Computer Programming I F1 3.00 0.00 0.00
+COMP 1602 S UG Computer Programming II F2 3.00 0.00 0.00
+COMP 2601 S UG Computer Architecture F3 3.00 0.00 0.00
+COMP 2602 S UG Software Engineering I F 3.00 0.00 0.00
+
+DEGREE GPA TOTALS
+TRANSCRIPT TOTALS
+"""
+
 TRANSCRIPT_SUMMER_TERM = """\
 CURRENT PROGRAMME
 Degree: BSc
@@ -123,6 +139,18 @@ Overall: 3.00 3.00 3.00 3.00 12.00 4.00
 
 
 class TestParseTranscriptFullSample:
+    def test_extracts_first_name(self):
+        result = parse_transcript(SAMPLE_TRANSCRIPT)
+        assert result["first_name"] == "John"
+
+    def test_extracts_last_name(self):
+        result = parse_transcript(SAMPLE_TRANSCRIPT)
+        assert result["last_name"] == "Doe"
+
+    def test_extracts_student_id(self):
+        result = parse_transcript(SAMPLE_TRANSCRIPT)
+        assert result["student_id"] == "123456789"
+
     def test_extracts_programme(self):
         result = parse_transcript(SAMPLE_TRANSCRIPT)
         assert result["current_programme"] == "BSc"
@@ -185,6 +213,10 @@ class TestParseTranscriptFullSample:
 class TestParseTranscriptMinimal:
     def test_empty_text_returns_defaults(self):
         result = parse_transcript("")
+        assert result["first_name"] == ""
+        assert result["middle_name"] == ""
+        assert result["last_name"] == ""
+        assert result["student_id"] == ""
         assert result["current_programme"] == ""
         assert result["major"] == ""
         assert result["current_term"] == ""
@@ -229,6 +261,76 @@ class TestExtraGrades:
         result = parse_transcript(TRANSCRIPT_EXTRA_GRADES)
         grades = {c["code"]: c["grade"] for c in result["courses"]}
         assert grades["CHEM 2002"] == "MC"
+
+
+class TestFGrades:
+    def test_f1_grade(self):
+        result = parse_transcript(TRANSCRIPT_F_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["COMP 1601"] == "F1"
+
+    def test_f2_grade(self):
+        result = parse_transcript(TRANSCRIPT_F_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["COMP 1602"] == "F2"
+
+    def test_f3_grade(self):
+        result = parse_transcript(TRANSCRIPT_F_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["COMP 2601"] == "F3"
+
+    def test_plain_f_still_works(self):
+        result = parse_transcript(TRANSCRIPT_F_GRADES)
+        grades = {c["code"]: c["grade"] for c in result["courses"]}
+        assert grades["COMP 2602"] == "F"
+
+
+class TestStudentInfoEdgeCases:
+    def test_middle_name_extracted(self):
+        text = "Student Name: John Michael Doe\nStudent ID: 999999999\n"
+        result = parse_transcript(text)
+        assert result["first_name"] == "John"
+        assert result["middle_name"] == "Michael"
+        assert result["last_name"] == "Doe"
+        assert result["student_id"] == "999999999"
+
+    def test_multiple_middle_names(self):
+        text = "Record of:Terrence Christian David Murray\nStudent Number:816038951\n"
+        result = parse_transcript(text)
+        assert result["first_name"] == "Terrence"
+        assert result["middle_name"] == "Christian David"
+        assert result["last_name"] == "Murray"
+        assert result["student_id"] == "816038951"
+
+    def test_two_names_no_middle(self):
+        text = "Student Name: John Doe\nStudent ID: 111111111\n"
+        result = parse_transcript(text)
+        assert result["first_name"] == "John"
+        assert result["middle_name"] == ""
+        assert result["last_name"] == "Doe"
+
+    def test_single_name_only(self):
+        text = "Student Name: Madonna\nStudent ID: 111111111\n"
+        result = parse_transcript(text)
+        assert result["first_name"] == "Madonna"
+        assert result["middle_name"] == ""
+        assert result["last_name"] == ""
+
+    def test_missing_student_info(self):
+        text = "Some random transcript text\nNo name or ID here\n"
+        result = parse_transcript(text)
+        assert result["first_name"] == ""
+        assert result["middle_name"] == ""
+        assert result["last_name"] == ""
+        assert result["student_id"] == ""
+
+    def test_record_of_format(self):
+        text = "Student Number:816038951\nRecord of:Jane Alice Smith\n"
+        result = parse_transcript(text)
+        assert result["first_name"] == "Jane"
+        assert result["middle_name"] == "Alice"
+        assert result["last_name"] == "Smith"
+        assert result["student_id"] == "816038951"
 
 
 class TestTermVariations:

@@ -67,12 +67,35 @@ def extract_clean_text_from_bytes(pdf_bytes: bytes) -> str:
         return ""
 
 
+def _parse_student_info(text: str) -> dict[str, str]:
+    """Extract student name and ID from transcript header."""
+    info: dict[str, str] = {"first_name": "", "middle_name": "", "last_name": "", "student_id": ""}
+
+    name_match = re.search(r"Record of:\s*(.+)", text) or re.search(r"Student Name:\s*(.+)", text)
+    if name_match:
+        parts = name_match.group(1).strip().split()
+        if len(parts) >= 3:
+            info["first_name"] = parts[0]
+            info["middle_name"] = " ".join(parts[1:-1])
+            info["last_name"] = parts[-1]
+        elif len(parts) == 2:
+            info["first_name"], info["last_name"] = parts
+        elif len(parts) == 1:
+            info["first_name"] = parts[0]
+
+    id_match = re.search(r"Student Number:\s*(\S+)", text) or re.search(r"Student ID:\s*(\S+)", text)
+    if id_match:
+        info["student_id"] = id_match.group(1).strip()
+
+    return info
+
+
 def _parse_courses(lines: list[str]) -> list[dict]:
     """Extract course records from transcript lines."""
     re_course = re.compile(
         r"^([A-Z]{2,4})\s+(\d{4})\s+S\s+UG\s+"
         r"(.+?)\s+"
-        r"(?:(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F|HD|P|"
+        r"(?:(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D-|D|F3|F2|F1|F|HD|P|"
         r"W|MC|AB|DEF|NC|EX|NP|INC)\s+)?"
         r"(\d+\.\d+)\s+(?:\d+\.\d+\s+)?\d+\.\d+"
     )
@@ -203,7 +226,18 @@ def parse_transcript(text: str) -> dict:
         logger.warning("Failed to parse current term", exc_info=True)
         current_term = ""
 
+    # ---- Student info ----
+    try:
+        student_info = _parse_student_info(text)
+    except Exception:
+        logger.warning("Failed to parse student info", exc_info=True)
+        student_info = {"first_name": "", "middle_name": "", "last_name": "", "student_id": ""}
+
     return {
+        "first_name": student_info["first_name"],
+        "middle_name": student_info["middle_name"],
+        "last_name": student_info["last_name"],
+        "student_id": student_info["student_id"],
         "current_programme": prog.get("degree", ""),
         "major": prog.get("major", ""),
         "current_term": current_term,
