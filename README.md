@@ -26,6 +26,8 @@ task generate:models
 **Services:**
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8080
+- Scheduler: http://localhost:8000
+- Transcript Extraction: http://localhost:8001
 - Database: localhost:5432
 
 ## Tech Stack
@@ -44,14 +46,6 @@ task generate:models
 - [Task](https://taskfile.dev/) - task runner
 
 ## Commands
-
-### Development
-
-| Command | Description |
-|---------|-------------|
-| `task dev` | Start database + backend + frontend |
-| `task dev:backend` | Run backend only |
-| `task dev:frontend` | Run frontend only |
 
 ### Docker
 
@@ -79,7 +73,10 @@ task generate:models
 |---------|-------------|
 | `task build` | Build all projects |
 | `task test` | Run all tests |
-| `task test:coverage` | Run tests with coverage |
+| `task test:backend` | Run backend tests |
+| `task test:scheduler` | Run scheduler tests |
+| `task test:transcript` | Run transcript extraction tests |
+| `task test:frontend` | Run frontend tests |
 
 ## Database Connection
 
@@ -94,18 +91,20 @@ Database: helpdesk
 ## Project Structure
 
 ```
-├── backend/
-│   ├── cmd/server/              # Entry point
-│   ├── internal/
-│   │   ├── application/         # App config & routes
-│   │   ├── domain/              # Business logic
-│   │   ├── infrastructure/
-│   │   │   └── models/          # Generated jet models
-│   │   └── interfaces/          # HTTP handlers
-│   └── migrations/              # SQL migrations
-├── frontend/                    # React application
-├── docker-compose.local.yml     # Local dev services
-└── Taskfile.yml                 # Task definitions
+├── apps/
+│   ├── backend/                     # Go REST API
+│   │   ├── cmd/server/              # Entry point
+│   │   └── internal/
+│   │       ├── application/         # App config & routes
+│   │       ├── domain/              # Business logic
+│   │       ├── infrastructure/      # Database, models, external services
+│   │       └── tests/               # Unit & integration tests
+│   ├── frontend/                    # React SPA (TanStack Router, Tailwind)
+│   ├── scheduler/                   # Python FastAPI — schedule optimizer (PuLP)
+│   └── transcript_extraction_function/  # Python FastAPI — PDF transcript parser
+├── migrations/                      # SQL migrations (golang-migrate)
+├── docker-compose.local.yml         # Local dev services
+└── Taskfile.yml                     # Task definitions
 ```
 
 ## Database Schema

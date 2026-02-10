@@ -35,26 +35,6 @@ tasks:
     cmds:
       - pnpm install
 
-  # Development
-  dev:
-    desc: Run both backend and frontend in development mode
-    deps:
-      - db:start
-    cmds:
-      - task --parallel dev:backend dev:frontend
-
-  dev:backend:
-    desc: Run the backend in development mode
-    dir: "{{.BACKEND_DIR}}"
-    cmds:
-      - go run ./cmd/server
-
-  dev:frontend:
-    desc: Run the frontend in development mode
-    dir: "{{.FRONTEND_DIR}}"
-    cmds:
-      - pnpm dev
-
   # Build
   build:
     desc: Build all projects
@@ -101,6 +81,7 @@ tasks:
     cmds:
       - task: test:backend
       - task: test:scheduler
+      - task: test:transcript
       - task: test:frontend
 
   test:backend:
@@ -112,6 +93,12 @@ tasks:
   test:scheduler:
     desc: Run scheduler tests
     dir: "{{.SCHEDULER_DIR}}"
+    cmds:
+      - .venv/bin/python -m pytest tests/ -v
+
+  test:transcript:
+    desc: Run transcript extraction tests
+    dir: "{{.TRANSCRIPT_DIR}}"
     cmds:
       - .venv/bin/python -m pytest tests/ -v
 

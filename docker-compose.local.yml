@@ -65,6 +65,8 @@ services:
     volumes:
       - ./apps/frontend:/app
       - /app/node_modules  # Exclude node_modules from mount
+    environment:
+      - CI=true
     restart: unless-stopped
 
   postgres:

@@ -179,7 +179,7 @@ task generate:models
 Define domain errors in a separate package so they can be imported without circular dependencies.
 
 ```go
-// backend/internal/domain/course/errors/course_errors.go
+// apps/apps/backend/internal/domain/course/errors/course_errors.go
 package errors
 
 import "errors"
@@ -199,7 +199,7 @@ var (
 The aggregate contains the domain entity, business rules, and model conversion helpers.
 
 ```go
-// backend/internal/domain/course/aggregate/course_aggregate.go
+// apps/apps/backend/internal/domain/course/aggregate/course_aggregate.go
 package aggregate
 
 import (
@@ -283,7 +283,7 @@ func CourseFromModel(m model.Courses) Course {
 Define the repository interface in the domain layer. Every method takes a `*sql.Tx` — the service layer manages transactions.
 
 ```go
-// backend/internal/domain/course/repository/course_repository_interface.go
+// apps/apps/backend/internal/domain/course/repository/course_repository_interface.go
 package repository
 
 import (
@@ -309,7 +309,7 @@ type CourseRepositoryInterface interface {
 Implement using Go-Jet generated models. Use `postgres.UUID()` for UUID column comparisons (not `postgres.String()`).
 
 ```go
-// backend/internal/infrastructure/course/course_repository.go
+// apps/apps/backend/internal/infrastructure/course/course_repository.go
 package course
 
 import (
@@ -412,7 +412,7 @@ func (r *CourseRepository) Update(ctx context.Context, tx *sql.Tx, course *aggre
 The service validates auth context, orchestrates transactions, and applies business logic. Use `InAuthTx` for reads, `InSystemTx` for writes.
 
 ```go
-// backend/internal/domain/course/service/course_service.go
+// apps/apps/backend/internal/domain/course/service/course_service.go
 package service
 
 import (
@@ -546,7 +546,7 @@ The handler parses HTTP requests, calls the service, and returns JSON responses.
 ### DTOs
 
 ```go
-// backend/internal/domain/course/handler/course_dtos.go
+// apps/apps/backend/internal/domain/course/handler/course_dtos.go
 package handler
 
 import (
@@ -589,7 +589,7 @@ func courseToResponse(c *aggregate.Course) CourseResponse {
 ### Handler
 
 ```go
-// backend/internal/domain/course/handler/course_handler.go
+// apps/apps/backend/internal/domain/course/handler/course_handler.go
 package handler
 
 import (
@@ -696,7 +696,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 Handlers register their own routes via `RegisterRoutes`. Mount them under the `/api/v1` group:
 
 ```go
-// backend/internal/application/routes.go
+// apps/apps/backend/internal/application/routes.go
 func registerRoutes(r *chi.Mux, scheduleHdl *scheduleHandler.ScheduleHandler, courseHdl *courseHandler.CourseHandler) {
     r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusOK)
@@ -728,7 +728,7 @@ registerRoutes(r, scheduleHdl, courseHdl)
 ## File Structure
 
 ```
-backend/internal/
+apps/backend/internal/
 ├── application/
 │   ├── app.go              # App setup, wiring, server
 │   ├── config.go           # Environment config loading
@@ -799,7 +799,7 @@ When implementing a new domain:
 Mocks live in `tests/mocks/` and use a function-based pattern. Each mock field can be set per test case:
 
 ```go
-// backend/internal/tests/mocks/mock_course_repository.go
+// apps/apps/backend/internal/tests/mocks/mock_course_repository.go
 package mocks
 
 type MockCourseRepository struct {
@@ -908,6 +908,8 @@ func (s *CourseRepositoryTestSuite) TearDownTest() {
 ### Running Tests
 
 ```bash
+# From apps/backend/:
+
 # All tests (unit + integration)
 go test ./... -count=1
 

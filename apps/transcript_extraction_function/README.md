@@ -6,11 +6,11 @@ A stateless FastAPI service that extracts structured data from UWI unofficial tr
 
 ```bash
 # Local development (with hot reload)
-cd transcript_extraction_function
+cd apps/transcript_extraction_function
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/uvicorn app.main:app --reload --port 8001
 
-# Or via Docker
+# Or via Docker (from project root)
 docker compose -f docker-compose.local.yml up transcript-extraction
 
 # Run tests
