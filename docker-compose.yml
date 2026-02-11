@@ -3,16 +3,14 @@ services:
   backend:
     build:
       context: ./apps/backend
-      dockerfile: Dockerfile.dev
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./apps/backend:/app
-      - /app/tmp  # Exclude tmp dir from mount
+      dockerfile: Dockerfile
+    expose:
+      - "8080"
     env_file:
-      - .env.local
+      - .env
     environment:
-      - DATABASE_URL=postgres://helpdesk:helpdesk_local@postgres:5432/helpdesk?sslmode=disable
+      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      - SCHEDULER_SERVICE_URL=http://scheduler:8000
       - TRANSCRIPTS_SERVICE_URL=http://transcripts:8001
     depends_on:
       postgres:
@@ -22,18 +20,20 @@ services:
       transcripts:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   scheduler:
     build:
       context: ./apps/scheduler
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     expose:
       - "8000"
-    volumes:
-      - ./apps/scheduler:/app
-      - /app/tmp  # Exclude tmp dir from mount
     environment:
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthy')"]
@@ -44,47 +44,37 @@ services:
   transcripts:
     build:
       context: ./apps/transcripts
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     expose:
       - "8001"
-    volumes:
-      - ./apps/transcripts:/app
-      - /app/tmp  # Exclude tmp dir from mount
     environment:
-      - LOG_LEVEL=DEBUG
+      - LOG_LEVEL=INFO
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/healthy')"]
       interval: 10s
-      timeout: 5s 
+      timeout: 5s
       retries: 3
 
   frontend:
     build:
       context: ./apps/frontend
-      dockerfile: Dockerfile.dev
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./apps/frontend:/app
-      - /app/node_modules  # Exclude node_modules from mount
-    environment:
-      - CI=true
+      dockerfile: Dockerfile
+    expose:
+      - "5173"
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: helpdesk
-      POSTGRES_PASSWORD: helpdesk_local
-      POSTGRES_DB: helpdesk
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U helpdesk -d helpdesk"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5

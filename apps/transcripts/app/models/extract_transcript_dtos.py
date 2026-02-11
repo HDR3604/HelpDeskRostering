@@ -1,0 +1,21 @@
+from pydantic import BaseModel
+
+
+class CourseResponse(BaseModel):
+    code: str
+    title: str
+    grade: str | None
+
+
+class ExtractTranscriptResponse(BaseModel):
+    first_name: str
+    middle_name: str
+    last_name: str
+    student_id: str
+    current_programme: str
+    major: str
+    current_term: str
+    current_year: int
+    degree_gpa: float | None
+    overall_gpa: float | None
+    courses: list[CourseResponse]

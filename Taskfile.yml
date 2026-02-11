@@ -2,9 +2,10 @@
 version: '3'
 
 vars:
-  BACKEND_DIR: ./backend
-  FRONTEND_DIR: ./frontend
-  SCHEDULER_DIR: ./scheduler
+  BACKEND_DIR: ./apps/backend
+  FRONTEND_DIR: ./apps/frontend
+  SCHEDULER_DIR: ./apps/scheduler
+  TRANSCRIPT_DIR: ./apps/transcripts
   MIGRATIONS_DIR: ./migrations
   DATABASE_URL: "postgres://helpdesk:helpdesk_local@localhost:5432/helpdesk?sslmode=disable"
   COMPOSE_FILE: docker-compose.local.yml
@@ -33,26 +34,6 @@ tasks:
     dir: "{{.FRONTEND_DIR}}"
     cmds:
       - pnpm install
-
-  # Development
-  dev:
-    desc: Run both backend and frontend in development mode
-    deps:
-      - db:start
-    cmds:
-      - task --parallel dev:backend dev:frontend
-
-  dev:backend:
-    desc: Run the backend in development mode
-    dir: "{{.BACKEND_DIR}}"
-    cmds:
-      - go run ./cmd/server
-
-  dev:frontend:
-    desc: Run the frontend in development mode
-    dir: "{{.FRONTEND_DIR}}"
-    cmds:
-      - pnpm dev
 
   # Build
   build:
@@ -100,6 +81,7 @@ tasks:
     cmds:
       - task: test:backend
       - task: test:scheduler
+      - task: test:transcript
       - task: test:frontend
 
   test:backend:
@@ -111,6 +93,12 @@ tasks:
   test:scheduler:
     desc: Run scheduler tests
     dir: "{{.SCHEDULER_DIR}}"
+    cmds:
+      - .venv/bin/python -m pytest tests/ -v
+
+  test:transcript:
+    desc: Run transcript extraction tests
+    dir: "{{.TRANSCRIPT_DIR}}"
     cmds:
       - .venv/bin/python -m pytest tests/ -v
 
