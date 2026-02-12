@@ -3,7 +3,7 @@ package user
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,24 +14,24 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/table"
 	"github.com/go-jet/jet/v2/postgres"
+	"go.uber.org/zap"
 )
 
 // UserRepository implements the user.Repository interface
 type UserRepository struct {
-	db *sql.DB
+	logger *zap.Logger
 }
 
 // NewUserRepository creates a new user repository
-func NewUserRepository(db *sql.DB) repository.Repository {
-	return &UserRepository{db: db}
+func NewUserRepository(logger *zap.Logger) repository.Repository {
+	return &UserRepository{
+		logger: logger,
+	}
 }
 
 // Create saves a new user and returns the created user with ID
 func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate.User) (*aggregate.User, error) {
 	userModel := user.ToModel()
-	now := time.Now()
-	userModel.CreatedAt = now
-	userModel.UpdatedAt = &now
 
 	stmt := table.Users.INSERT(
 		table.Users.UserID,
@@ -39,22 +39,19 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 		table.Users.Password,
 		table.Users.Role,
 		table.Users.IsActive,
-		table.Users.CreatedAt,
-		table.Users.UpdatedAt,
 	).VALUES(
 		userModel.UserID,
 		userModel.EmailAddress,
 		userModel.Password,
 		userModel.Role,
 		userModel.IsActive,
-		userModel.CreatedAt,
-		userModel.UpdatedAt,
 	).RETURNING(table.Users.AllColumns)
 
 	var createdUser model.Users
 	err := stmt.QueryContext(ctx, tx, &createdUser)
 	if err != nil {
-		return nil, err
+		r.logger.Error(domainErrors.ErrFailedToCreateUser.Error(), zap.String("email", user.Email), zap.Error(err))
+		return nil, fmt.Errorf(domainErrors.ErrFailedToCreateUser.Error(), err)
 	}
 
 	return r.toDomain(&createdUser), nil
@@ -64,7 +61,8 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string) (*aggregate.User, error) {
 	parsedID, err := uuid.Parse(userID)
 	if err != nil {
-		return nil, domainErrors.ErrInvalidEmail
+		r.logger.Error(domainErrors.ErrNotFound.Error(), zap.String("userID", userID), zap.Error(err))
+		return nil, fmt.Errorf("%w: %w", domainErrors.ErrNotFound, err)
 	}
 
 	stmt := table.Users.SELECT(table.Users.AllColumns).
@@ -73,13 +71,11 @@ func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string)
 	var user model.Users
 	err = stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domainErrors.ErrInvalidEmail
-		}
-		return nil, err
+		r.logger.Error(domainErrors.ErrNotFound.Error(), zap.String("userID", userID), zap.Error(err))
+		return nil, fmt.Errorf(domainErrors.ErrNotFound.Error(), err)
 	}
-
-	return r.toDomain(&user), nil
+	s := r.toDomain(&user)
+	return s, nil
 }
 
 // GetByEmail retrieves a user by email
@@ -90,12 +86,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email strin
 	var user model.Users
 	err := stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domainErrors.ErrInvalidEmail
-		}
-		return nil, err
+		r.logger.Error(domainErrors.ErrEmailNotFound.Error(), zap.String("email", email), zap.Error(err))
+		return nil, fmt.Errorf(domainErrors.ErrEmailNotFound.Error(), err)
 	}
-
 	return r.toDomain(&user), nil
 }
 
@@ -125,14 +118,11 @@ func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate
 
 // DeactivateByEmailDomain deactivates all active users with the specified email domain
 func (r *UserRepository) DeactivateByEmailDomain(ctx context.Context, tx *sql.Tx, emailDomain aggregate.EmailDomain) error {
-	now := time.Now()
 
 	stmt := table.Users.UPDATE(
 		table.Users.IsActive,
-		table.Users.UpdatedAt,
 	).SET(
 		false,
-		now,
 	).WHERE(
 		table.Users.EmailAddress.LIKE(postgres.String("%" + string(emailDomain))).
 			AND(table.Users.IsActive.EQ(postgres.Bool(true))),
@@ -149,13 +139,11 @@ func (r *UserRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Use
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		return nil, err
+		r.logger.Error(domainErrors.ErrFailedToListUsers.Error(), zap.Error(err))
+		return nil, fmt.Errorf(domainErrors.ErrFailedToListUsers.Error(), err)
 	}
 
-	result := make([]*aggregate.User, len(users))
-	for i, u := range users {
-		result[i] = r.toDomain(&u)
-	}
+	result := toGenerateAggregates(users)
 
 	return result, nil
 }
@@ -170,13 +158,11 @@ func (r *UserRepository) ListByRole(ctx context.Context, tx *sql.Tx, role string
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		return nil, err
+		r.logger.Error(domainErrors.ErrFailedToListUsers.Error(), zap.String("role", role), zap.Error(err))
+		return nil, fmt.Errorf(domainErrors.ErrFailedToListUsers.Error(), err)
 	}
 
-	result := make([]*aggregate.User, len(users))
-	for i, u := range users {
-		result[i] = r.toDomain(&u)
-	}
+	result := toGenerateAggregates(users)
 
 	return result, nil
 }
@@ -189,13 +175,11 @@ func (r *UserRepository) ListActive(ctx context.Context, tx *sql.Tx) ([]*aggrega
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		return nil, err
+		r.logger.Error(domainErrors.ErrFailedToListUsers.Error(), zap.Error(err))
+		return nil, fmt.Errorf(domainErrors.ErrFailedToListUsers.Error(), err)
 	}
 
-	result := make([]*aggregate.User, len(users))
-	for i, u := range users {
-		result[i] = r.toDomain(&u)
-	}
+	result := toGenerateAggregates(users)
 
 	return result, nil
 }
@@ -203,4 +187,13 @@ func (r *UserRepository) ListActive(ctx context.Context, tx *sql.Tx) ([]*aggrega
 // toDomain converts a database model to an aggregate domain object
 func (r *UserRepository) toDomain(m *model.Users) *aggregate.User {
 	return aggregate.UserFromModel(m)
+}
+
+func toGenerateAggregates(models []model.Users) []*aggregate.User {
+	users := make([]*aggregate.User, len(models))
+	for i, m := range models {
+		u := aggregate.UserFromModel(&m)
+		users[i] = u
+	}
+	return users
 }
