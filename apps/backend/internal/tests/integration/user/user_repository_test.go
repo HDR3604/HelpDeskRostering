@@ -20,11 +20,23 @@ type UserRepositoryTestSuite struct {
 	txManager database.TxManagerInterface
 	repo      userRepo.UserRepository
 	ctx       context.Context
+	userID    uuid.UUID
 }
 
+func (s *UserRepositoryTestSuite) SetupSuite() {
+	s.testDB = utils.NewTestDB(s.T())
+	s.txManager = database.NewTxManager(s.testDB.DB, s.testDB.Logger)
+	s.repo = *userRepo.NewUserRepository(s.testDB.Logger).(*userRepo.UserRepository)
+	s.ctx = context.Background()
+}
 func TestUserRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(UserRepositoryTestSuite))
 }
+func (s *UserRepositoryTestSuite) TearDownTest() {
+	s.testDB.Truncate(s.T(), "auth.users")
+}
+
+// --- helpers ---
 
 func (s *UserRepositoryTestSuite) TestUserRepository_Create() {
 	user, err := aggregate.NewUser("testuser@my.uwi.edu", "TestPass123", aggregate.Role_Student)
@@ -173,19 +185,6 @@ func (s *UserRepositoryTestSuite) TestUserRepository_Update() {
 	s.Equal("updated@my.uwi.edu", result.Email)
 	s.False(result.IsActive)
 }
-
-func (s *UserRepositoryTestSuite) SetupSuite() {
-	s.testDB = utils.NewTestDB(s.T())
-	s.txManager = database.NewTxManager(s.testDB.DB, s.testDB.Logger)
-	s.repo = *userRepo.NewUserRepository(s.testDB.DB).(*userRepo.UserRepository)
-	s.ctx = context.Background()
-}
-
-func (s *UserRepositoryTestSuite) TearDownTest() {
-	s.testDB.Truncate(s.T(), "auth.users")
-}
-
-// --- helpers ---
 
 func (s *UserRepositoryTestSuite) createUser(email, password string, role aggregate.Role, isActive bool) *aggregate.User {
 	user, err := aggregate.NewUser(email, password, role)
