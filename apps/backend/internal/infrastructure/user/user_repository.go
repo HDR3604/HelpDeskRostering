@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
-	domainErrors "github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/table"
@@ -50,8 +49,8 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 	var createdUser model.Users
 	err := stmt.QueryContext(ctx, tx, &createdUser)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrFailedToCreateUser.Error(), zap.String("email", user.Email), zap.Error(err))
-		return nil, fmt.Errorf(domainErrors.ErrFailedToCreateUser.Error(), err)
+		r.logger.Error("failed to create user", zap.Error(err))
+		return nil, fmt.Errorf("failed to create user: %w", err)
 	}
 
 	return r.toDomain(&createdUser), nil
@@ -61,8 +60,8 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string) (*aggregate.User, error) {
 	parsedID, err := uuid.Parse(userID)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrNotFound.Error(), zap.String("userID", userID), zap.Error(err))
-		return nil, fmt.Errorf("%w: %w", domainErrors.ErrNotFound, err)
+		r.logger.Error("failed to get user", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	stmt := table.Users.SELECT(table.Users.AllColumns).
@@ -71,8 +70,8 @@ func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string)
 	var user model.Users
 	err = stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrNotFound.Error(), zap.String("userID", userID), zap.Error(err))
-		return nil, fmt.Errorf(domainErrors.ErrNotFound.Error(), err)
+		r.logger.Error("failed to get user by ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
 	s := r.toDomain(&user)
 	return s, nil
@@ -86,8 +85,8 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email strin
 	var user model.Users
 	err := stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrEmailNotFound.Error(), zap.String("email", email), zap.Error(err))
-		return nil, fmt.Errorf(domainErrors.ErrEmailNotFound.Error(), err)
+		r.logger.Error("failed to get user by email", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
 	return r.toDomain(&user), nil
 }
@@ -113,6 +112,10 @@ func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate
 	).WHERE(table.Users.UserID.EQ(postgres.UUID(user.ID)))
 
 	_, err := stmt.ExecContext(ctx, tx)
+	if err != nil {
+		r.logger.Error("failed to update user", zap.Error(err))
+		return fmt.Errorf("failed to update user: %w", err)
+	}
 	return err
 }
 
@@ -139,8 +142,8 @@ func (r *UserRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Use
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrFailedToListUsers.Error(), zap.Error(err))
-		return nil, fmt.Errorf(domainErrors.ErrFailedToListUsers.Error(), err)
+		r.logger.Error("failed to list users", zap.Error(err))
+		return nil, fmt.Errorf("failed to list users: %w", err)
 	}
 
 	result := toGenerateAggregates(users)
@@ -158,8 +161,8 @@ func (r *UserRepository) ListByRole(ctx context.Context, tx *sql.Tx, role string
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrFailedToListUsers.Error(), zap.String("role", role), zap.Error(err))
-		return nil, fmt.Errorf(domainErrors.ErrFailedToListUsers.Error(), err)
+		r.logger.Error("failed to get list users by Role", zap.Error(err))
+		return nil, fmt.Errorf("failed to list users by role: %w", err)
 	}
 
 	result := toGenerateAggregates(users)
@@ -175,8 +178,8 @@ func (r *UserRepository) ListActive(ctx context.Context, tx *sql.Tx) ([]*aggrega
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		r.logger.Error(domainErrors.ErrFailedToListUsers.Error(), zap.Error(err))
-		return nil, fmt.Errorf(domainErrors.ErrFailedToListUsers.Error(), err)
+		r.logger.Error("failed to list active users", zap.Error(err))
+		return nil, fmt.Errorf("failed to list active users: %w", err)
 	}
 
 	result := toGenerateAggregates(users)
