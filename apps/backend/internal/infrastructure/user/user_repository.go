@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -94,21 +93,17 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email strin
 // Update updates an existing user
 func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate.User) error {
 	userModel := user.ToModel()
-	now := time.Now()
-	userModel.UpdatedAt = &now
 
 	stmt := table.Users.UPDATE(
 		table.Users.EmailAddress,
 		table.Users.Password,
 		table.Users.Role,
 		table.Users.IsActive,
-		table.Users.UpdatedAt,
 	).SET(
 		userModel.EmailAddress,
 		userModel.Password,
 		userModel.Role,
 		userModel.IsActive,
-		now,
 	).WHERE(table.Users.UserID.EQ(postgres.UUID(user.ID)))
 
 	_, err := stmt.ExecContext(ctx, tx)
