@@ -1,0 +1,197 @@
+package user
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/google/uuid"
+
+	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
+	"github.com/HDR3604/HelpDeskApp/internal/domain/user/repository"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/table"
+	"github.com/go-jet/jet/v2/postgres"
+	"go.uber.org/zap"
+)
+
+// UserRepository implements the user.Repository interface
+type UserRepository struct {
+	logger *zap.Logger
+}
+
+// NewUserRepository creates a new user repository
+func NewUserRepository(logger *zap.Logger) repository.Repository {
+	return &UserRepository{
+		logger: logger,
+	}
+}
+
+// Create saves a new user and returns the created user with ID
+func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate.User) (*aggregate.User, error) {
+	userModel := user.ToModel()
+
+	stmt := table.Users.INSERT(
+		table.Users.UserID,
+		table.Users.EmailAddress,
+		table.Users.Password,
+		table.Users.Role,
+		table.Users.IsActive,
+	).VALUES(
+		userModel.UserID,
+		userModel.EmailAddress,
+		userModel.Password,
+		userModel.Role,
+		userModel.IsActive,
+	).RETURNING(table.Users.AllColumns)
+
+	var createdUser model.Users
+	err := stmt.QueryContext(ctx, tx, &createdUser)
+	if err != nil {
+		r.logger.Error("failed to create user", zap.Error(err))
+		return nil, fmt.Errorf("failed to create user: %w", err)
+	}
+
+	return r.toDomain(&createdUser), nil
+}
+
+// GetByID retrieves a user by ID
+func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string) (*aggregate.User, error) {
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		r.logger.Error("failed to get user", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	stmt := table.Users.SELECT(table.Users.AllColumns).
+		WHERE(table.Users.UserID.EQ(postgres.UUID(parsedID)))
+
+	var user model.Users
+	err = stmt.QueryContext(ctx, tx, &user)
+	if err != nil {
+		r.logger.Error("failed to get user by ID", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user by ID: %w", err)
+	}
+	s := r.toDomain(&user)
+	return s, nil
+}
+
+// GetByEmail retrieves a user by email
+func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email string) (*aggregate.User, error) {
+	stmt := table.Users.SELECT(table.Users.AllColumns).
+		WHERE(table.Users.EmailAddress.EQ(postgres.String(email)))
+
+	var user model.Users
+	err := stmt.QueryContext(ctx, tx, &user)
+	if err != nil {
+		r.logger.Error("failed to get user by email", zap.Error(err))
+		return nil, fmt.Errorf("failed to get user by email: %w", err)
+	}
+	return r.toDomain(&user), nil
+}
+
+// Update updates an existing user
+func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate.User) error {
+	userModel := user.ToModel()
+
+	stmt := table.Users.UPDATE(
+		table.Users.EmailAddress,
+		table.Users.Password,
+		table.Users.Role,
+		table.Users.IsActive,
+	).SET(
+		userModel.EmailAddress,
+		userModel.Password,
+		userModel.Role,
+		userModel.IsActive,
+	).WHERE(table.Users.UserID.EQ(postgres.UUID(user.ID)))
+
+	_, err := stmt.ExecContext(ctx, tx)
+	if err != nil {
+		r.logger.Error("failed to update user", zap.Error(err))
+		return fmt.Errorf("failed to update user: %w", err)
+	}
+	return err
+}
+
+// DeactivateByEmailDomain deactivates all active users with the specified email domain
+func (r *UserRepository) DeactivateByEmailDomain(ctx context.Context, tx *sql.Tx, emailDomain aggregate.EmailDomain) error {
+
+	stmt := table.Users.UPDATE(
+		table.Users.IsActive,
+	).SET(
+		false,
+	).WHERE(
+		table.Users.EmailAddress.LIKE(postgres.String("%" + string(emailDomain))).
+			AND(table.Users.IsActive.EQ(postgres.Bool(true))),
+	)
+
+	_, err := stmt.ExecContext(ctx, tx)
+	return err
+}
+
+// List returns users with optional filtering by role and/or is_active
+func (r *UserRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate.User, error) {
+	stmt := table.Users.SELECT(table.Users.AllColumns)
+
+	var users []model.Users
+	err := stmt.QueryContext(ctx, tx, &users)
+	if err != nil {
+		r.logger.Error("failed to list users", zap.Error(err))
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+
+	result := toGenerateAggregates(users)
+
+	return result, nil
+}
+
+// ListByRole returns all users with a specific role
+func (r *UserRepository) ListByRole(ctx context.Context, tx *sql.Tx, role string) ([]*aggregate.User, error) {
+	stmt := table.Users.SELECT(table.Users.AllColumns).
+		WHERE(
+			postgres.CAST(table.Users.Role).AS_TEXT().EQ(postgres.String(role)),
+		)
+
+	var users []model.Users
+	err := stmt.QueryContext(ctx, tx, &users)
+	if err != nil {
+		r.logger.Error("failed to get list users by Role", zap.Error(err))
+		return nil, fmt.Errorf("failed to list users by role: %w", err)
+	}
+
+	result := toGenerateAggregates(users)
+
+	return result, nil
+}
+
+// ListActive returns all active users
+func (r *UserRepository) ListActive(ctx context.Context, tx *sql.Tx) ([]*aggregate.User, error) {
+	stmt := table.Users.SELECT(table.Users.AllColumns).
+		WHERE(table.Users.IsActive.EQ(postgres.Bool(true)))
+
+	var users []model.Users
+	err := stmt.QueryContext(ctx, tx, &users)
+	if err != nil {
+		r.logger.Error("failed to list active users", zap.Error(err))
+		return nil, fmt.Errorf("failed to list active users: %w", err)
+	}
+
+	result := toGenerateAggregates(users)
+
+	return result, nil
+}
+
+// toDomain converts a database model to an aggregate domain object
+func (r *UserRepository) toDomain(m *model.Users) *aggregate.User {
+	return aggregate.UserFromModel(m)
+}
+
+func toGenerateAggregates(models []model.Users) []*aggregate.User {
+	users := make([]*aggregate.User, len(models))
+	for i, m := range models {
+		u := aggregate.UserFromModel(&m)
+		users[i] = u
+	}
+	return users
+}
