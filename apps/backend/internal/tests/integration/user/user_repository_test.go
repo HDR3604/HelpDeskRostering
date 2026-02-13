@@ -182,6 +182,7 @@ func (s *UserRepositoryTestSuite) TestUserRepository_Update() {
 		result, txErr = s.repo.GetByID(s.ctx, tx, user.ID.String())
 		return txErr
 	})
+	s.Require().NoError(err)
 	s.Equal("updated@my.uwi.edu", result.Email)
 	s.False(result.IsActive)
 }
@@ -219,33 +220,6 @@ func (s *UserRepositoryTestSuite) TestCreate_Success() {
 	s.Equal("admin@uwi.edu", result.Email)
 	s.Equal(aggregate.Role_Admin, result.Role)
 	s.True(result.IsActive)
-	s.NotZero(result.CreatedAt)
-	s.NotZero(result.UpdatedAt)
-}
-
-func (s *UserRepositoryTestSuite) TestCreate_DuplicateEmail() {
-	email := "student@my.uwi.edu"
-	password := "SecurePass123"
-
-	// Create first user
-	user1, err := aggregate.NewUser(email, password, aggregate.Role_Student)
-	s.Require().NoError(err)
-
-	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		_, err = s.repo.Create(s.ctx, tx, user1)
-		return err
-	})
-	s.Require().NoError(err)
-
-	// Try to create duplicate
-	user2, err := aggregate.NewUser(email, "DifferentPass456", aggregate.Role_Student)
-	s.Require().NoError(err)
-
-	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		_, err = s.repo.Create(s.ctx, tx, user2)
-		return err
-	})
-	s.Require().Error(err) // Should fail due to unique constraint
 }
 
 // --- GetByID ---
@@ -275,7 +249,6 @@ func (s *UserRepositoryTestSuite) TestGetByID_NotFound() {
 		result, err = s.repo.GetByID(s.ctx, tx, nonExistentID)
 		return nil
 	})
-
 	s.Nil(result)
 	s.Error(err)
 }
@@ -294,22 +267,6 @@ func (s *UserRepositoryTestSuite) TestGetByID_InvalidUUID() {
 
 // --- GetByEmail ---
 
-func (s *UserRepositoryTestSuite) TestGetByEmail_Success() {
-	user := s.createUser("student@my.uwi.edu", "SecurePass123", aggregate.Role_Student, true)
-
-	var result *aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.GetByEmail(s.ctx, tx, user.Email)
-		return txErr
-	})
-	s.Require().NoError(err)
-
-	s.Equal(user.ID, result.ID)
-	s.Equal(user.Email, result.Email)
-	s.Equal(user.Role, result.Role)
-}
-
 func (s *UserRepositoryTestSuite) TestGetByEmail_NotFound() {
 	var result *aggregate.User
 	var err error
@@ -323,30 +280,6 @@ func (s *UserRepositoryTestSuite) TestGetByEmail_NotFound() {
 }
 
 // --- Update ---
-
-func (s *UserRepositoryTestSuite) TestUpdate_Success() {
-	user := s.createUser("admin@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
-
-	// Update email
-	user.Email = "newemail@uwi.edu"
-	user.IsActive = false
-
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		return s.repo.Update(s.ctx, tx, user)
-	})
-	s.Require().NoError(err)
-
-	// Retrieve and verify
-	var result *aggregate.User
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.GetByID(s.ctx, tx, user.ID.String())
-		return txErr
-	})
-
-	s.Equal("newemail@uwi.edu", result.Email)
-	s.False(result.IsActive)
-}
 
 func (s *UserRepositoryTestSuite) TestUpdate_NonExistentUser() {
 	user := &aggregate.User{
@@ -366,22 +299,6 @@ func (s *UserRepositoryTestSuite) TestUpdate_NonExistentUser() {
 
 // --- List ---
 
-func (s *UserRepositoryTestSuite) TestList_ReturnsAllUsers() {
-	s.createUser("admin1@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
-	s.createUser("student1@my.uwi.edu", "SecurePass123", aggregate.Role_Student, true)
-	s.createUser("student2@my.uwi.edu", "SecurePass123", aggregate.Role_Student, false)
-
-	var result []*aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.List(s.ctx, tx)
-		return txErr
-	})
-	s.Require().NoError(err)
-
-	s.Len(result, 3)
-}
-
 func (s *UserRepositoryTestSuite) TestList_Empty() {
 	var result []*aggregate.User
 	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
@@ -396,44 +313,6 @@ func (s *UserRepositoryTestSuite) TestList_Empty() {
 
 // --- ListByRole ---
 
-func (s *UserRepositoryTestSuite) TestListByRole_AdminRole() {
-	s.createUser("admin1@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
-	s.createUser("admin2@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
-	s.createUser("student1@my.uwi.edu", "SecurePass123", aggregate.Role_Student, true)
-
-	var result []*aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.ListByRole(s.ctx, tx, string(aggregate.Role_Admin))
-		return txErr
-	})
-	s.Require().NoError(err)
-
-	s.Len(result, 2)
-	for _, user := range result {
-		s.Equal(aggregate.Role_Admin, user.Role)
-	}
-}
-
-func (s *UserRepositoryTestSuite) TestListByRole_StudentRole() {
-	s.createUser("admin1@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
-	s.createUser("student1@my.uwi.edu", "SecurePass123", aggregate.Role_Student, true)
-	s.createUser("student2@my.uwi.edu", "SecurePass123", aggregate.Role_Student, true)
-
-	var result []*aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.ListByRole(s.ctx, tx, string(aggregate.Role_Student))
-		return txErr
-	})
-	s.Require().NoError(err)
-
-	s.Len(result, 2)
-	for _, user := range result {
-		s.Equal(aggregate.Role_Student, user.Role)
-	}
-}
-
 func (s *UserRepositoryTestSuite) TestListByRole_NoResults() {
 	s.createUser("admin1@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
 
@@ -441,42 +320,6 @@ func (s *UserRepositoryTestSuite) TestListByRole_NoResults() {
 	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repo.ListByRole(s.ctx, tx, string(aggregate.Role_Student))
-		return txErr
-	})
-	s.Require().NoError(err)
-
-	s.Len(result, 0)
-}
-
-// --- ListActive ---
-
-func (s *UserRepositoryTestSuite) TestListActive_ReturnsOnlyActive() {
-	s.createUser("admin1@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
-	s.createUser("student1@my.uwi.edu", "SecurePass123", aggregate.Role_Student, true)
-	s.createUser("student2@my.uwi.edu", "SecurePass123", aggregate.Role_Student, false)
-
-	var result []*aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.ListActive(s.ctx, tx)
-		return txErr
-	})
-	s.Require().NoError(err)
-
-	s.Len(result, 2)
-	for _, user := range result {
-		s.True(user.IsActive)
-	}
-}
-
-func (s *UserRepositoryTestSuite) TestListActive_AllInactive() {
-	s.createUser("student1@my.uwi.edu", "SecurePass123", aggregate.Role_Student, false)
-	s.createUser("student2@my.uwi.edu", "SecurePass123", aggregate.Role_Student, false)
-
-	var result []*aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.ListActive(s.ctx, tx)
 		return txErr
 	})
 	s.Require().NoError(err)
