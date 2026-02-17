@@ -52,7 +52,7 @@ func (s *MailpitEmailSenderServiceTestSuite) TestSend_Success() {
 		s.Equal("Test Subject", req["Subject"])
 
 		from := req["From"].(map[string]any)
-		s.Equal("onboarding@resend.dev", from["Address"])
+		s.Equal("onboarding@resend.dev", from["Email"])
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -78,7 +78,7 @@ func (s *MailpitEmailSenderServiceTestSuite) TestSend_ParsesFriendlyName() {
 
 		from := req["From"].(map[string]any)
 		s.Equal("Sender Name", from["Name"])
-		s.Equal("onboarding@resend.dev", from["Address"])
+		s.Equal("onboarding@resend.dev", from["Email"])
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

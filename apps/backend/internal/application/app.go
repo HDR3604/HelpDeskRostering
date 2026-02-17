@@ -14,6 +14,8 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
 	schedulerService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
+	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
+	emailSenderInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	transcriptsService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -71,6 +73,13 @@ func NewApp(cfg Config) (*App, error) {
 	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
+	
+	var emailSenderSvc emailSenderInterfaces.EmailSenderInterface
+	if cfg.Environment == "production" {
+		emailSenderSvc = emailService.NewResendEmailSenderService(logger)
+	} else {
+		emailSenderSvc = emailService.NewMailpitEmailSenderService(logger)
+	}
 
 	// Handlers
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)

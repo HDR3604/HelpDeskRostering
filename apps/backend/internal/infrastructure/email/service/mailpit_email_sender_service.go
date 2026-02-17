@@ -36,8 +36,8 @@ func NewMailpitEmailSenderService(logger *zap.Logger) interfaces.EmailSenderInte
 
 // Mailpit-specific request types for its /api/v1/send endpoint.
 type mailpitAddress struct {
-	Name    string `json:"Name"`
-	Address string `json:"Address"`
+	Name  string `json:"Name"`
+	Email string `json:"Email"`
 }
 
 type mailpitSendRequest struct {
@@ -59,12 +59,15 @@ type mailpitSendResponse struct {
 func parseAddress(raw string) mailpitAddress {
 	addr, err := mail.ParseAddress(raw)
 	if err != nil {
-		return mailpitAddress{Address: raw}
+		return mailpitAddress{Email: raw}
 	}
-	return mailpitAddress{Name: addr.Name, Address: addr.Address}
+	return mailpitAddress{Name: addr.Name, Email: addr.Address}
 }
 
 func parseAddresses(raw []string) []mailpitAddress {
+	if len(raw) == 0 {
+		return nil
+	}
 	addrs := make([]mailpitAddress, len(raw))
 	for i, r := range raw {
 		addrs[i] = parseAddress(r)
