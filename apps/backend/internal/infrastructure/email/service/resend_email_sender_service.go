@@ -69,7 +69,7 @@ func toResendRequest(
 	from string, to []string, subject string,
 	cc, bcc, replyTo []string,
 	html, text, scheduledAt string,
-	tags []dtos.EmailTag, attachments []dtos.EmailAttachment,
+	tags []types.EmailTag, attachments []types.EmailAttachment,
 ) *resend.SendEmailRequest {
 	req := &resend.SendEmailRequest{
 		From:    from,
