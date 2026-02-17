@@ -33,6 +33,13 @@ func NewResendEmailSenderService(logger *zap.Logger) interfaces.EmailSenderInter
 	}
 }
 
+func NewResendEmailSenderServiceWithClient(logger *zap.Logger, client *resend.Client) interfaces.EmailSenderInterface {
+	return &ResendEmailSenderService{
+		logger: logger,
+		client: client,
+	}
+}
+
 func (s *ResendEmailSenderService) Send(ctx context.Context, req dtos.SendEmailRequest) (*dtos.SendEmailResponse, error) {
 	sdkReq := toResendRequest(req.From, req.To, req.Subject, req.Cc, req.Bcc, req.ReplyTo, req.HTML, req.Text, req.ScheduledAt, req.Tags, req.Attachments)
 
