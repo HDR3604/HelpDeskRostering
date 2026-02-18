@@ -71,9 +71,9 @@ export function MissedShiftsChart({ data }: MissedShiftsChartProps) {
               dataKey="attended"
               stackId="shifts"
               fill="var(--color-attended)"
-              shape={(props: Record<string, unknown>) => {
-                const missed = (props as { payload?: { missed?: number } }).payload?.missed ?? 0
-                return <Rectangle {...props} radius={missed > 0 ? [4, 0, 0, 4] : 4} />
+              shape={(props: unknown) => {
+                const p = props as Record<string, unknown> & { payload?: { missed?: number } }
+                return <Rectangle {...p} radius={(p.payload?.missed ?? 0) > 0 ? [4, 0, 0, 4] : 4} />
               }}
             />
             <Bar
