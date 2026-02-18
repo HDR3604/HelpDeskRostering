@@ -4,8 +4,6 @@ import "errors"
 
 // Domain errors for user operations
 var (
-	ErrFailedToCreateUser        = errors.New("failed to create user")
-	ErrFailedToListUsers         = errors.New("failed to list users")
 	ErrNotFound                  = errors.New("user not found")
 	ErrEmailExists               = errors.New("email already exists")
 	ErrInvalidEmail              = errors.New("invalid email format")

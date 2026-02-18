@@ -188,7 +188,7 @@ func (u *User) ToModel() *model.Users {
 		Password:     u.Password,
 		Role:         model.Roles(u.Role),
 		IsActive:     u.IsActive,
-		CreatedAt:    time.Now(),
+		CreatedAt:    time.Time{},
 		UpdatedAt:    nil,
 	}
 }

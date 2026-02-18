@@ -352,28 +352,3 @@ func TestValidRoles(t *testing.T) {
 	}
 }
 
-// TestUserTimestamps_UpdatedOnChange tests that UpdatedAt changes when user is modified
-/* Removing due to the fact that CreatedAt and UpdatedAt are not set in the aggregate layer
----Will remove in next ticket if confirmed---
-func TestUserTimestamps_UpdatedOnChange(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
-	if err != nil {
-		t.Fatalf("NewUser() error = %v", err)
-	}
-	originalUpdatedAt := *u.UpdatedAt
-
-	// Sleep to ensure time difference
-	time.Sleep(1 * time.Millisecond)
-
-	u.UpdateEmail("new@my.uwi.edu")
-
-	if u.UpdatedAt.Equal(originalUpdatedAt) {
-		t.Error("UpdatedAt was not changed after email update")
-	}
-	if u.UpdatedAt.Before(originalUpdatedAt) {
-		t.Error("UpdatedAt went backwards after email update")
-	}
-}
-
---- To remove in next ticket if confirmed ---
-*/

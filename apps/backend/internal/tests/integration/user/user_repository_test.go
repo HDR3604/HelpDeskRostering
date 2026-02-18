@@ -1,4 +1,3 @@
-// --- Custom UserRepository Tests ---
 package user_test
 
 import (
@@ -7,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
+	"github.com/HDR3604/HelpDeskApp/internal/domain/user/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	userRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/user"
 	"github.com/HDR3604/HelpDeskApp/internal/tests/utils"
@@ -18,15 +18,14 @@ type UserRepositoryTestSuite struct {
 	suite.Suite
 	testDB    *utils.TestDB
 	txManager database.TxManagerInterface
-	repo      userRepo.UserRepository
+	repo      repository.UserRepositoryInterface
 	ctx       context.Context
-	userID    uuid.UUID
 }
 
 func (s *UserRepositoryTestSuite) SetupSuite() {
 	s.testDB = utils.NewTestDB(s.T())
 	s.txManager = database.NewTxManager(s.testDB.DB, s.testDB.Logger)
-	s.repo = *userRepo.NewUserRepository(s.testDB.Logger).(*userRepo.UserRepository)
+	s.repo = userRepo.NewUserRepository(s.testDB.Logger)
 	s.ctx = context.Background()
 }
 func TestUserRepositoryTestSuite(t *testing.T) {
@@ -36,26 +35,7 @@ func (s *UserRepositoryTestSuite) TearDownTest() {
 	s.testDB.Truncate(s.T(), "auth.users")
 }
 
-// --- helpers ---
-
-func (s *UserRepositoryTestSuite) TestUserRepository_Create() {
-	user, err := aggregate.NewUser("testuser@my.uwi.edu", "TestPass123", aggregate.Role_Student)
-	s.Require().NoError(err)
-
-	var result *aggregate.User
-	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.Create(s.ctx, tx, user)
-		return txErr
-	})
-	s.Require().NoError(err)
-	s.NotZero(result.ID)
-	s.Equal("testuser@my.uwi.edu", result.Email)
-	s.Equal(aggregate.Role_Student, result.Role)
-	s.True(result.IsActive)
-}
-
-func (s *UserRepositoryTestSuite) TestUserRepository_Create_DuplicateEmail() {
+func (s *UserRepositoryTestSuite) TestCreate_DuplicateEmail() {
 	email := "dupe@my.uwi.edu"
 	user1, err := aggregate.NewUser(email, "Pass123", aggregate.Role_Student)
 	s.Require().NoError(err)
@@ -75,33 +55,7 @@ func (s *UserRepositoryTestSuite) TestUserRepository_Create_DuplicateEmail() {
 	s.Require().Error(err)
 }
 
-func (s *UserRepositoryTestSuite) TestUserRepository_GetByID() {
-	user := s.createUser("getbyid@uwi.edu", "TestPass123", aggregate.Role_Admin, true)
-
-	var result *aggregate.User
-	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.GetByID(s.ctx, tx, user.ID.String())
-		return txErr
-	})
-	s.Require().NoError(err)
-	s.Equal(user.ID, result.ID)
-	s.Equal(user.Email, result.Email)
-}
-
-func (s *UserRepositoryTestSuite) TestUserRepository_GetByID_NotFound() {
-	nonExistentID := uuid.New().String()
-	var result *aggregate.User
-	var err error
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		result, err = s.repo.GetByID(s.ctx, tx, nonExistentID)
-		return nil
-	})
-	s.Nil(result)
-	s.Error(err)
-}
-
-func (s *UserRepositoryTestSuite) TestUserRepository_GetByEmail() {
+func (s *UserRepositoryTestSuite) TestGetByEmail_Success() {
 	user := s.createUser("getbyemail@my.uwi.edu", "TestPass123", aggregate.Role_Student, true)
 
 	var result *aggregate.User
@@ -115,7 +69,7 @@ func (s *UserRepositoryTestSuite) TestUserRepository_GetByEmail() {
 	s.Equal(user.Email, result.Email)
 }
 
-func (s *UserRepositoryTestSuite) TestUserRepository_List() {
+func (s *UserRepositoryTestSuite) TestList_All() {
 	s.createUser("list1@uwi.edu", "TestPass123", aggregate.Role_Admin, true)
 	s.createUser("list2@my.uwi.edu", "TestPass123", aggregate.Role_Student, false)
 	s.createUser("list3@my.uwi.edu", "TestPass123", aggregate.Role_Student, true)
@@ -130,7 +84,7 @@ func (s *UserRepositoryTestSuite) TestUserRepository_List() {
 	s.Len(result, 3)
 }
 
-func (s *UserRepositoryTestSuite) TestUserRepository_List_FilterByRole() {
+func (s *UserRepositoryTestSuite) TestListByRole_Success() {
 	s.createUser("role1@uwi.edu", "TestPass123", aggregate.Role_Admin, true)
 	s.createUser("role2@my.uwi.edu", "TestPass123", aggregate.Role_Student, true)
 	s.createUser("role3@my.uwi.edu", "TestPass123", aggregate.Role_Student, false)
@@ -148,7 +102,7 @@ func (s *UserRepositoryTestSuite) TestUserRepository_List_FilterByRole() {
 	}
 }
 
-func (s *UserRepositoryTestSuite) TestUserRepository_List_FilterByIsActive() {
+func (s *UserRepositoryTestSuite) TestListActive_Success() {
 	s.createUser("active1@uwi.edu", "TestPass123", aggregate.Role_Admin, true)
 	s.createUser("inactive1@my.uwi.edu", "TestPass123", aggregate.Role_Student, false)
 	s.createUser("active2@my.uwi.edu", "TestPass123", aggregate.Role_Student, true)
@@ -166,7 +120,7 @@ func (s *UserRepositoryTestSuite) TestUserRepository_List_FilterByIsActive() {
 	}
 }
 
-func (s *UserRepositoryTestSuite) TestUserRepository_Update() {
+func (s *UserRepositoryTestSuite) TestUpdate_Success() {
 	user := s.createUser("update@my.uwi.edu", "TestPass123", aggregate.Role_Student, true)
 	user.Email = "updated@my.uwi.edu"
 	user.IsActive = false
@@ -202,8 +156,6 @@ func (s *UserRepositoryTestSuite) createUser(email, password string, role aggreg
 	return result
 }
 
-// --- Create ---
-
 func (s *UserRepositoryTestSuite) TestCreate_Success() {
 	user, err := aggregate.NewUser("admin@uwi.edu", "SecurePass123", aggregate.Role_Admin)
 	s.Require().NoError(err)
@@ -221,8 +173,6 @@ func (s *UserRepositoryTestSuite) TestCreate_Success() {
 	s.Equal(aggregate.Role_Admin, result.Role)
 	s.True(result.IsActive)
 }
-
-// --- GetByID ---
 
 func (s *UserRepositoryTestSuite) TestGetByID_Success() {
 	user := s.createUser("admin@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
@@ -244,10 +194,10 @@ func (s *UserRepositoryTestSuite) TestGetByID_NotFound() {
 	nonExistentID := uuid.New().String()
 
 	var result *aggregate.User
-	var err error
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		result, err = s.repo.GetByID(s.ctx, tx, nonExistentID)
-		return nil
+	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repo.GetByID(s.ctx, tx, nonExistentID)
+		return txErr
 	})
 	s.Nil(result)
 	s.Error(err)
@@ -255,31 +205,27 @@ func (s *UserRepositoryTestSuite) TestGetByID_NotFound() {
 
 func (s *UserRepositoryTestSuite) TestGetByID_InvalidUUID() {
 	var result *aggregate.User
-	var err error
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		result, err = s.repo.GetByID(s.ctx, tx, "invalid-uuid")
-		return nil
+	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repo.GetByID(s.ctx, tx, "invalid-uuid")
+		return txErr
 	})
 
 	s.Nil(result)
 	s.Error(err)
 }
-
-// --- GetByEmail ---
 
 func (s *UserRepositoryTestSuite) TestGetByEmail_NotFound() {
 	var result *aggregate.User
-	var err error
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		result, err = s.repo.GetByEmail(s.ctx, tx, "nonexistent@my.uwi.edu")
-		return nil
+	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repo.GetByEmail(s.ctx, tx, "nonexistent@my.uwi.edu")
+		return txErr
 	})
 
 	s.Nil(result)
 	s.Error(err)
 }
-
-// --- Update ---
 
 func (s *UserRepositoryTestSuite) TestUpdate_NonExistentUser() {
 	user := &aggregate.User{
@@ -297,8 +243,6 @@ func (s *UserRepositoryTestSuite) TestUpdate_NonExistentUser() {
 	s.Require().NoError(err)
 }
 
-// --- List ---
-
 func (s *UserRepositoryTestSuite) TestList_Empty() {
 	var result []*aggregate.User
 	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
@@ -310,8 +254,6 @@ func (s *UserRepositoryTestSuite) TestList_Empty() {
 
 	s.Len(result, 0)
 }
-
-// --- ListByRole ---
 
 func (s *UserRepositoryTestSuite) TestListByRole_NoResults() {
 	s.createUser("admin1@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)
@@ -326,8 +268,6 @@ func (s *UserRepositoryTestSuite) TestListByRole_NoResults() {
 
 	s.Len(result, 0)
 }
-
-// --- DeactivateByEmailDomain ---
 
 func (s *UserRepositoryTestSuite) TestDeactivateByEmailDomain_StudentDomain() {
 	s.createUser("admin@uwi.edu", "SecurePass123", aggregate.Role_Admin, true)

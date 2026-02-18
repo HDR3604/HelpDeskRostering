@@ -21,7 +21,7 @@ type UserRepository struct {
 }
 
 // NewUserRepository creates a new user repository
-func NewUserRepository(logger *zap.Logger) repository.Repository {
+func NewUserRepository(logger *zap.Logger) repository.UserRepositoryInterface {
 	return &UserRepository{
 		logger: logger,
 	}
@@ -111,7 +111,7 @@ func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate
 		r.logger.Error("failed to update user", zap.Error(err))
 		return fmt.Errorf("failed to update user: %w", err)
 	}
-	return err
+	return nil
 }
 
 // DeactivateByEmailDomain deactivates all active users with the specified email domain

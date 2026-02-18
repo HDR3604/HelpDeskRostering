@@ -8,7 +8,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 )
 
-type Repository interface {
+type UserRepositoryInterface interface {
 	// Create saves a new user and returns the created user with ID
 	Create(ctx context.Context, tx *sql.Tx, user *aggregate.User) (*aggregate.User, error)
 
