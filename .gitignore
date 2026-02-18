@@ -172,3 +172,5 @@ __pycache__/
 .pytest_cache
 .claude
 .mcp.json
+
+mailpit.*
