@@ -6,6 +6,7 @@ import { ThemeProvider } from "../hooks/use-theme"
 import { UserProvider } from "../hooks/use-user"
 import { AppSidebar } from "../components/app-sidebar"
 import { SiteHeader } from "../components/site-header"
+import { Toaster } from "@/components/ui/sonner"
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -26,6 +27,7 @@ function RootComponent() {
           </SidebarInset>
         </SidebarProvider>
         <TanStackRouterDevtools position="bottom-right" />
+        <Toaster />
       </TooltipProvider>
       </UserProvider>
     </ThemeProvider>

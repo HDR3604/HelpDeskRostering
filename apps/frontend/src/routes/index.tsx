@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { toast } from "sonner"
 import { createFileRoute } from "@tanstack/react-router"
 import { SummaryCards } from "../components/dashboard/summary-cards"
 import { StudentApplicationsTable } from "../components/dashboard/student-applications-table"
@@ -34,6 +35,7 @@ function AdminDashboard() {
   ).size
 
   function handleAccept(studentId: number) {
+    const student = students.find((s) => s.student_id === studentId)
     setStudents((prev) =>
       prev.map((s) =>
         s.student_id === studentId
@@ -41,9 +43,11 @@ function AdminDashboard() {
           : s
       )
     )
+    toast.success(`${student?.first_name} ${student?.last_name} accepted`)
   }
 
   function handleReject(studentId: number) {
+    const student = students.find((s) => s.student_id === studentId)
     setStudents((prev) =>
       prev.map((s) =>
         s.student_id === studentId
@@ -51,6 +55,7 @@ function AdminDashboard() {
           : s
       )
     )
+    toast.error(`${student?.first_name} ${student?.last_name} rejected`)
   }
 
   return (
