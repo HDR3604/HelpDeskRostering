@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { Assignment, ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
@@ -39,11 +39,9 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Weekly Schedule</CardTitle>
+          <CardTitle>Weekly Schedule</CardTitle>
+          <CardDescription>No schedule data available</CardDescription>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">No schedule data available</p>
-        </CardContent>
       </Card>
     )
   }
@@ -65,7 +63,8 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm font-medium">Weekly Schedule</CardTitle>
+        <CardTitle>Weekly Schedule</CardTitle>
+        <CardDescription>Student shift assignments at a glance</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Grid */}

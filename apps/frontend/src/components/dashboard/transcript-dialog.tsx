@@ -7,15 +7,7 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { CourseFilter } from "@/components/course-filter"
 import type { Student } from "@/types/student"
 
 interface TranscriptDialogProps {
@@ -59,34 +51,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
 
         <div>
           <p className="mb-2 text-sm font-medium">Courses</p>
-          <ScrollArea className="h-48">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead className="text-right">Credits</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {t.courses.map((course) => (
-                  <TableRow key={course.code}>
-                    <TableCell className="font-mono text-xs">{course.code}</TableCell>
-                    <TableCell className="text-sm">{course.name}</TableCell>
-                    <TableCell>
-                      {course.grade ? (
-                        <Badge variant="secondary">{course.grade}</Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">In Progress</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">{course.credits}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+          <CourseFilter courses={t.courses} />
         </div>
       </DialogContent>
     </Dialog>

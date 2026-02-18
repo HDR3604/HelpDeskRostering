@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Table,
   TableBody,
@@ -29,12 +29,25 @@ const statusVariant: Record<ApplicationStatus, "default" | "secondary" | "destru
 
 export function StudentApplicationsTable({ students, onAccept, onReject }: StudentApplicationsTableProps) {
   const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(null)
+  const pendingCount = students.filter((s) => getApplicationStatus(s) === "pending").length
 
   return (
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Student Applications</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle>Student Applications</CardTitle>
+              <CardDescription>
+                Review and manage helpdesk assistant applications
+              </CardDescription>
+            </div>
+            {pendingCount > 0 && (
+              <Badge variant="secondary" className="shrink-0">
+                {pendingCount} pending
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -42,7 +55,8 @@ export function StudentApplicationsTable({ students, onAccept, onReject }: Stude
               <TableRow>
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
-                <TableHead>GPA</TableHead>
+                <TableHead>Programme</TableHead>
+                <TableHead className="text-center">GPA</TableHead>
                 <TableHead>Transcript</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -54,10 +68,21 @@ export function StudentApplicationsTable({ students, onAccept, onReject }: Stude
                 return (
                   <TableRow key={student.student_id}>
                     <TableCell className="font-mono text-xs">{student.student_id}</TableCell>
-                    <TableCell className="font-medium">
-                      {student.first_name} {student.last_name}
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{student.first_name} {student.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{student.email_address}</p>
+                      </div>
                     </TableCell>
-                    <TableCell>{student.transcript_metadata.overall_gpa.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm">{student.transcript_metadata.degree_programme}</p>
+                        <p className="text-xs text-muted-foreground">Level {student.transcript_metadata.current_level}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-semibold">{student.transcript_metadata.overall_gpa.toFixed(2)}</span>
+                    </TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"

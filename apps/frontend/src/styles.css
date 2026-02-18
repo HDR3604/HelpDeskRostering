@@ -17,12 +17,6 @@
 html {
   color-scheme: light dark;
 }
-* {
-  @apply border-gray-200 dark:border-gray-800;
-}
-body {
-  @apply bg-gray-50 text-gray-950 dark:bg-gray-900 dark:text-gray-200;
-}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -133,7 +127,6 @@ body {
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.408 0.123 38.172);
 }
-
 
 @layer base {
   * {

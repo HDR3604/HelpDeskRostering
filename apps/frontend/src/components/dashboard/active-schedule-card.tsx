@@ -1,6 +1,7 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { CalendarDays, Users, Layers } from "lucide-react"
 import type { ScheduleResponse } from "@/types/schedule"
 
 interface ActiveScheduleCardProps {
@@ -12,10 +13,13 @@ export function ActiveScheduleCard({ schedule }: ActiveScheduleCardProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Active Schedule</CardTitle>
+          <CardTitle>Active Schedule</CardTitle>
+          <CardDescription>No active schedule has been set</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No active schedule</p>
+          <p className="text-sm text-muted-foreground">
+            Generate and activate a schedule to see it here.
+          </p>
         </CardContent>
       </Card>
     )
@@ -24,32 +28,45 @@ export function ActiveScheduleCard({ schedule }: ActiveScheduleCardProps) {
   const assignmentCount = schedule.assignments.length
   const uniqueStudents = new Set(schedule.assignments.map((a) => a.assistant_id)).size
 
+  const stats = [
+    { icon: Users, label: "Students", value: uniqueStudents },
+    { icon: Layers, label: "Assignments", value: assignmentCount },
+  ]
+
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium">Active Schedule</CardTitle>
-        <Badge variant="default" className="text-xs">Active</Badge>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div>
-          <p className="text-lg font-semibold">{schedule.title}</p>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <CardTitle>{schedule.title}</CardTitle>
+            <CardDescription>Currently active schedule</CardDescription>
+          </div>
+          <Badge className="shrink-0">Active</Badge>
         </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <CalendarDays className="h-3.5 w-3.5" />
+          <CalendarDays className="h-4 w-4" />
           <span>
             {schedule.effective_from}
-            {schedule.effective_to ? ` — ${schedule.effective_to}` : ""}
+            {schedule.effective_to ? ` — ${schedule.effective_to}` : " onwards"}
           </span>
         </div>
-        <div className="flex gap-4 text-sm">
-          <div>
-            <span className="text-muted-foreground">Assignments: </span>
-            <span className="font-medium">{assignmentCount}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Students: </span>
-            <span className="font-medium">{uniqueStudents}</span>
-          </div>
+
+        <Separator />
+
+        <div className="grid grid-cols-2 gap-4">
+          {stats.map((stat) => (
+            <div key={stat.label} className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <stat.icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-xl font-semibold leading-none">{stat.value}</p>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
