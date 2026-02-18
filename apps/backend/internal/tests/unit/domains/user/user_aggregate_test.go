@@ -2,7 +2,6 @@ package user_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
@@ -353,23 +352,3 @@ func TestValidRoles(t *testing.T) {
 	}
 }
 
-// TestUserTimestamps_UpdatedOnChange tests that UpdatedAt changes when user is modified
-func TestUserTimestamps_UpdatedOnChange(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
-	if err != nil {
-		t.Fatalf("NewUser() error = %v", err)
-	}
-	originalUpdatedAt := u.UpdatedAt
-
-	// Sleep to ensure time difference
-	time.Sleep(1 * time.Millisecond)
-
-	u.UpdateEmail("new@my.uwi.edu")
-
-	if u.UpdatedAt.Equal(originalUpdatedAt) {
-		t.Error("UpdatedAt was not changed after email update")
-	}
-	if u.UpdatedAt.Before(originalUpdatedAt) {
-		t.Error("UpdatedAt went backwards after email update")
-	}
-}

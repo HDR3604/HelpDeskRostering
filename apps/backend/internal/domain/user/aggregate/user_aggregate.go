@@ -30,13 +30,13 @@ const (
 var RoleValues = []Role{Role_Admin, Role_Student}
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	Email     string    `json:"email"`
-	Password  string    `json:"password"`
-	Role      Role      `json:"role"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID  `json:"id"`
+	Email     string     `json:"email"`
+	Password  string     `json:"password"`
+	Role      Role       `json:"role"`
+	IsActive  bool       `json:"is_active"`
+	CreatedAt *time.Time `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
 }
 
 // NewUser creates a new User with validation
@@ -87,8 +87,9 @@ func (u *User) Activate() error {
 	if u.IsActive {
 		return nil // No error if already active
 	}
+	newTime := time.Now()
 	u.IsActive = true
-	u.UpdatedAt = time.Now()
+	u.UpdatedAt = &newTime
 	return nil
 }
 
@@ -97,8 +98,9 @@ func (u *User) Deactivate() error {
 	if !u.IsActive {
 		return nil // No error if already inactive
 	}
+	newTime := time.Now()
 	u.IsActive = false
-	u.UpdatedAt = time.Now()
+	u.UpdatedAt = &newTime
 	return nil
 }
 
@@ -111,9 +113,9 @@ func (u *User) UpdateEmail(newEmail string) error {
 	if newEmail == u.Email {
 		return errors.ErrEmailUnchanged
 	}
-
+	newTime := time.Now()
 	u.Email = newEmail
-	u.UpdatedAt = time.Now()
+	u.UpdatedAt = &newTime
 	return nil
 }
 
@@ -184,20 +186,22 @@ func (u *User) ToModel() *model.Users {
 		Password:     u.Password,
 		Role:         model.Roles(u.Role),
 		IsActive:     u.IsActive,
-		CreatedAt:    u.CreatedAt,
-		UpdatedAt:    &u.UpdatedAt,
 	}
 }
 
 // UserFromModel converts the database model to a User aggregate
 func UserFromModel(m *model.Users) *User {
+	var createdAt *time.Time
+	if !m.CreatedAt.IsZero() {
+		createdAt = &m.CreatedAt
+	}
 	return &User{
 		ID:        m.UserID,
 		Email:     m.EmailAddress,
 		Password:  m.Password,
 		Role:      Role(m.Role),
 		IsActive:  m.IsActive,
-		CreatedAt: m.CreatedAt,
-		UpdatedAt: *m.UpdatedAt,
+		CreatedAt: createdAt,
+		UpdatedAt: m.UpdatedAt,
 	}
 }
