@@ -35,6 +35,21 @@ func (s *UserRepositoryTestSuite) TearDownTest() {
 	s.testDB.Truncate(s.T(), "auth.users")
 }
 
+func (s *UserRepositoryTestSuite) createUser(email, password string, role aggregate.Role, isActive bool) *aggregate.User {
+	user, err := aggregate.NewUser(email, password, role)
+	s.Require().NoError(err)
+	user.IsActive = isActive
+
+	var result *aggregate.User
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repo.Create(s.ctx, tx, user)
+		return txErr
+	})
+	s.Require().NoError(err)
+	return result
+}
+
 func (s *UserRepositoryTestSuite) TestCreate_DuplicateEmail() {
 	email := "dupe@my.uwi.edu"
 	user1, err := aggregate.NewUser(email, "Pass123", aggregate.Role_Student)
@@ -139,21 +154,6 @@ func (s *UserRepositoryTestSuite) TestUpdate_Success() {
 	s.Require().NoError(err)
 	s.Equal("updated@my.uwi.edu", result.Email)
 	s.False(result.IsActive)
-}
-
-func (s *UserRepositoryTestSuite) createUser(email, password string, role aggregate.Role, isActive bool) *aggregate.User {
-	user, err := aggregate.NewUser(email, password, role)
-	s.Require().NoError(err)
-	user.IsActive = isActive
-
-	var result *aggregate.User
-	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repo.Create(s.ctx, tx, user)
-		return txErr
-	})
-	s.Require().NoError(err)
-	return result
 }
 
 func (s *UserRepositoryTestSuite) TestCreate_Success() {

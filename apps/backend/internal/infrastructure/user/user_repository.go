@@ -135,7 +135,11 @@ func (r *UserRepository) DeactivateByEmailDomain(ctx context.Context, tx *sql.Tx
 	)
 
 	_, err := stmt.ExecContext(ctx, tx)
-	return err
+	if err != nil {
+		r.logger.Error("failed to deactivate users by email domain", zap.Error(err))
+		return fmt.Errorf("failed to deactivate users by email domain: %w", err)
+	}
+	return nil
 }
 
 // List returns all users
