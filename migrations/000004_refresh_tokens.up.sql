@@ -4,7 +4,7 @@ CREATE TABLE
         "user_id" uuid NOT NULL,
         "token_hash" varchar(64) NOT NULL, -- SHA-256 hex of opaque token
         "expires_at" timestamptz NOT NULL,
-        "revoked_at" timestamptz NOT NULL,
+        "revoked_at" timestamptz,
         "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "replaced_by" uuid, -- points to successor token (rotation chain)
         PRIMARY KEY ("id"),
@@ -14,6 +14,9 @@ CREATE TABLE
 
 CREATE INDEX idx_refresh_tokens_token_hash ON "auth"."refresh_tokens" ("token_hash");
 CREATE INDEX idx_refresh_tokens_user_id ON "auth"."refresh_tokens" ("user_id");
+
+-- Triggers
+
 
 -- RLS: only internal role accesses this table (all ops go through InSystemTx)
 ALTER TABLE "auth"."refresh_tokens" ENABLE ROW LEVEL SECURITY;

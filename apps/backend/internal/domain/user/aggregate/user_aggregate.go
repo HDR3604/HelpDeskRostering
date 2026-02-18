@@ -57,7 +57,7 @@ func NewUser(email, password string, role Role) (*User, error) {
 	}
 
 	// Validate password
-	if err := validatePassword(password); err != nil {
+	if err := ValidatePassword(password); err != nil {
 		return nil, err
 	}
 
@@ -70,7 +70,7 @@ func NewUser(email, password string, role Role) (*User, error) {
 	}, nil
 }
 
-func validatePassword(password string) error {
+func ValidatePassword(password string) error {
 	if len(password) < 6 {
 		return errors.ErrInvalidPasswordLength
 	}
