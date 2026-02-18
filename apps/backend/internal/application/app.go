@@ -69,12 +69,13 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationSvc := scheduleService.NewScheduleGenerationService(logger, scheduleGenerationRepository, txManager)
 	schedulerSvc := schedulerService.NewSchedulerService(logger)
 	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
-	_ = transcriptsSvc // TODO: inject into domain service when transcript domain is implemented
+	_ = transcriptsSvc // TODO: inject into domain service when auth domain is implemented
 	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
 	
 	var emailSenderSvc emailSenderInterfaces.EmailSenderInterface
+	_ = emailSenderSvc // TODO: Inject into domain service when auth domain is fully implemented
 	if cfg.Environment == "production" {
 		emailSenderSvc = emailService.NewResendEmailSenderService(logger)
 	} else {
