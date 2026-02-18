@@ -10,7 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { FileText, Check, X } from "lucide-react"
+import { FileText, Check, X, RefreshCw, LoaderCircle, ArrowRight } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import { TranscriptDialog } from "./transcript-dialog"
 import type { Student } from "@/types/student"
 import { getApplicationStatus, type ApplicationStatus } from "@/types/student"
@@ -19,6 +20,7 @@ interface StudentApplicationsTableProps {
   students: Student[]
   onAccept: (studentId: number) => void
   onReject: (studentId: number) => void
+  onSync: () => Promise<void>
 }
 
 const statusVariant: Record<ApplicationStatus, "default" | "secondary" | "destructive" | "outline"> = {
@@ -27,9 +29,29 @@ const statusVariant: Record<ApplicationStatus, "default" | "secondary" | "destru
   rejected: "destructive",
 }
 
-export function StudentApplicationsTable({ students, onAccept, onReject }: StudentApplicationsTableProps) {
+const statusOrder: Record<ApplicationStatus, number> = {
+  pending: 0,
+  accepted: 1,
+  rejected: 2,
+}
+
+export function StudentApplicationsTable({ students, onAccept, onReject, onSync }: StudentApplicationsTableProps) {
   const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(null)
+  const [syncing, setSyncing] = useState(false)
   const pendingCount = students.filter((s) => getApplicationStatus(s) === "pending").length
+
+  async function handleSync() {
+    setSyncing(true)
+    try {
+      await onSync()
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  const sorted = [...students].sort(
+    (a, b) => statusOrder[getApplicationStatus(a)] - statusOrder[getApplicationStatus(b)]
+  )
 
   return (
     <>
@@ -42,14 +64,25 @@ export function StudentApplicationsTable({ students, onAccept, onReject }: Stude
                 Review and manage helpdesk assistant applications
               </CardDescription>
             </div>
-            {pendingCount > 0 && (
-              <Badge variant="secondary" className="shrink-0">
-                {pendingCount} pending
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {pendingCount > 0 && (
+                <Badge variant="secondary">
+                  {pendingCount} pending
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" disabled={syncing} onClick={handleSync}>
+                <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                Sync
+              </Button>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
+          {syncing && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-lg bg-background/30 backdrop-blur-[2px]">
+              <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -63,7 +96,7 @@ export function StudentApplicationsTable({ students, onAccept, onReject }: Stude
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students.map((student) => {
+              {sorted.map((student) => {
                 const status = getApplicationStatus(student)
                 return (
                   <TableRow key={student.student_id}>
@@ -125,6 +158,14 @@ export function StudentApplicationsTable({ students, onAccept, onReject }: Stude
               })}
             </TableBody>
           </Table>
+          <div className="mt-4 flex justify-center">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/applications">
+                View more
+                <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

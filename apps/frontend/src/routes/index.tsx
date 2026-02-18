@@ -81,6 +81,10 @@ function AdminDashboard() {
         students={students}
         onAccept={handleAccept}
         onReject={handleReject}
+        onSync={async () => {
+          await new Promise((r) => setTimeout(r, 800))
+          setStudents([...MOCK_STUDENTS])
+        }}
       />
 
       {/* Schedule section — side by side */}
