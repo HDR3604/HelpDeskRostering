@@ -98,6 +98,24 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email strin
 	return r.toDomain(&user), nil
 }
 
+// GetStudentIDByEmail returns the student_id for a given email, or nil if not found
+func (r *UserRepository) GetStudentIDByEmail(ctx context.Context, tx *sql.Tx, email string) (*string, error) {
+	stmt := table.Students.SELECT(table.Students.StudentID).
+		WHERE(table.Students.EmailAddress.EQ(postgres.String(email)))
+
+	var student model.Students
+	err := stmt.QueryContext(ctx, tx, &student)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, nil
+		}
+		r.logger.Error("failed to get student ID by email", zap.Error(err))
+		return nil, fmt.Errorf("failed to get student ID by email: %w", err)
+	}
+	sid := fmt.Sprintf("%d", student.StudentID)
+	return &sid, nil
+}
+
 // Update updates an existing user
 func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate.User) error {
 	userModel := user.ToModel()
@@ -107,11 +125,13 @@ func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate
 		table.Users.Password,
 		table.Users.Role,
 		table.Users.IsActive,
+		table.Users.EmailVerifiedAt,
 	).SET(
 		userModel.EmailAddress,
 		userModel.Password,
 		userModel.Role,
 		userModel.IsActive,
+		userModel.EmailVerifiedAt,
 	).WHERE(table.Users.UserID.EQ(postgres.UUID(user.ID)))
 
 	_, err := stmt.ExecContext(ctx, tx)

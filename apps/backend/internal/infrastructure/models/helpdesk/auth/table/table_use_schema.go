@@ -11,6 +11,7 @@ package table
 // this method only once at the beginning of the program.
 func UseSchema(schema string) {
 	BankingDetails = BankingDetails.FromSchema(schema)
+	EmailVerifications = EmailVerifications.FromSchema(schema)
 	Payments = Payments.FromSchema(schema)
 	RefreshTokens = RefreshTokens.FromSchema(schema)
 	Students = Students.FromSchema(schema)

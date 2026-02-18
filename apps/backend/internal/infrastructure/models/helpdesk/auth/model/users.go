@@ -13,11 +13,12 @@ import (
 )
 
 type Users struct {
-	UserID       uuid.UUID `sql:"primary_key"`
-	EmailAddress string
-	Password     string
-	Role         Roles
-	IsActive     bool
-	CreatedAt    time.Time
-	UpdatedAt    *time.Time
+	UserID          uuid.UUID `sql:"primary_key"`
+	EmailAddress    string
+	Password        string
+	Role            Roles
+	IsActive        bool
+	CreatedAt       time.Time
+	UpdatedAt       *time.Time
+	EmailVerifiedAt *time.Time
 }

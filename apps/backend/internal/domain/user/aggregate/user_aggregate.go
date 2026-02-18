@@ -30,13 +30,14 @@ const (
 var RoleValues = []Role{Role_Admin, Role_Student}
 
 type User struct {
-	ID        uuid.UUID  `json:"id"`
-	Email     string     `json:"email"`
-	Password  string     `json:"password"`
-	Role      Role       `json:"role"`
-	IsActive  bool       `json:"is_active"`
-	CreatedAt *time.Time `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
+	ID              uuid.UUID  `json:"id"`
+	Email           string     `json:"email"`
+	Password        string     `json:"password"`
+	Role            Role       `json:"role"`
+	IsActive        bool       `json:"is_active"`
+	CreatedAt       *time.Time `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at"`
 }
 
 // NewUser creates a new User with validation
@@ -181,11 +182,12 @@ func ValidateRoleAgainstEmail(role Role, email string) error {
 // ToModel converts the User aggregate to the database model
 func (u *User) ToModel() *model.Users {
 	return &model.Users{
-		UserID:       u.ID,
-		EmailAddress: u.Email,
-		Password:     u.Password,
-		Role:         model.Roles(u.Role),
-		IsActive:     u.IsActive,
+		UserID:          u.ID,
+		EmailAddress:    u.Email,
+		Password:        u.Password,
+		Role:            model.Roles(u.Role),
+		IsActive:        u.IsActive,
+		EmailVerifiedAt: u.EmailVerifiedAt,
 	}
 }
 
@@ -196,12 +198,13 @@ func UserFromModel(m *model.Users) *User {
 		createdAt = &m.CreatedAt
 	}
 	return &User{
-		ID:        m.UserID,
-		Email:     m.EmailAddress,
-		Password:  m.Password,
-		Role:      Role(m.Role),
-		IsActive:  m.IsActive,
-		CreatedAt: createdAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:              m.UserID,
+		Email:           m.EmailAddress,
+		Password:        m.Password,
+		Role:            Role(m.Role),
+		IsActive:        m.IsActive,
+		CreatedAt:       createdAt,
+		UpdatedAt:       m.UpdatedAt,
+		EmailVerifiedAt: m.EmailVerifiedAt,
 	}
 }
