@@ -212,3 +212,33 @@ export const SCHEDULE_COLORS: string[] = [
   "var(--chart-4)",
   "var(--chart-5)",
 ]
+
+// --- Chart Data (derived from time_logs + assignments in production) ---
+
+// Hours worked this week per accepted student (from time_logs: entry_at → exit_at)
+export const MOCK_HOURS_WORKED = [
+  { name: "Jane Doe", hours: 11.5, fill: "var(--chart-1)" },
+  { name: "Tanya Williams", hours: 12, fill: "var(--chart-2)" },
+  { name: "Aisha Kumar", hours: 14, fill: "var(--chart-3)" },
+  { name: "Mark Smith", hours: 8, fill: "var(--chart-4)" },
+  { name: "Devon Baptiste", hours: 6.5, fill: "var(--chart-5)" },
+  { name: "Keisha Moore", hours: 10, fill: "var(--chart-1)" },
+  { name: "Ryan Charles", hours: 9.5, fill: "var(--chart-2)" },
+  { name: "Priya Rampersad", hours: 7, fill: "var(--chart-3)" },
+  { name: "Jordan Lee", hours: 13, fill: "var(--chart-4)" },
+  { name: "Natasha Briggs", hours: 4.5, fill: "var(--chart-5)" },
+]
+
+// Missed shifts this week per accepted student (3 shifts/day, ~15/week max)
+export const MOCK_MISSED_SHIFTS = [
+  { name: "Jane Doe", missed: 0, total: 9, fill: "var(--chart-1)" },
+  { name: "Tanya Williams", missed: 1, total: 12, fill: "var(--chart-2)" },
+  { name: "Aisha Kumar", missed: 0, total: 12, fill: "var(--chart-3)" },
+  { name: "Mark Smith", missed: 3, total: 6, fill: "var(--chart-4)" },
+  { name: "Devon Baptiste", missed: 1, total: 6, fill: "var(--chart-5)" },
+  { name: "Keisha Moore", missed: 0, total: 9, fill: "var(--chart-1)" },
+  { name: "Ryan Charles", missed: 2, total: 9, fill: "var(--chart-2)" },
+  { name: "Priya Rampersad", missed: 0, total: 6, fill: "var(--chart-3)" },
+  { name: "Jordan Lee", missed: 0, total: 12, fill: "var(--chart-4)" },
+  { name: "Natasha Briggs", missed: 4, total: 6, fill: "var(--chart-5)" },
+]

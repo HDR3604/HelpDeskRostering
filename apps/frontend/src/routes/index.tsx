@@ -1,12 +1,22 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { createFileRoute } from "@tanstack/react-router"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ChevronDown, X } from "lucide-react"
 import { SummaryCards } from "../components/dashboard/summary-cards"
 import { StudentApplicationsTable } from "../components/dashboard/student-applications-table"
 import { ActiveScheduleCard } from "../components/dashboard/active-schedule-card"
 import { MiniWeeklySchedule } from "../components/dashboard/mini-weekly-schedule"
 import { StudentDashboard } from "../components/student-dashboard/student-dashboard"
-import { MOCK_STUDENTS, MOCK_ACTIVE_SCHEDULE, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP } from "../lib/mock-data"
+import { HoursWorkedChart } from "../components/dashboard/hours-worked-chart"
+import { MissedShiftsChart } from "../components/dashboard/missed-shifts-chart"
+import { MOCK_STUDENTS, MOCK_ACTIVE_SCHEDULE, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS } from "../lib/mock-data"
 import { getApplicationStatus } from "../types/student"
 import { useUser } from "../hooks/use-user"
 import type { Student } from "../types/student"
@@ -27,6 +37,25 @@ function DashboardPage() {
 
 function AdminDashboard() {
   const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
+
+  function toggleStudent(name: string) {
+    setSelectedStudents((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }
+
+  const filteredHours = useMemo(
+    () => [...(selectedStudents.size === 0 ? MOCK_HOURS_WORKED : MOCK_HOURS_WORKED.filter((s) => selectedStudents.has(s.name)))].sort((a, b) => b.hours - a.hours),
+    [selectedStudents],
+  )
+  const filteredMissed = useMemo(
+    () => [...(selectedStudents.size === 0 ? MOCK_MISSED_SHIFTS : MOCK_MISSED_SHIFTS.filter((s) => selectedStudents.has(s.name)))].sort((a, b) => b.total - a.total),
+    [selectedStudents],
+  )
 
   const pendingCount = students.filter((s) => getApplicationStatus(s) === "pending").length
   const acceptedCount = students.filter((s) => getApplicationStatus(s) === "accepted").length
@@ -86,6 +115,50 @@ function AdminDashboard() {
           setStudents([...MOCK_STUDENTS])
         }}
       />
+
+      {/* Charts — side by side */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Weekly Analytics</h2>
+            <p className="text-sm text-muted-foreground">Hours worked and attendance for the current schedule period.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedStudents.size > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedStudents(new Set())}>
+                <X className="mr-1 h-3.5 w-3.5" />
+                Clear
+              </Button>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  {selectedStudents.size === 0
+                    ? "All students"
+                    : `${selectedStudents.size} selected`}
+                  <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {MOCK_HOURS_WORKED.map((s) => (
+                  <DropdownMenuCheckboxItem
+                    key={s.name}
+                    checked={selectedStudents.has(s.name)}
+                    onCheckedChange={() => toggleStudent(s.name)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    {s.name}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <HoursWorkedChart data={filteredHours} />
+          <MissedShiftsChart data={filteredMissed} />
+        </div>
+      </div>
 
       {/* Schedule section — side by side */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
