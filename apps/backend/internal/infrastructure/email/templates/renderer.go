@@ -17,12 +17,14 @@ const (
 	TemplateID_ThankYou             TemplateID = "thankyou"
 	TemplateID_Welcome              TemplateID = "welcome"
 	TemplateID_RosterNotification   TemplateID = "roster_notification"
+	TemplateID_EmailVerification    TemplateID = "email_verification"
 )
 
 var templateFiles = map[TemplateID]string{
-	TemplateID_ThankYou:           "thankyou.html",
-	TemplateID_Welcome:            "welcome.html",
-	TemplateID_RosterNotification: "roster_notification.html",
+	TemplateID_ThankYou:            "thankyou.html",
+	TemplateID_Welcome:             "welcome.html",
+	TemplateID_RosterNotification:  "roster_notification.html",
+	TemplateID_EmailVerification:   "email_verification.html",
 }
 
 type ShiftEntry struct {

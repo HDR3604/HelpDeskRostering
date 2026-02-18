@@ -9,14 +9,19 @@ import (
 	"syscall"
 	"time"
 
+	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
+	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	userService "github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
+	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
+	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
+	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
 	schedulerService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
-	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
-	emailSenderInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	transcriptsService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/service"
+	userRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/lib/pq"
@@ -60,29 +65,50 @@ func NewApp(cfg Config) (*App, error) {
 	txManager := database.NewTxManager(db, logger)
 
 	// Repositories
+	userRepository := userRepo.NewUserRepository(logger)
+	refreshTokenRepository := authRepo.NewRefreshTokenRepository(logger)
+	emailVerificationRepository := authRepo.NewEmailVerificationRepository(logger)
 	scheduleRepository := scheduleRepo.NewScheduleRepository(logger)
 	scheduleGenerationRepository := scheduleRepo.NewScheduleGenerationRepository(logger)
 	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 
-	// Services
-	scheduleGenerationSvc := scheduleService.NewScheduleGenerationService(logger, scheduleGenerationRepository, txManager)
-	schedulerSvc := schedulerService.NewSchedulerService(logger)
-	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
-	_ = transcriptsSvc // TODO: inject into domain service when auth domain is implemented
-	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
-	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
-	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
-	
-	var emailSenderSvc emailSenderInterfaces.EmailSenderInterface
-	_ = emailSenderSvc // TODO: Inject into domain service when auth domain is fully implemented
+	// Email sender
+	var emailSenderSvc emailInterfaces.EmailSenderInterface
 	if cfg.Environment == "production" {
 		emailSenderSvc = emailService.NewResendEmailSenderService(logger)
 	} else {
 		emailSenderSvc = emailService.NewMailpitEmailSenderService(logger)
 	}
 
+	// Services
+	_ = userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
+	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
+	_ = transcriptsSvc // TODO: inject into domain service when needed
+
+	authSvc := authService.NewAuthService(
+		logger,
+		txManager,
+		userRepository,
+		refreshTokenRepository,
+		emailVerificationRepository,
+		emailSenderSvc,
+		[]byte(cfg.JWTSecret),
+		cfg.AccessTokenTTL,
+		cfg.RefreshTokenTTL,
+		cfg.VerificationTokenTTL,
+		cfg.FrontendURL,
+		cfg.FromEmail,
+	)
+
+	scheduleGenerationSvc := scheduleService.NewScheduleGenerationService(logger, scheduleGenerationRepository, txManager)
+	schedulerSvc := schedulerService.NewSchedulerService(logger)
+	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
+	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
+	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
+
 	// Handlers
+	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
@@ -93,14 +119,8 @@ func NewApp(cfg Config) (*App, error) {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	
-	// TODO: Delete when proper auth middleware has been implemented
-	if cfg.Environment != "production" && cfg.DevUserID != "" {
-		logger.Warn("dev auth middleware enabled — all requests use a hardcoded user",
-			zap.String("dev_user_id", cfg.DevUserID))
-		r.Use(devAuthMiddleware(cfg.DevUserID))
-	}
-	registerRoutes(r, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl)
+
+	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl)
 
 	app := &App{
 		config: cfg,

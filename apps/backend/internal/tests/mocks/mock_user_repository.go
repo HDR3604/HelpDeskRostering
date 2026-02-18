@@ -12,6 +12,7 @@ type MockUserRepository struct {
 	CreateFn                  func(ctx context.Context, tx *sql.Tx, user *aggregate.User) (*aggregate.User, error)
 	GetByIDFn                 func(ctx context.Context, tx *sql.Tx, userID string) (*aggregate.User, error)
 	GetByEmailFn              func(ctx context.Context, tx *sql.Tx, email string) (*aggregate.User, error)
+	GetStudentIDByEmailFn     func(ctx context.Context, tx *sql.Tx, email string) (*string, error)
 	UpdateFn                  func(ctx context.Context, tx *sql.Tx, user *aggregate.User) error
 	DeactivateByEmailDomainFn func(ctx context.Context, tx *sql.Tx, emailDomain aggregate.EmailDomain) error
 	ListFn                    func(ctx context.Context, tx *sql.Tx) ([]*aggregate.User, error)
@@ -31,6 +32,10 @@ func (m *MockUserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID str
 
 func (m *MockUserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email string) (*aggregate.User, error) {
 	return m.GetByEmailFn(ctx, tx, email)
+}
+
+func (m *MockUserRepository) GetStudentIDByEmail(ctx context.Context, tx *sql.Tx, email string) (*string, error) {
+	return m.GetStudentIDByEmailFn(ctx, tx, email)
 }
 
 func (m *MockUserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate.User) error {
