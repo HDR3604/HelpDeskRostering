@@ -3,9 +3,9 @@ CREATE TABLE
         "id" uuid NOT NULL DEFAULT gen_random_uuid (),
         "user_id" uuid NOT NULL,
         "token_hash" varchar(64) NOT NULL, -- SHA-256 hex of opaque token
-        "expires_at" timestampz NOT NULL,
-        "revoked_at" timestampz NOT NULL,
-        "created_at" timestampz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "expires_at" timestamptz NOT NULL,
+        "revoked_at" timestamptz NOT NULL,
+        "created_at" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "replaced_by" uuid, -- points to successor token (rotation chain)
         PRIMARY KEY ("id"),
         FOREIGN KEY ("user_id") REFERENCES "auth"."users" ("user_id") ON DELETE CASCADE,
