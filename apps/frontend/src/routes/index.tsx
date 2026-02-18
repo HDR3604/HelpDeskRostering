@@ -1,14 +1,18 @@
-import { createFileRoute } from '@tanstack/react-router'
-import * as React from 'react'
+import { createFileRoute } from "@tanstack/react-router"
+import { useUser } from "@/hooks/use-user"
+import { AdminDashboard } from "@/features/admin/admin-dashboard"
+import { StudentDashboard } from "@/features/student/student-dashboard"
 
-export const Route = createFileRoute('/')({
-  component: HomeComponent,
+export const Route = createFileRoute("/")({
+  component: DashboardPage,
 })
 
-function HomeComponent() {
-  return (
-    <div className="p-2">
-      <h3>Welcome Home!</h3>
-    </div>
-  )
+function DashboardPage() {
+  const { role } = useUser()
+
+  if (role === "student") {
+    return <StudentDashboard />
+  }
+
+  return <AdminDashboard />
 }

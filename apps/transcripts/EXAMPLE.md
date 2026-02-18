@@ -202,6 +202,7 @@ From the `TRANSCRIPT TOTALS` section — the last number in each row:
 | Grade | Meaning |
 |-------|---------|
 | A+, A, A-, B+, B, B-, C+, C, C-, D+, D, D-, F | Standard letter grades |
+| F1, F2, F3 | Failure grades (with distinction levels) |
 | HD | High distinction |
 | P | Pass |
 | W | Withdrawn |

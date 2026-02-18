@@ -1,6 +1,12 @@
-import * as React from 'react'
-import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools'
+import { Outlet, createRootRoute } from "@tanstack/react-router"
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { ThemeProvider } from "../hooks/use-theme"
+import { UserProvider } from "../hooks/use-user"
+import { AppSidebar } from "@/components/layout/app-sidebar"
+import { SiteHeader } from "@/components/layout/site-header"
+import { Toaster } from "@/components/ui/sonner"
 
 export const Route = createRootRoute({
   component: RootComponent,
@@ -8,38 +14,22 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <>
-      <div className="p-2 flex gap-2 text-lg">
-        <Link
-          to="/"
-          activeProps={{
-            className: 'font-bold',
-          }}
-          activeOptions={{ exact: true }}
-        >
-          Home
-        </Link>{' '}
-        <Link
-          to="/about"
-          activeProps={{
-            className: 'font-bold',
-          }}
-        >
-          About
-        </Link>
-        <Link
-          to="/showcase"
-          activeProps={{
-            className: 'font-bold',
-          }}
-        >
-          Component Showcase
-        </Link>
-
-      </div>
-      <hr />
-      <Outlet />
-      <TanStackRouterDevtools position="bottom-right" />
-    </>
+    <ThemeProvider>
+      <UserProvider>
+      <TooltipProvider>
+        <SidebarProvider>
+          <AppSidebar />
+          <SidebarInset>
+            <SiteHeader />
+            <main className="flex-1 p-6">
+              <Outlet />
+            </main>
+          </SidebarInset>
+        </SidebarProvider>
+        <TanStackRouterDevtools position="bottom-right" />
+        <Toaster />
+      </TooltipProvider>
+      </UserProvider>
+    </ThemeProvider>
   )
 }
