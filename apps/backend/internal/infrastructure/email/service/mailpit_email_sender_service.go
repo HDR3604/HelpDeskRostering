@@ -76,6 +76,10 @@ func parseAddresses(raw []string) []mailpitAddress {
 }
 
 func (s *MailpitEmailSenderService) Send(ctx context.Context, req dtos.SendEmailRequest) (*dtos.SendEmailResponse, error) {
+	if err := resolveTemplate(&req); err != nil {
+		return nil, err
+	}
+
 	mailpitReq := mailpitSendRequest{
 		From:    parseAddress(req.From),
 		To:      parseAddresses(req.To),

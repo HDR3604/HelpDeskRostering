@@ -41,6 +41,10 @@ func NewResendEmailSenderServiceWithClient(logger *zap.Logger, client *resend.Cl
 }
 
 func (s *ResendEmailSenderService) Send(ctx context.Context, req dtos.SendEmailRequest) (*dtos.SendEmailResponse, error) {
+	if err := resolveTemplate(&req); err != nil {
+		return nil, err
+	}
+
 	sdkReq := toResendRequest(req.From, req.To, req.Subject, req.Cc, req.Bcc, req.ReplyTo, req.HTML, req.Text, req.ScheduledAt, req.Tags, req.Attachments)
 
 	resp, err := s.client.Emails.SendWithContext(ctx, sdkReq)
