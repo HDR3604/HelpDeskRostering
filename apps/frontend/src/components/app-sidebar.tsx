@@ -6,8 +6,10 @@ import {
   ChevronsUpDown,
   LogOut,
   GraduationCap,
+  ArrowLeftRight,
 } from "lucide-react"
 import { Link, useRouterState } from "@tanstack/react-router"
+import { useUser } from "@/hooks/use-user"
 
 import {
   Sidebar,
@@ -31,16 +33,29 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-const NAV_ITEMS = [
+const ADMIN_NAV = [
   { title: "Dashboard", to: "/", icon: LayoutDashboard },
   { title: "Applications", to: "/applications", icon: FileText },
   { title: "Schedule", to: "/schedule", icon: Calendar },
   { title: "Settings", to: "/settings", icon: Settings },
 ] as const
 
+const STUDENT_NAV = [
+  { title: "My Schedule", to: "/", icon: Calendar },
+  { title: "Settings", to: "/settings", icon: Settings },
+] as const
+
 export function AppSidebar() {
   const router = useRouterState()
   const currentPath = router.location.pathname
+  const { role, setRole, currentStudent } = useUser()
+
+  const navItems = role === "admin" ? ADMIN_NAV : STUDENT_NAV
+  const isAdmin = role === "admin"
+
+  const userName = isAdmin ? "Admin User" : `${currentStudent.first_name} ${currentStudent.last_name}`
+  const userEmail = isAdmin ? "admin@uwi.edu" : currentStudent.email_address
+  const userInitials = isAdmin ? "AD" : `${currentStudent.first_name[0]}${currentStudent.last_name[0]}`
 
   return (
     <Sidebar>
@@ -67,7 +82,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild
@@ -92,16 +107,21 @@ export function AppSidebar() {
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton size="lg">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback>AD</AvatarFallback>
+                    <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col gap-0.5 leading-none">
-                    <span className="text-sm font-medium">Admin User</span>
-                    <span className="text-xs text-muted-foreground">admin@uwi.edu</span>
+                    <span className="text-sm font-medium">{userName}</span>
+                    <span className="text-xs text-muted-foreground">{userEmail}</span>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuItem onSelect={() => setRole(isAdmin ? "student" : "admin")}>
+                  <ArrowLeftRight className="mr-2 size-4" />
+                  Switch to {isAdmin ? "Student" : "Admin"}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Settings className="mr-2 size-4" />
                   Settings

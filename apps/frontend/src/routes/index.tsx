@@ -4,8 +4,10 @@ import { SummaryCards } from "../components/dashboard/summary-cards"
 import { StudentApplicationsTable } from "../components/dashboard/student-applications-table"
 import { ActiveScheduleCard } from "../components/dashboard/active-schedule-card"
 import { MiniWeeklySchedule } from "../components/dashboard/mini-weekly-schedule"
+import { StudentDashboard } from "../components/student-dashboard/student-dashboard"
 import { MOCK_STUDENTS, MOCK_ACTIVE_SCHEDULE, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP } from "../lib/mock-data"
 import { getApplicationStatus } from "../types/student"
+import { useUser } from "../hooks/use-user"
 import type { Student } from "../types/student"
 
 export const Route = createFileRoute("/")({
@@ -13,6 +15,16 @@ export const Route = createFileRoute("/")({
 })
 
 function DashboardPage() {
+  const { role } = useUser()
+
+  if (role === "student") {
+    return <StudentDashboard />
+  }
+
+  return <AdminDashboard />
+}
+
+function AdminDashboard() {
   const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
 
   const pendingCount = students.filter((s) => getApplicationStatus(s) === "pending").length

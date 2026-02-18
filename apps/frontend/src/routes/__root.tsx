@@ -3,6 +3,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "../hooks/use-theme"
+import { UserProvider } from "../hooks/use-user"
 import { AppSidebar } from "../components/app-sidebar"
 import { SiteHeader } from "../components/site-header"
 
@@ -13,6 +14,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <ThemeProvider>
+      <UserProvider>
       <TooltipProvider>
         <SidebarProvider>
           <AppSidebar />
@@ -25,6 +27,7 @@ function RootComponent() {
         </SidebarProvider>
         <TanStackRouterDevtools position="bottom-right" />
       </TooltipProvider>
+      </UserProvider>
     </ThemeProvider>
   )
 }
