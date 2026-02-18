@@ -77,7 +77,7 @@ curl -X POST http://localhost:8001/api/v1/transcripts/extract \
 | `courses` | array | All course records found. Empty array if none found. |
 | `courses[].code` | string | Subject code and number (e.g. "COMP 1601"). |
 | `courses[].title` | string | Course title. Multi-line titles are joined with a space. |
-| `courses[].grade` | string \| null | Letter grade (A+, A, A-, B+, B, B-, C+, C, C-, D+, D, D-, F, HD, P, W, MC, AB, DEF, NC, EX, NP, INC). `null` for in-progress courses with no grade yet. |
+| `courses[].grade` | string \| null | Letter grade (A+, A, A-, B+, B, B-, C+, C, C-, D+, D, D-, F, F1, F2, F3, HD, P, W, MC, AB, DEF, NC, EX, NP, INC). `null` for in-progress courses with no grade yet. |
 
 ---
 

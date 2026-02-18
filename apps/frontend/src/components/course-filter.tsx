@@ -24,7 +24,17 @@ interface CourseFilterProps {
   scrollHeight?: string
 }
 
-const GRADE_OPTIONS = ["All", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "F", "In Progress"]
+const GRADE_OPTIONS = [
+  "All",
+  // Standard letter grades
+  "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-",
+  // Failure grades
+  "F", "F1", "F2", "F3",
+  // Special grades
+  "HD", "P", "W", "MC", "AB", "DEF", "NC", "EX", "NP", "INC",
+  // In-progress (null grade)
+  "In Progress",
+]
 
 export function CourseFilter({ courses, scrollHeight = "h-48" }: CourseFilterProps) {
   const [search, setSearch] = useState("")

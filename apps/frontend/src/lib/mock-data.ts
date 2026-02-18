@@ -91,6 +91,9 @@ export const MOCK_STUDENTS: Student[] = [
       courses: [
         { code: "COMP2611", name: "Data Structures", grade: "B-", credits: 3 },
         { code: "INFO2604", name: "Information Systems", grade: "C+", credits: 3 },
+        { code: "COMP1601", name: "Computer Programming I", grade: "F1", credits: 3 },
+        { code: "COMP1602", name: "Computer Programming II", grade: "W", credits: 3 },
+        { code: "INFO1600", name: "Introduction to IT", grade: "DEF", credits: 3 },
       ],
       current_level: 2,
     },
@@ -139,6 +142,8 @@ export const MOCK_STUDENTS: Student[] = [
         { code: "COMP2611", name: "Data Structures", grade: "B", credits: 3 },
         { code: "COMP2605", name: "Enterprise Database Systems", grade: "B+", credits: 3 },
         { code: "COMP3603", name: "Human-Computer Interaction", grade: "B-", credits: 3 },
+        { code: "COMP1600", name: "Introduction to Computing", grade: "MC", credits: 3 },
+        { code: "INFO2605", name: "Professional Ethics", grade: null, credits: 3 },
       ],
       current_level: 3,
     },
