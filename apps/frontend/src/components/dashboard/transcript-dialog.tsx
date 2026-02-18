@@ -148,7 +148,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
                             <div
                               className={cn(
                                 "mx-auto h-4 w-full rounded-sm",
-                                available ? "bg-primary/25" : "bg-muted"
+                                available ? "bg-primary" : "bg-muted"
                               )}
                             />
                           </td>
@@ -161,7 +161,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
               <div className="flex items-center gap-1">
-                <div className="h-2.5 w-2.5 rounded-sm bg-primary/25" />
+                <div className="h-2.5 w-2.5 rounded-sm bg-primary" />
                 <span>Available</span>
               </div>
               <div className="flex items-center gap-1">

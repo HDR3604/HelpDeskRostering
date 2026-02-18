@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useRef, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { createFileRoute } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
@@ -35,9 +35,12 @@ function DashboardPage() {
   return <AdminDashboard />
 }
 
+const TOAST_DURATION = 5000
+
 function AdminDashboard() {
   const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
+  const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   function toggleStudent(name: string) {
     setSelectedStudents((prev) => {
@@ -63,28 +66,86 @@ function AdminDashboard() {
     MOCK_ACTIVE_SCHEDULE.assignments.map((a) => a.assistant_id)
   ).size
 
+  function scheduleCommit(studentId: number, action: "accept" | "reject") {
+    // Cancel any existing timer for this student
+    const existing = pendingTimers.current.get(studentId)
+    if (existing) clearTimeout(existing)
+
+    const timer = setTimeout(() => {
+      pendingTimers.current.delete(studentId)
+      // TODO: fire API call — PATCH /api/v1/students/:id/{action}
+      console.log(`[commit] ${action} student ${studentId}`)
+    }, TOAST_DURATION)
+
+    pendingTimers.current.set(studentId, timer)
+  }
+
+  function cancelCommit(studentId: number) {
+    const timer = pendingTimers.current.get(studentId)
+    if (timer) {
+      clearTimeout(timer)
+      pendingTimers.current.delete(studentId)
+    }
+  }
+
   function handleAccept(studentId: number) {
-    const student = students.find((s) => s.student_id === studentId)
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.student_id === studentId
-          ? { ...s, accepted_at: new Date().toISOString(), rejected_at: null }
-          : s
+    const prev = students.find((s) => s.student_id === studentId)
+    if (!prev) return
+    const snapshot = { accepted_at: prev.accepted_at, rejected_at: prev.rejected_at }
+    setStudents((s) =>
+      s.map((st) =>
+        st.student_id === studentId
+          ? { ...st, accepted_at: new Date().toISOString(), rejected_at: null }
+          : st
       )
     )
-    toast.success(`${student?.first_name} ${student?.last_name} accepted`)
+    scheduleCommit(studentId, "accept")
+    toast.success(`${prev.first_name} ${prev.last_name} accepted`, {
+      duration: TOAST_DURATION,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          cancelCommit(studentId)
+          setStudents((s) =>
+            s.map((st) =>
+              st.student_id === studentId
+                ? { ...st, accepted_at: snapshot.accepted_at, rejected_at: snapshot.rejected_at }
+                : st
+            )
+          )
+        },
+      },
+    })
   }
 
   function handleReject(studentId: number) {
-    const student = students.find((s) => s.student_id === studentId)
-    setStudents((prev) =>
-      prev.map((s) =>
-        s.student_id === studentId
-          ? { ...s, rejected_at: new Date().toISOString(), accepted_at: null }
-          : s
+    const prev = students.find((s) => s.student_id === studentId)
+    if (!prev) return
+    const snapshot = { accepted_at: prev.accepted_at, rejected_at: prev.rejected_at }
+    setStudents((s) =>
+      s.map((st) =>
+        st.student_id === studentId
+          ? { ...st, rejected_at: new Date().toISOString(), accepted_at: null }
+          : st
       )
     )
-    toast.error(`${student?.first_name} ${student?.last_name} rejected`)
+    scheduleCommit(studentId, "reject")
+    toast.error(`${prev.first_name} ${prev.last_name} rejected`, {
+      duration: TOAST_DURATION,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          cancelCommit(studentId)
+          setStudents((s) =>
+            s.map((st) =>
+              st.student_id === studentId
+                ? { ...st, accepted_at: snapshot.accepted_at, rejected_at: snapshot.rejected_at }
+                : st
+            )
+          )
+        },
+      },
+    })
   }
 
   return (
