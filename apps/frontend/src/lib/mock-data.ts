@@ -1,6 +1,7 @@
 import type { Student } from "@/types/student"
 import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
+import type { TimeLog } from "@/types/time-log"
 
 // --- Students (2 accepted, 3 pending, 1 rejected) ---
 
@@ -241,4 +242,44 @@ export const MOCK_MISSED_SHIFTS = [
   { name: "Priya Rampersad", missed: 0, total: 6, fill: "var(--chart-3)" },
   { name: "Jordan Lee", missed: 0, total: 12, fill: "var(--chart-4)" },
   { name: "Natasha Briggs", missed: 4, total: 6, fill: "var(--chart-5)" },
+]
+
+// --- Time Logs (clock in / clock out records for the current schedule week) ---
+
+// Jane Doe: completed Mon 8-12, currently off clock (Tue has no shift)
+// Tanya Williams: completed Mon 13-17, currently clocked in for Tue 8-12
+export const MOCK_TIME_LOGS: TimeLog[] = [
+  // Jane Doe — Mon morning shift (completed)
+  {
+    id: "tl-001",
+    student_id: 816012345,
+    entry_at: "2026-02-17T08:02:00Z",
+    exit_at: "2026-02-17T11:58:00Z",
+    created_at: "2026-02-17T08:02:00Z",
+    longitude: -61.402,
+    latitude: 10.643,
+    distance_meters: 12.5,
+  },
+  // Tanya Williams — Mon afternoon shift (completed)
+  {
+    id: "tl-002",
+    student_id: 816056789,
+    entry_at: "2026-02-17T13:05:00Z",
+    exit_at: "2026-02-17T16:55:00Z",
+    created_at: "2026-02-17T13:05:00Z",
+    longitude: -61.402,
+    latitude: 10.643,
+    distance_meters: 8.3,
+  },
+  // Tanya Williams — Tue morning shift (currently clocked in)
+  {
+    id: "tl-003",
+    student_id: 816056789,
+    entry_at: "2026-02-18T08:01:00Z",
+    exit_at: null,
+    created_at: "2026-02-18T08:01:00Z",
+    longitude: -61.402,
+    latitude: 10.643,
+    distance_meters: 10.1,
+  },
 ]
