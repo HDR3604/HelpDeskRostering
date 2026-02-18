@@ -28,6 +28,14 @@ function RootComponent() {
           About
         </Link>
         <Link
+          to="/dashboard"
+          activeProps={{
+            className: 'font-bold',
+          }}
+        >
+          Dashboard
+        </Link>
+        <Link
           to="/showcase"
           activeProps={{
             className: 'font-bold',
