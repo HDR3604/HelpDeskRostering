@@ -7,7 +7,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb"
-import { ThemeSwitcher } from "@/components/theme-switcher"
+import { ThemeSwitcher } from "@/components/layout/theme-switcher"
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Dashboard",

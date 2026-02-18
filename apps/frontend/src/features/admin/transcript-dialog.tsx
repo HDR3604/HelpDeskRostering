@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { Clock, BookOpen } from "lucide-react"
-import { CourseFilter } from "@/components/course-filter"
+import { CourseFilter } from "@/components/shared/course-filter"
 import type { Student } from "@/types/student"
 import { getApplicationStatus } from "@/types/student"
 

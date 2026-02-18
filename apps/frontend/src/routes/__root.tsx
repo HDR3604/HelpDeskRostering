@@ -4,8 +4,8 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "../hooks/use-theme"
 import { UserProvider } from "../hooks/use-user"
-import { AppSidebar } from "../components/app-sidebar"
-import { SiteHeader } from "../components/site-header"
+import { AppSidebar } from "@/components/layout/app-sidebar"
+import { SiteHeader } from "@/components/layout/site-header"
 import { Toaster } from "@/components/ui/sonner"
 
 export const Route = createRootRoute({
