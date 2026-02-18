@@ -62,13 +62,11 @@ func NewUser(email, password string, role Role) (*User, error) {
 	}
 
 	return &User{
-		ID:        uuid.New(),
-		Email:     email,
-		Password:  password,
-		Role:      role,
-		IsActive:  true,
-		CreatedAt: nil,
-		UpdatedAt: nil,
+		ID:       uuid.New(),
+		Email:    email,
+		Password: password,
+		Role:     role,
+		IsActive: true,
 	}, nil
 }
 
@@ -188,8 +186,6 @@ func (u *User) ToModel() *model.Users {
 		Password:     u.Password,
 		Role:         model.Roles(u.Role),
 		IsActive:     u.IsActive,
-		CreatedAt:    time.Time{},
-		UpdatedAt:    nil,
 	}
 }
 
