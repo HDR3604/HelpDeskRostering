@@ -70,8 +70,9 @@ func (s *UserService) Create(ctx context.Context, email, password string, role a
 	s.logger.Info("creating user", zap.String("email", email), zap.String("role", string(role)))
 	var createdUser *aggregate.User
 	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-		createdUser, userErrors.ErrCreateUserFailed = s.repository.Create(ctx, tx, user)
-		return userErrors.ErrCreateUserFailed
+		var createErr error
+        createdUser, createErr = s.repository.Create(ctx, tx, user)
+        return createErr
 	})
 
 	return createdUser, err
