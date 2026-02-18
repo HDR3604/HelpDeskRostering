@@ -33,7 +33,3 @@ type UserRepositoryInterface interface {
 	// ListActive returns all active users
 	ListActive(ctx context.Context, tx *sql.Tx) ([]*aggregate.User, error)
 }
-
-// Delete deletes a user by ID (soft or hard delete)
-//Delete(ctx context.Context, tx *sql.Tx, userID string) error
-//Removed Delete method as we are implementing soft delete by setting IsActive to false
