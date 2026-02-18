@@ -34,9 +34,17 @@ func (tm *TxManager) InAuthTx(ctx context.Context, authCtx AuthContext, fn func(
 		return fmt.Errorf("failed to begin auth transaction: %w", err)
 	}
 
-	// When the function exits, rollback if there was an error
+	// Handle both errors AND panics
 	defer func() {
-		if err != nil {
+		if p := recover(); p != nil {
+			// Rollback on panic
+			if rbErr := tx.Rollback(); rbErr != nil {
+				tm.logger.Warn("rollback failed after panic", zap.Error(rbErr))
+			}
+			tm.logger.Error("panic in transaction", zap.Any("panic", p))
+			panic(p) // Re-throw panic after cleanup
+		} else if err != nil {
+			// Rollback on error
 			if rbErr := tx.Rollback(); rbErr != nil {
 				tm.logger.Warn("rollback failed", zap.Error(rbErr))
 			}
@@ -76,7 +84,13 @@ func (tm *TxManager) InAuthTx(ctx context.Context, authCtx AuthContext, fn func(
 		return fmt.Errorf("transaction function returned an error: %w", err)
 	}
 
-	return tx.Commit()
+	// Commit if no errors
+	if err = tx.Commit(); err != nil {
+		tm.logger.Error("failed to commit transaction", zap.Error(err))
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (tm *TxManager) InSystemTx(ctx context.Context, fn func(tx *sql.Tx) error) (err error) {

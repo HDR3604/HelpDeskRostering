@@ -3,15 +3,18 @@ package user
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
+	userErrors "github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/table"
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/go-jet/jet/v2/qrm"
 	"go.uber.org/zap"
 )
 
@@ -69,11 +72,13 @@ func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string)
 	var user model.Users
 	err = stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, userErrors.ErrNotFound
+		}
 		r.logger.Error("failed to get user by ID", zap.Error(err))
 		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
-	s := r.toDomain(&user)
-	return s, nil
+	return r.toDomain(&user), nil
 }
 
 // GetByEmail retrieves a user by email
@@ -84,6 +89,9 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email strin
 	var user model.Users
 	err := stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, userErrors.ErrNotFound
+		}
 		r.logger.Error("failed to get user by email", zap.Error(err))
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
@@ -130,20 +138,21 @@ func (r *UserRepository) DeactivateByEmailDomain(ctx context.Context, tx *sql.Tx
 	return err
 }
 
-// List returns users with optional filtering by role and/or is_active
+// List returns all users
 func (r *UserRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate.User, error) {
 	stmt := table.Users.SELECT(table.Users.AllColumns)
 
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return []*aggregate.User{}, nil
+		}
 		r.logger.Error("failed to list users", zap.Error(err))
 		return nil, fmt.Errorf("failed to list users: %w", err)
 	}
 
-	result := toGenerateAggregates(users)
-
-	return result, nil
+	return toGenerateAggregates(users), nil
 }
 
 // ListByRole returns all users with a specific role
@@ -156,13 +165,14 @@ func (r *UserRepository) ListByRole(ctx context.Context, tx *sql.Tx, role string
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
-		r.logger.Error("failed to get list users by Role", zap.Error(err))
+		if errors.Is(err, qrm.ErrNoRows) {
+			return []*aggregate.User{}, nil
+		}
+		r.logger.Error("failed to list users by role", zap.Error(err))
 		return nil, fmt.Errorf("failed to list users by role: %w", err)
 	}
 
-	result := toGenerateAggregates(users)
-
-	return result, nil
+	return toGenerateAggregates(users), nil
 }
 
 // ListActive returns all active users
@@ -173,13 +183,14 @@ func (r *UserRepository) ListActive(ctx context.Context, tx *sql.Tx) ([]*aggrega
 	var users []model.Users
 	err := stmt.QueryContext(ctx, tx, &users)
 	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return []*aggregate.User{}, nil
+		}
 		r.logger.Error("failed to list active users", zap.Error(err))
 		return nil, fmt.Errorf("failed to list active users: %w", err)
 	}
 
-	result := toGenerateAggregates(users)
-
-	return result, nil
+	return toGenerateAggregates(users), nil
 }
 
 // toDomain converts a database model to an aggregate domain object

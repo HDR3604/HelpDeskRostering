@@ -131,7 +131,7 @@ func (s *UserRepositoryTestSuite) TestUpdate_Success() {
 	s.Require().NoError(err)
 
 	var result *aggregate.User
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repo.GetByID(s.ctx, tx, user.ID.String())
 		return txErr
@@ -283,18 +283,17 @@ func (s *UserRepositoryTestSuite) TestDeactivateByEmailDomain_StudentDomain() {
 	// Verify deactivation
 	var student1Result, student2Result *aggregate.User
 
-	// Fetch the updated users
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var err error
-		student1Result, err = s.repo.GetByID(s.ctx, tx, user1.ID.String())
-		return err
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		student1Result, txErr = s.repo.GetByID(s.ctx, tx, user1.ID.String())
+		return txErr
 	})
 	s.Require().NoError(err)
 
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var err error
-		student2Result, err = s.repo.GetByID(s.ctx, tx, user2.ID.String())
-		return err
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		student2Result, txErr = s.repo.GetByID(s.ctx, tx, user2.ID.String())
+		return txErr
 	})
 	s.Require().NoError(err)
 
@@ -315,17 +314,17 @@ func (s *UserRepositoryTestSuite) TestDeactivateByEmailDomain_StaffDomain() {
 
 	// Verify deactivation
 	var staffResult1, staffResult2 *aggregate.User
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var err error
-		staffResult1, err = s.repo.GetByID(s.ctx, tx, user1.ID.String())
-		return err
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		staffResult1, txErr = s.repo.GetByID(s.ctx, tx, user1.ID.String())
+		return txErr
 	})
 	s.Require().NoError(err)
 
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var err error
-		staffResult2, err = s.repo.GetByID(s.ctx, tx, user2.ID.String())
-		return err
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		staffResult2, txErr = s.repo.GetByID(s.ctx, tx, user2.ID.String())
+		return txErr
 	})
 	s.Require().NoError(err)
 
@@ -345,17 +344,17 @@ func (s *UserRepositoryTestSuite) TestDeactivateByEmailDomain_AlreadyInactive() 
 
 	// Verify both are inactive
 	var result1, result2 *aggregate.User
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var err error
-		result1, err = s.repo.GetByID(s.ctx, tx, user1.ID.String())
-		return err
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result1, txErr = s.repo.GetByID(s.ctx, tx, user1.ID.String())
+		return txErr
 	})
 	s.Require().NoError(err)
 
-	s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
-		var err error
-		result2, err = s.repo.GetByID(s.ctx, tx, user2.ID.String())
-		return err
+	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
+		var txErr error
+		result2, txErr = s.repo.GetByID(s.ctx, tx, user2.ID.String())
+		return txErr
 	})
 	s.Require().NoError(err)
 
