@@ -348,14 +348,10 @@ func (s *AuthE2ETestSuite) TestE2E_RefreshTokenRotation() {
 	rr = s.doRequest(http.MethodPost, "/api/v1/auth/refresh", refreshBody, "")
 	s.Equal(http.StatusUnauthorized, rr.Code, "expected 401 for reused first token: %s", rr.Body.String())
 
-	// 5. Refresh with latest (third) refresh token -> still 200
-	// NOTE: The RevokeAllByUserID in theft detection is rolled back because
-	// InSystemTx rolls back when the fn returns an error (ErrTokenReuse).
-	// This is a known limitation — the reusing caller gets 401, but the
-	// revocation of other tokens is not persisted.
+	// 5. Refresh with latest (third) token -> 401 (all tokens revoked by theft detection)
 	refreshBody = `{"refresh_token":"` + thirdRefresh + `"}`
 	rr = s.doRequest(http.MethodPost, "/api/v1/auth/refresh", refreshBody, "")
-	s.Equal(http.StatusOK, rr.Code, "latest token should still work: %s", rr.Body.String())
+	s.Equal(http.StatusUnauthorized, rr.Code, "all tokens should be revoked after theft detection: %s", rr.Body.String())
 }
 
 func (s *AuthE2ETestSuite) TestE2E_Logout() {

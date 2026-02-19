@@ -228,6 +228,7 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (stri
 	}
 
 	var newAccessToken, newRawRefreshToken string
+	var tokenReuseDetected bool
 
 	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		oldToken, err := s.refreshTokenRepo.GetByTokenHash(ctx, tx, tokenHash)
@@ -238,14 +239,17 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (stri
 			return fmt.Errorf("failed to look up refresh token: %w", err)
 		}
 
-		// Theft detection: if token is revoked, someone is reusing it
+		// Theft detection: if token is revoked, someone is reusing it.
+		// Revoke all tokens for this user and return nil so the tx commits,
+		// then signal the caller via the tokenReuseDetected flag.
 		if oldToken.IsRevoked() {
 			s.logger.Warn("refresh token reuse detected, revoking all tokens",
 				zap.String("user_id", oldToken.UserID.String()))
 			if err := s.refreshTokenRepo.RevokeAllByUserID(ctx, tx, oldToken.UserID); err != nil {
 				return fmt.Errorf("failed to revoke all tokens: %w", err)
 			}
-			return authErrors.ErrTokenReuse
+			tokenReuseDetected = true
+			return nil
 		}
 
 		if oldToken.IsExpired() {
@@ -291,6 +295,10 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (stri
 	})
 	if err != nil {
 		return "", "", err
+	}
+
+	if tokenReuseDetected {
+		return "", "", authErrors.ErrTokenReuse
 	}
 
 	return newAccessToken, newRawRefreshToken, nil
