@@ -17,19 +17,17 @@ export function StudentDashboard() {
   const isAccepted = getApplicationStatus(currentStudent) === "accepted"
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-7xl space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">My Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">My Dashboard</h1>
         <p className="mt-1 text-muted-foreground">
           Welcome back, {currentStudent.first_name}. Here is your helpdesk overview.
         </p>
       </div>
 
-      {/* Application status banner (pending/rejected only) */}
       <ApplicationStatusBanner student={currentStudent} />
 
-      {/* Summary cards */}
       <StudentSummaryCards
         student={currentStudent}
         assignments={myAssignments}
@@ -37,7 +35,6 @@ export function StudentDashboard() {
         timeLogs={MOCK_TIME_LOGS}
       />
 
-      {/* Schedule section — only for accepted students with assignments */}
       {isAccepted && myAssignments.length > 0 && (
         <div className="space-y-4">
           <div>
@@ -45,7 +42,7 @@ export function StudentDashboard() {
             <p className="text-sm text-muted-foreground">{MOCK_ACTIVE_SCHEDULE.title}</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <NextShiftCard
               assignments={myAssignments}
               shiftTemplates={MOCK_SHIFT_TEMPLATES}

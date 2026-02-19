@@ -140,8 +140,8 @@ export function BankingDetailsForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+        <div className="w-full max-w-md space-y-6 sm:space-y-8">
           {/* Logo + title */}
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">

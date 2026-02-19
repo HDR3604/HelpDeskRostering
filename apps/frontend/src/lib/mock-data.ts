@@ -180,15 +180,44 @@ export const MOCK_ACTIVE_SCHEDULE: ScheduleResponse = {
   title: "Week 5 — Feb 17-21 Schedule",
   is_active: true,
   assignments: [
-    // Jane Doe (accepted) — student_id 816012345
+    // Jane Doe — student_id 816012345
     { assistant_id: "816012345", shift_id: "st-001", day_of_week: 0, start: "08:00:00", end: "12:00:00" },
     { assistant_id: "816012345", shift_id: "st-005", day_of_week: 2, start: "08:00:00", end: "12:00:00" },
     { assistant_id: "816012345", shift_id: "st-009", day_of_week: 4, start: "08:00:00", end: "12:00:00" },
-    // Tanya Williams (accepted) — student_id 816056789
+    // Tanya Williams — student_id 816056789
     { assistant_id: "816056789", shift_id: "st-002", day_of_week: 0, start: "13:00:00", end: "17:00:00" },
     { assistant_id: "816056789", shift_id: "st-003", day_of_week: 1, start: "08:00:00", end: "12:00:00" },
     { assistant_id: "816056789", shift_id: "st-007", day_of_week: 3, start: "08:00:00", end: "12:00:00" },
     { assistant_id: "816056789", shift_id: "st-009", day_of_week: 4, start: "08:00:00", end: "12:00:00" },
+    // Aisha Kumar
+    { assistant_id: "816034567", shift_id: "st-001", day_of_week: 0, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816034567", shift_id: "st-003", day_of_week: 1, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816034567", shift_id: "st-006", day_of_week: 2, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816034567", shift_id: "st-007", day_of_week: 3, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816034567", shift_id: "st-010", day_of_week: 4, start: "13:00:00", end: "17:00:00" },
+    // Keisha Moore
+    { assistant_id: "816078901", shift_id: "st-002", day_of_week: 0, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816078901", shift_id: "st-004", day_of_week: 1, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816078901", shift_id: "st-005", day_of_week: 2, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816078901", shift_id: "st-008", day_of_week: 3, start: "13:00:00", end: "17:00:00" },
+    // Ryan Charles
+    { assistant_id: "816089012", shift_id: "st-001", day_of_week: 0, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816089012", shift_id: "st-004", day_of_week: 1, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816089012", shift_id: "st-006", day_of_week: 2, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816089012", shift_id: "st-009", day_of_week: 4, start: "08:00:00", end: "12:00:00" },
+    // Priya Rampersad
+    { assistant_id: "816090123", shift_id: "st-002", day_of_week: 0, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816090123", shift_id: "st-005", day_of_week: 2, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816090123", shift_id: "st-008", day_of_week: 3, start: "13:00:00", end: "17:00:00" },
+    // Jordan Lee
+    { assistant_id: "816001234", shift_id: "st-001", day_of_week: 0, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816001234", shift_id: "st-003", day_of_week: 1, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816001234", shift_id: "st-007", day_of_week: 3, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816001234", shift_id: "st-010", day_of_week: 4, start: "13:00:00", end: "17:00:00" },
+    // Natasha Briggs
+    { assistant_id: "816002345", shift_id: "st-003", day_of_week: 1, start: "08:00:00", end: "12:00:00" },
+    { assistant_id: "816002345", shift_id: "st-006", day_of_week: 2, start: "13:00:00", end: "17:00:00" },
+    { assistant_id: "816002345", shift_id: "st-010", day_of_week: 4, start: "13:00:00", end: "17:00:00" },
   ],
   created_at: "2026-02-15T10:00:00Z",
   created_by: "admin-001",
@@ -203,6 +232,12 @@ export const MOCK_ACTIVE_SCHEDULE: ScheduleResponse = {
 export const STUDENT_NAME_MAP: Record<string, string> = {
   "816012345": "Jane Doe",
   "816056789": "Tanya Williams",
+  "816034567": "Aisha Kumar",
+  "816078901": "Keisha Moore",
+  "816089012": "Ryan Charles",
+  "816090123": "Priya Rampersad",
+  "816001234": "Jordan Lee",
+  "816002345": "Natasha Briggs",
 }
 
 // Colors for schedule legend (uses chart CSS variables)

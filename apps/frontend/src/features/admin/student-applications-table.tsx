@@ -57,24 +57,24 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
     <>
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle>Student Applications</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Student Applications</CardTitle>
+                {pendingCount > 0 && (
+                  <Badge variant="secondary">
+                    {pendingCount} pending
+                  </Badge>
+                )}
+              </div>
               <CardDescription>
                 Review and manage helpdesk assistant applications
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {pendingCount > 0 && (
-                <Badge variant="secondary">
-                  {pendingCount} pending
-                </Badge>
-              )}
-              <Button variant="outline" size="sm" disabled={syncing} onClick={handleSync}>
-                <RefreshCw className="mr-1 h-3.5 w-3.5" />
-                Sync
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" className="shrink-0" disabled={syncing} onClick={handleSync}>
+              <RefreshCw className="mr-1 h-3.5 w-3.5" />
+              Sync
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="relative">

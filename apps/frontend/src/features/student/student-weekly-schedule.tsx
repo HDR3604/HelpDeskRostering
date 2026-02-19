@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { CalendarPlus } from "lucide-react"
+import { CalendarPlus, Clock } from "lucide-react"
 import type { Assignment, ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 
@@ -14,12 +13,6 @@ interface StudentWeeklyScheduleProps {
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-const TIME_SLOTS = ["Morning", "Afternoon"] as const
-
-function getSlot(time: string): "Morning" | "Afternoon" {
-  const hour = parseInt(time.split(":")[0], 10)
-  return hour < 12 ? "Morning" : "Afternoon"
-}
 
 function formatTime12(t: string) {
   const hour = parseInt(t.split(":")[0], 10)
@@ -40,7 +33,6 @@ function buildIcs(assignments: Assignment[], shiftTemplates: ShiftTemplate[], sc
     "CALSCALE:GREGORIAN",
   ]
 
-  // effective_from is a date string like "2026-02-17" (the Monday of the week)
   const weekStart = new Date(schedule.effective_from + "T00:00:00")
 
   for (const a of assignments) {
@@ -102,12 +94,14 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
     )
   }
 
-  // Group assignments by day + slot
-  const grid: Record<string, Assignment[]> = {}
+  // Group assignments by day, sorted by start time
+  const byDay: Record<number, Assignment[]> = {}
   for (const a of assignments) {
-    const key = `${a.day_of_week}-${getSlot(a.start)}`
-    if (!grid[key]) grid[key] = []
-    grid[key].push(a)
+    if (!byDay[a.day_of_week]) byDay[a.day_of_week] = []
+    byDay[a.day_of_week].push(a)
+  }
+  for (const day of Object.keys(byDay)) {
+    byDay[Number(day)].sort((a, b) => a.start.localeCompare(b.start))
   }
 
   // Check which day is today (0=Mon)
@@ -121,86 +115,128 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <CardTitle>Weekly Schedule</CardTitle>
           <CardDescription>Your shift assignments for the week</CardDescription>
         </div>
-        <Button variant="outline" size="sm" onClick={handleExportCalendar}>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={handleExportCalendar}>
           <CalendarPlus className="mr-1.5 h-3.5 w-3.5" />
           Add to Calendar
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr>
-                <th className="py-2 pr-3 text-left font-medium text-muted-foreground" />
-                {DAYS.map((day, idx) => (
-                  <th
-                    key={day}
-                    className={cn(
-                      "py-2 px-2 text-center font-medium",
-                      idx === today ? "text-primary" : "text-muted-foreground"
-                    )}
-                  >
-                    {day}
-                    {idx === today && (
-                      <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" />
-                    )}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {TIME_SLOTS.map((slot) => (
-                <tr key={slot}>
-                  <td className="py-3 pr-3 text-right font-medium text-muted-foreground whitespace-nowrap">
-                    {slot}
-                  </td>
-                  {DAYS.map((_, dayIdx) => {
-                    const key = `${dayIdx}-${slot}`
-                    const cellAssignments = grid[key] || []
-                    const hasShift = cellAssignments.length > 0
-                    const isToday = dayIdx === today
+        {/* Desktop: column grid */}
+        <div className="hidden sm:grid sm:grid-cols-5 sm:gap-2">
+          {DAYS.map((day, idx) => {
+            const isToday = idx === today
+            const dayAssignments = byDay[idx] || []
 
+            return (
+              <div key={day} className="space-y-1.5">
+                <div
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium",
+                    isToday
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/50 text-muted-foreground"
+                  )}
+                >
+                  {day}
+                  {isToday && (
+                    <span className="text-[10px] font-normal opacity-80">Today</span>
+                  )}
+                </div>
+
+                {dayAssignments.length > 0 ? (
+                  dayAssignments.map((a) => {
+                    const template = shiftTemplates.find((t) => t.id === a.shift_id)
+                    const hours = getShiftHours(a.start, a.end)
                     return (
-                      <td key={dayIdx} className="p-1">
-                        <div
-                          className={cn(
-                            "flex min-h-[4rem] flex-col items-center justify-center rounded-lg border p-2 transition-colors",
-                            hasShift
-                              ? "border-primary/30 bg-primary/10"
-                              : "border-dashed border-border",
-                            isToday && !hasShift && "border-primary/20 bg-primary/5",
-                          )}
-                        >
-                          {cellAssignments.map((a) => {
-                            const template = shiftTemplates.find((t) => t.id === a.shift_id)
-                            const hours = getShiftHours(a.start, a.end)
-                            return (
-                              <div key={a.shift_id} className="text-center">
-                                <p className="text-xs font-medium text-primary">
-                                  {template?.name ?? "Shift"}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {formatTime12(a.start)} – {formatTime12(a.end)}
-                                </p>
-                                <Badge variant="secondary" className="mt-1 text-[9px] px-1.5 py-0">
-                                  {hours}h
-                                </Badge>
-                              </div>
-                            )
-                          })}
+                      <div
+                        key={a.shift_id}
+                        className={cn(
+                          "rounded-md border-l-[3px] border-l-primary bg-primary/5 px-2.5 py-2",
+                          isToday && "bg-primary/10"
+                        )}
+                      >
+                        <p className="text-xs font-semibold text-foreground">
+                          {template?.name ?? "Shift"}
+                        </p>
+                        <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{formatTime12(a.start)} – {formatTime12(a.end)}</span>
                         </div>
-                      </td>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {hours} {hours === 1 ? "hour" : "hours"}
+                        </p>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="flex min-h-[4rem] items-center justify-center rounded-md border border-dashed border-border/40">
+                    <span className="text-[10px] text-muted-foreground/40">No shift</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Mobile: vertical day list */}
+        <div className="space-y-2 sm:hidden">
+          {DAYS.map((day, idx) => {
+            const isToday = idx === today
+            const dayAssignments = byDay[idx] || []
+            if (dayAssignments.length === 0) return null
+
+            return (
+              <div
+                key={day}
+                className={cn(
+                  "rounded-lg border px-3 py-2.5",
+                  isToday ? "border-primary/30 bg-primary/5" : "border-border"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={cn(
+                    "text-sm font-semibold",
+                    isToday ? "text-primary" : "text-foreground"
+                  )}>
+                    {FULL_DAYS[idx]}
+                  </span>
+                  {isToday && (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                      Today
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1.5 space-y-1.5">
+                  {dayAssignments.map((a) => {
+                    const template = shiftTemplates.find((t) => t.id === a.shift_id)
+                    const hours = getShiftHours(a.start, a.end)
+                    return (
+                      <div
+                        key={a.shift_id}
+                        className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-1.5"
+                      >
+                        <div>
+                          <p className="text-xs font-semibold">{template?.name ?? "Shift"}</p>
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>{formatTime12(a.start)} – {formatTime12(a.end)}</span>
+                          </div>
+                        </div>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {hours}h
+                        </span>
+                      </div>
                     )
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </CardContent>
     </Card>

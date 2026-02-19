@@ -10,7 +10,6 @@ import {
 import { ChevronDown, X } from "lucide-react"
 import { SummaryCards } from "./summary-cards"
 import { StudentApplicationsTable } from "./student-applications-table"
-import { ActiveScheduleCard } from "./active-schedule-card"
 import { MiniWeeklySchedule } from "./mini-weekly-schedule"
 import { HoursWorkedChart } from "./hours-worked-chart"
 import { MissedShiftsChart } from "./missed-shifts-chart"
@@ -131,16 +130,15 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
+    <div className="mx-auto max-w-7xl space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
         <p className="mt-1 text-muted-foreground">
           Overview of student applications, scheduling, and helpdesk operations.
         </p>
       </div>
 
-      {/* Summary stats */}
       <SummaryCards
         pendingCount={pendingCount}
         acceptedCount={acceptedCount}
@@ -148,7 +146,6 @@ export function AdminDashboard() {
         totalCount={students.length}
       />
 
-      {/* Applications table — full width */}
       <StudentApplicationsTable
         students={students}
         onAccept={handleAccept}
@@ -159,14 +156,14 @@ export function AdminDashboard() {
         }}
       />
 
-      {/* Charts — side by side */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* Charts */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold">Weekly Analytics</h2>
             <p className="text-sm text-muted-foreground">Hours worked and attendance for the current schedule period.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {selectedStudents.size > 0 && (
               <Button variant="ghost" size="sm" onClick={() => setSelectedStudents(new Set())}>
                 <X className="mr-1 h-3.5 w-3.5" />
@@ -197,21 +194,18 @@ export function AdminDashboard() {
             </DropdownMenu>
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <HoursWorkedChart data={filteredHours} />
           <MissedShiftsChart data={filteredMissed} />
         </div>
       </div>
 
-      {/* Schedule section — side by side */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ActiveScheduleCard schedule={MOCK_ACTIVE_SCHEDULE} />
-        <MiniWeeklySchedule
-          schedule={MOCK_ACTIVE_SCHEDULE}
-          shiftTemplates={MOCK_SHIFT_TEMPLATES}
-          studentNames={STUDENT_NAME_MAP}
-        />
-      </div>
+      {/* Schedule */}
+      <MiniWeeklySchedule
+        schedule={MOCK_ACTIVE_SCHEDULE}
+        shiftTemplates={MOCK_SHIFT_TEMPLATES}
+        studentNames={STUDENT_NAME_MAP}
+      />
     </div>
   )
 }

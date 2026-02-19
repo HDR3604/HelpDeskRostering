@@ -1,5 +1,9 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { ChevronDown, ChevronUp, CalendarDays, Users, Layers } from "lucide-react"
 import type { Assignment, ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 
@@ -10,15 +14,19 @@ interface MiniWeeklyScheduleProps {
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-const TIME_SLOTS = ["Morning", "Afternoon"]
 
-// Deterministic color classes for students based on index
+const MAX_VISIBLE_PER_DAY = 4
+
+// 8 distinct color sets to support larger rosters
 const STUDENT_COLORS = [
-  "bg-chart-1/20 text-chart-1 border-chart-1/40",
-  "bg-chart-2/20 text-chart-2 border-chart-2/40",
-  "bg-chart-3/20 text-chart-3 border-chart-3/40",
-  "bg-chart-4/20 text-chart-4 border-chart-4/40",
-  "bg-chart-5/20 text-chart-5 border-chart-5/40",
+  "bg-chart-1/15 text-chart-1 border-l-chart-1",
+  "bg-chart-2/15 text-chart-2 border-l-chart-2",
+  "bg-chart-3/15 text-chart-3 border-l-chart-3",
+  "bg-chart-4/15 text-chart-4 border-l-chart-4",
+  "bg-chart-5/15 text-chart-5 border-l-chart-5",
+  "bg-blue-500/15 text-blue-500 border-l-blue-500",
+  "bg-pink-500/15 text-pink-500 border-l-pink-500",
+  "bg-amber-500/15 text-amber-500 border-l-amber-500",
 ]
 
 const LEGEND_DOTS = [
@@ -27,113 +35,177 @@ const LEGEND_DOTS = [
   "bg-chart-3",
   "bg-chart-4",
   "bg-chart-5",
+  "bg-blue-500",
+  "bg-pink-500",
+  "bg-amber-500",
 ]
 
-function getSlot(time: string): "Morning" | "Afternoon" {
-  const hour = parseInt(time.split(":")[0], 10)
-  return hour < 12 ? "Morning" : "Afternoon"
+function formatTime12(t: string) {
+  const hour = parseInt(t.split(":")[0], 10)
+  if (hour === 12) return "12 PM"
+  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
 }
 
 export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: MiniWeeklyScheduleProps) {
+  const [expanded, setExpanded] = useState(false)
+
   if (!schedule || schedule.assignments.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Weekly Schedule</CardTitle>
-          <CardDescription>No schedule data available</CardDescription>
+          <p className="text-sm text-muted-foreground">No schedule data available</p>
         </CardHeader>
       </Card>
     )
   }
 
-  // Build a unique list of students for color assignment
   const uniqueStudentIds = Array.from(new Set(schedule.assignments.map((a) => a.assistant_id)))
   const studentColorIndex = Object.fromEntries(
     uniqueStudentIds.map((id, i) => [id, i % STUDENT_COLORS.length])
   )
 
-  // Group assignments by day + slot
-  const grid: Record<string, Assignment[]> = {}
+  // Group assignments by day, sorted by start time
+  const byDay: Record<number, Assignment[]> = {}
   for (const a of schedule.assignments) {
-    const key = `${a.day_of_week}-${getSlot(a.start)}`
-    if (!grid[key]) grid[key] = []
-    grid[key].push(a)
+    if (!byDay[a.day_of_week]) byDay[a.day_of_week] = []
+    byDay[a.day_of_week].push(a)
   }
+  for (const day of Object.keys(byDay)) {
+    byDay[Number(day)].sort((a, b) => a.start.localeCompare(b.start))
+  }
+
+  const jsDay = new Date().getDay()
+  const today = jsDay === 0 ? 6 : jsDay - 1
+
+  const hasOverflow = Object.values(byDay).some((d) => d.length > MAX_VISIBLE_PER_DAY)
+
+  const MAX_LEGEND_VISIBLE = 8
+  const hasLegendOverflow = uniqueStudentIds.length > MAX_LEGEND_VISIBLE
+  const visibleLegend = hasLegendOverflow && !expanded
+    ? uniqueStudentIds.slice(0, MAX_LEGEND_VISIBLE)
+    : uniqueStudentIds
+
+  const stats = [
+    { icon: CalendarDays, label: schedule.effective_from + (schedule.effective_to ? ` — ${schedule.effective_to}` : " onwards") },
+    { icon: Users, label: `${uniqueStudentIds.length} students` },
+    { icon: Layers, label: `${schedule.assignments.length} assignments` },
+  ]
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Weekly Schedule</CardTitle>
-        <CardDescription>Student shift assignments at a glance</CardDescription>
+      <CardHeader className="space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle>{schedule.title}</CardTitle>
+            <p className="text-sm text-muted-foreground">Active schedule overview</p>
+          </div>
+          <Badge className="shrink-0">Active</Badge>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {stats.map((s) => (
+            <div key={s.label} className="flex items-center gap-1.5">
+              <s.icon className="h-3.5 w-3.5" />
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Grid */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr>
-                <th className="py-1.5 pr-2 text-left font-medium text-muted-foreground"></th>
-                {DAYS.map((day) => (
-                  <th key={day} className="py-1.5 px-1 text-center font-medium text-muted-foreground">
-                    {day}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {TIME_SLOTS.map((slot) => (
-                <tr key={slot}>
-                  <td className="py-2 pr-2 text-right font-medium text-muted-foreground whitespace-nowrap">
-                    {slot}
-                  </td>
-                  {DAYS.map((_, dayIdx) => {
-                    const key = `${dayIdx}-${slot}`
-                    const cellAssignments = grid[key] || []
-                    return (
-                      <td key={dayIdx} className="p-1">
-                        <div className="flex min-h-[2rem] flex-wrap gap-0.5 rounded-md border border-dashed border-border p-1">
-                          {cellAssignments.map((a) => {
-                            const colorIdx = studentColorIndex[a.assistant_id]
-                            const name = studentNames[a.assistant_id] || a.assistant_id.slice(0, 6)
-                            const initials = name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                            return (
-                              <span
-                                key={`${a.assistant_id}-${a.shift_id}`}
-                                title={`${name}\n${a.start.slice(0, 5)} – ${a.end.slice(0, 5)}`}
-                                className={cn(
-                                  "inline-flex items-center rounded border px-1 py-0.5 text-[10px] font-medium leading-none",
-                                  STUDENT_COLORS[colorIdx]
-                                )}
-                              >
-                                {initials}
-                              </span>
-                            )
-                          })}
+        <div className="grid grid-cols-5 gap-2">
+          {DAYS.map((day, idx) => {
+            const isToday = idx === today
+            const dayAssignments = byDay[idx] || []
+            const visible = expanded ? dayAssignments : dayAssignments.slice(0, MAX_VISIBLE_PER_DAY)
+            const overflow = dayAssignments.length - MAX_VISIBLE_PER_DAY
+
+            return (
+              <div key={day} className="space-y-1.5">
+                <div
+                  className={cn(
+                    "text-center text-xs font-medium py-1.5 rounded-md",
+                    isToday
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {day}
+                </div>
+
+                {dayAssignments.length > 0 ? (
+                  <div className="space-y-1">
+                    {visible.map((a) => {
+                      const colorIdx = studentColorIndex[a.assistant_id]
+                      const name = studentNames[a.assistant_id] || a.assistant_id.slice(0, 6)
+                      const initials = name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+
+                      return (
+                        <div
+                          key={`${a.assistant_id}-${a.shift_id}`}
+                          title={`${name}\n${formatTime12(a.start)} – ${formatTime12(a.end)}`}
+                          className={cn(
+                            "rounded-md border-l-2 px-2 py-1.5 text-xs leading-tight",
+                            STUDENT_COLORS[colorIdx]
+                          )}
+                        >
+                          <span className="font-semibold">{initials}</span>
+                          <span className="block text-[11px] opacity-70">{a.start.slice(0, 5)}</span>
                         </div>
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      )
+                    })}
+                    {!expanded && overflow > 0 && (
+                      <div className="rounded-md bg-muted/50 py-1 text-center text-[11px] font-medium text-muted-foreground">
+                        +{overflow} more
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[2.5rem] items-center justify-center">
+                    <span className="text-xs text-muted-foreground/30">—</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
 
+        {hasOverflow && (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-muted-foreground"
+              onClick={() => setExpanded((e) => !e)}
+            >
+              {expanded ? (
+                <>Show less <ChevronUp className="ml-1 h-3.5 w-3.5" /></>
+              ) : (
+                <>Show all <ChevronDown className="ml-1 h-3.5 w-3.5" /></>
+              )}
+            </Button>
+          </div>
+        )}
+
         {/* Legend */}
-        <div className="flex flex-wrap gap-3 border-t pt-3">
-          {uniqueStudentIds.map((id) => {
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 border-t pt-3">
+          {visibleLegend.map((id) => {
             const colorIdx = studentColorIndex[id]
             const name = studentNames[id] || id.slice(0, 8)
             return (
               <div key={id} className="flex items-center gap-1.5 text-xs">
-                <span className={cn("h-2.5 w-2.5 rounded-full", LEGEND_DOTS[colorIdx])} />
-                <span>{name}</span>
+                <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", LEGEND_DOTS[colorIdx])} />
+                <span className="truncate max-w-[7rem]">{name}</span>
               </div>
             )
           })}
+          {hasLegendOverflow && !expanded && (
+            <span className="text-xs text-muted-foreground">
+              +{uniqueStudentIds.length - MAX_LEGEND_VISIBLE} more
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

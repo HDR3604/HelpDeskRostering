@@ -147,7 +147,7 @@ export function StudentSummaryCards({ student, assignments, shiftTemplates, time
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold tracking-tight">{card.value}</div>
+            <div className="text-2xl font-bold tracking-tight sm:text-3xl">{card.value}</div>
             <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
               {card.trend && (
                 <>
