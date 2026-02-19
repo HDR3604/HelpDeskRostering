@@ -86,6 +86,27 @@ func (s *MailpitIntegrationTestSuite) TestSend_WelcomeTemplate() {
 	s.NotEmpty(resp.ID)
 }
 
+func (s *MailpitIntegrationTestSuite) TestSend_EmailVerificationTemplate() {
+	html, err := templates.Render(types.EmailTemplate{
+		ID: templates.TemplateID_EmailVerification,
+		Variables: map[string]any{
+			"USER_EMAIL":       "student@my.uwi.edu",
+			"VERIFICATION_URL": "https://helpdesk.dcit.uwi.edu/verify-email?token=abc123def456",
+		},
+	})
+	s.Require().NoError(err)
+
+	resp, err := s.service.Send(context.Background(), dtos.SendEmailRequest{
+		From:    "HelpDesk <noreply@helpdesk.dev>",
+		To:      []string{"student@my.uwi.edu"},
+		Subject: "Verify Your Email Address",
+		HTML:    html,
+	})
+
+	s.NoError(err)
+	s.NotEmpty(resp.ID)
+}
+
 func (s *MailpitIntegrationTestSuite) TestSend_RosterNotificationTemplate() {
 	rows := templates.BuildShiftRows([]templates.ShiftEntry{
 		{Day: "Monday", Date: "March 3, 2026", Time: "9:00 AM - 1:00 PM"},
