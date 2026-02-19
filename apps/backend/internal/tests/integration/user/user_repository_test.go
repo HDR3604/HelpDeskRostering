@@ -33,12 +33,12 @@ func TestUserRepositoryTestSuite(t *testing.T) {
 }
 func (s *UserRepositoryTestSuite) TearDownTest() {
 	// Use DELETE inside InSystemTx instead of TRUNCATE because the internal role
-	// doesn't have TRUNCATE permission on FK-referenced tables (refresh_tokens, email_verifications).
+	// doesn't have TRUNCATE permission on FK-referenced tables (refresh_tokens, auth_tokens).
 	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(s.ctx, "DELETE FROM auth.refresh_tokens"); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(s.ctx, "DELETE FROM auth.email_verifications"); err != nil {
+		if _, err := tx.ExecContext(s.ctx, "DELETE FROM auth.auth_tokens"); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(s.ctx, "DELETE FROM auth.users")
