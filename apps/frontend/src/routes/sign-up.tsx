@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { StepIndicator } from '@/components/sign-up/StepIndicator'
 import { Step1StudentInfo } from '@/components/sign-up/Step1StudentInfo'
+import { Step2TranscriptVerify } from '@/components/sign-up/Step2TranscriptVerify'
 import { Card, CardContent } from '@/components/ui/card'
 import { simulateTranscriptExtraction } from '@/lib/mock-transcript'
 import type { Step1Data, Step2Data, Step3Data } from '@/lib/sign-up-schemas'
@@ -33,13 +34,22 @@ function SignUpPage() {
 
         try {
             const extracted = await simulateTranscriptExtraction(data.transcript)
-            setStep2Data(extracted)
+            // Only pre-fill if we don't already have user-edited step2 data
+            if (!step2Data) {
+                setStep2Data(extracted)
+            }
             setCurrentStep(2)
         } catch (err) {
             console.error('Transcript processing failed:', err)
         } finally {
             setIsProcessing(false)
         }
+    }
+
+    // ── Step 2 handler ─────────────────────────────────────────────────────
+    function handleStep2Next(data: Step2Data) {
+        setStep2Data(data)
+        setCurrentStep(3)
     }
 
     return (
@@ -61,10 +71,12 @@ function SignUpPage() {
                         />
                     )}
 
-                    {currentStep === 2 && (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p>Step 2: Courses — coming next</p>
-                        </div>
+                    {currentStep === 2 && step2Data && (
+                        <Step2TranscriptVerify
+                            defaultValues={step2Data}
+                            onNext={handleStep2Next}
+                            onBack={() => setCurrentStep(1)}
+                        />
                     )}
 
                     {currentStep === 3 && (
