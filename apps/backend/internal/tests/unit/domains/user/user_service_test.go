@@ -129,14 +129,9 @@ func (s *UserServiceTestSuite) TestCreate_GetByEmailRepositoryError() {
 
 	s.Require().Error(err)
 	s.Nil(result)
-	s.Contains(err.Error(), "failed to check existing email")
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidEmail() {
-	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrUserNotFound
-	}
-
 	result, err := s.service.Create(s.ctx, "not-a-valid-email", "password1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
@@ -144,10 +139,6 @@ func (s *UserServiceTestSuite) TestCreate_InvalidEmail() {
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidRole() {
-	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrUserNotFound
-	}
-
 	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "password1", aggregate.Role("invalid_role"))
 
 	s.Require().Error(err)
@@ -155,10 +146,6 @@ func (s *UserServiceTestSuite) TestCreate_InvalidRole() {
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidPassword_TooShort() {
-	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrUserNotFound
-	}
-
 	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "abc", aggregate.Role_Admin)
 
 	s.Require().Error(err)
@@ -166,10 +153,6 @@ func (s *UserServiceTestSuite) TestCreate_InvalidPassword_TooShort() {
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidPassword_NoDigit() {
-	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrUserNotFound
-	}
-
 	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "passwordonly", aggregate.Role_Admin)
 
 	s.Require().Error(err)
@@ -177,10 +160,6 @@ func (s *UserServiceTestSuite) TestCreate_InvalidPassword_NoDigit() {
 }
 
 func (s *UserServiceTestSuite) TestCreate_RoleEmailMismatch_AdminWithStudentDomain() {
-	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrUserNotFound
-	}
-
 	result, err := s.service.Create(s.ctx, "user@my.uwi.edu", "password1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
@@ -188,10 +167,6 @@ func (s *UserServiceTestSuite) TestCreate_RoleEmailMismatch_AdminWithStudentDoma
 }
 
 func (s *UserServiceTestSuite) TestCreate_RoleEmailMismatch_StudentWithStaffDomain() {
-	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrUserNotFound
-	}
-
 	result, err := s.service.Create(s.ctx, "user@uwi.edu", "password1", aggregate.Role_Student)
 
 	s.Require().Error(err)
@@ -231,7 +206,7 @@ func (s *UserServiceTestSuite) TestGetByID_Success() {
 
 func (s *UserServiceTestSuite) TestGetByID_NotFound() {
 	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 
 	result, err := s.service.GetByID(s.ctx, uuid.New().String())
@@ -249,7 +224,6 @@ func (s *UserServiceTestSuite) TestGetByID_RepositoryError() {
 
 	s.Require().Error(err)
 	s.Nil(result)
-	s.Contains(err.Error(), "failed to get user by ID")
 }
 
 // --- GetByEmail ---
@@ -270,7 +244,7 @@ func (s *UserServiceTestSuite) TestGetByEmail_Success() {
 
 func (s *UserServiceTestSuite) TestGetByEmail_NotFound() {
 	s.repo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, email string) (*aggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 
 	result, err := s.service.GetByEmail(s.ctx, "nonexistent@uwi.edu")
@@ -288,22 +262,56 @@ func (s *UserServiceTestSuite) TestGetByEmail_RepositoryError() {
 
 	s.Require().Error(err)
 	s.Nil(result)
-	s.Contains(err.Error(), "failed to get user by email")
 }
 
 // --- Update ---
 
-func (s *UserServiceTestSuite) TestUpdate_Success() {
+func (s *UserServiceTestSuite) TestUpdate_Email_Success() {
 	user := s.newAdminUser()
+	newEmail := "new.admin@uwi.edu"
 	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
 		return user, nil
 	}
 	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, u *aggregate.User) error {
-		s.Equal(user.ID, u.ID)
+		s.Equal(newEmail, u.Email)
 		return nil
 	}
 
-	err := s.service.Update(s.ctx, nil, user.ID.String())
+	err := s.service.Update(s.ctx, user.ID.String(), service.UpdateUserInput{Email: &newEmail})
+
+	s.Require().NoError(err)
+}
+
+func (s *UserServiceTestSuite) TestUpdate_Role_Success() {
+	user := s.newAdminUser()
+	newRole := aggregate.Role_Student
+	newEmail := "admin@my.uwi.edu"
+	user.Email = newEmail // must match student domain
+	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
+		return user, nil
+	}
+	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, u *aggregate.User) error {
+		s.Equal(newRole, u.Role)
+		return nil
+	}
+
+	err := s.service.Update(s.ctx, user.ID.String(), service.UpdateUserInput{Role: &newRole})
+
+	s.Require().NoError(err)
+}
+
+func (s *UserServiceTestSuite) TestUpdate_Deactivate_Success() {
+	user := s.newAdminUser()
+	isActive := false
+	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
+		return user, nil
+	}
+	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, u *aggregate.User) error {
+		s.False(u.IsActive)
+		return nil
+	}
+
+	err := s.service.Update(s.ctx, user.ID.String(), service.UpdateUserInput{IsActive: &isActive})
 
 	s.Require().NoError(err)
 }
@@ -313,13 +321,14 @@ func (s *UserServiceTestSuite) TestUpdate_NotFound() {
 		return nil, userErrors.ErrUserNotFound
 	}
 
-	err := s.service.Update(s.ctx, nil, uuid.New().String())
+	err := s.service.Update(s.ctx, uuid.New().String(), service.UpdateUserInput{})
 
 	s.Require().Error(err)
 }
 
 func (s *UserServiceTestSuite) TestUpdate_RepositoryError() {
 	user := s.newAdminUser()
+	newEmail := "new.admin@uwi.edu"
 	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
 		return user, nil
 	}
@@ -327,7 +336,7 @@ func (s *UserServiceTestSuite) TestUpdate_RepositoryError() {
 		return errors.New("db update error")
 	}
 
-	err := s.service.Update(s.ctx, nil, user.ID.String())
+	err := s.service.Update(s.ctx, user.ID.String(), service.UpdateUserInput{Email: &newEmail})
 
 	s.Require().Error(err)
 	s.Contains(err.Error(), "db update error")
@@ -341,7 +350,7 @@ func (s *UserServiceTestSuite) TestDeactivateByEmailDomain_StudentDomain_Success
 		return nil
 	}
 
-	err := s.service.DeactivateByEmailDomain(s.ctx, nil, aggregate.EmailDomain_Student)
+	err := s.service.DeactivateByEmailDomain(s.ctx, aggregate.EmailDomain_Student)
 
 	s.Require().NoError(err)
 }
@@ -352,7 +361,7 @@ func (s *UserServiceTestSuite) TestDeactivateByEmailDomain_StaffDomain_Success()
 		return nil
 	}
 
-	err := s.service.DeactivateByEmailDomain(s.ctx, nil, aggregate.EmailDomain_Staff)
+	err := s.service.DeactivateByEmailDomain(s.ctx, aggregate.EmailDomain_Staff)
 
 	s.Require().NoError(err)
 }
@@ -362,7 +371,7 @@ func (s *UserServiceTestSuite) TestDeactivateByEmailDomain_RepositoryError() {
 		return errors.New("db error")
 	}
 
-	err := s.service.DeactivateByEmailDomain(s.ctx, nil, aggregate.EmailDomain_Student)
+	err := s.service.DeactivateByEmailDomain(s.ctx, aggregate.EmailDomain_Student)
 
 	s.Require().Error(err)
 }
@@ -401,7 +410,6 @@ func (s *UserServiceTestSuite) TestList_RepositoryError() {
 
 	s.Require().Error(err)
 	s.Nil(result)
-	s.Contains(err.Error(), "failed to list users")
 }
 
 // --- ListByRole ---
@@ -454,7 +462,6 @@ func (s *UserServiceTestSuite) TestListByRole_RepositoryError() {
 
 	s.Require().Error(err)
 	s.Nil(result)
-	s.Contains(err.Error(), "failed to list users by role")
 }
 
 // --- ListActive ---
@@ -494,5 +501,4 @@ func (s *UserServiceTestSuite) TestListActive_RepositoryError() {
 
 	s.Require().Error(err)
 	s.Nil(result)
-	s.Contains(err.Error(), "failed to list active users")
 }

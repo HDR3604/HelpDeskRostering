@@ -4,7 +4,6 @@ import "errors"
 
 // Domain errors for user operations
 var (
-	ErrNotFound                  = errors.New("user not found")
 	ErrInvalidEmail              = errors.New("invalid email format")
 	ErrInvalidRole               = errors.New("invalid role")
 	ErrInvalidPasswordLength     = errors.New("Password must be at least 6 characters")
