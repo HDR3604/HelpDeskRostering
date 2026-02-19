@@ -41,9 +41,7 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 }
 
 func (h *AuthHandler) RegisterAuthenticatedRoutes(r chi.Router) {
-	r.Route("/auth", func(r chi.Router) {
-		r.Patch("/change-password", h.ChangePassword)
-	})
+	r.Patch("/auth/change-password", h.ChangePassword)
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
