@@ -24,11 +24,11 @@ type MailpitIntegrationTestSuite struct {
 func TestMailpitIntegrationTestSuite(t *testing.T) {
 	_ = godotenv.Load("../../../../../../.env.local")
 
-	mailpitURL := os.Getenv("MAILPIT_URL")
-	if mailpitURL == "" {
-		mailpitURL = "http://localhost:8025"
-		os.Setenv("MAILPIT_URL", mailpitURL)
-	}
+	// Always use localhost for host-side integration tests.
+	// The .env.local may have the Docker service name (http://mailpit:8025)
+	// which isn't reachable from the host.
+	mailpitURL := "http://localhost:8025"
+	os.Setenv("MAILPIT_URL", mailpitURL)
 
 	resp, err := http.Get(mailpitURL + "/api/v1/info")
 	if err != nil || resp.StatusCode != http.StatusOK {
@@ -100,6 +100,27 @@ func (s *MailpitIntegrationTestSuite) TestSend_EmailVerificationTemplate() {
 		From:    "HelpDesk <noreply@helpdesk.dev>",
 		To:      []string{"student@my.uwi.edu"},
 		Subject: "Verify Your Email Address",
+		HTML:    html,
+	})
+
+	s.NoError(err)
+	s.NotEmpty(resp.ID)
+}
+
+func (s *MailpitIntegrationTestSuite) TestSend_PasswordResetTemplate() {
+	html, err := templates.Render(types.EmailTemplate{
+		ID: templates.TemplateID_PasswordReset,
+		Variables: map[string]any{
+			"USER_EMAIL": "student@my.uwi.edu",
+			"RESET_URL":  "https://helpdesk.dcit.uwi.edu/reset-password?token=xyz789abc123",
+		},
+	})
+	s.Require().NoError(err)
+
+	resp, err := s.service.Send(context.Background(), dtos.SendEmailRequest{
+		From:    "HelpDesk <noreply@helpdesk.dev>",
+		To:      []string{"student@my.uwi.edu"},
+		Subject: "Reset Your Password",
 		HTML:    html,
 	})
 
