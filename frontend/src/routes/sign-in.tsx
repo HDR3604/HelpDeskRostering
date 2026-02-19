@@ -22,10 +22,11 @@ export function HomeComponent() {
   const [password, setPassword] = React.useState('')
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
   }
+
 
   return (
     <div className="flex min-h-screen ">
