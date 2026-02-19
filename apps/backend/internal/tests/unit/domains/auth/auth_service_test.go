@@ -29,7 +29,7 @@ type AuthServiceTestSuite struct {
 	suite.Suite
 	userRepo              *mocks.MockUserRepository
 	refreshTokenRepo      *mocks.MockRefreshTokenRepository
-	emailVerificationRepo *mocks.MockEmailVerificationRepository
+	authTokenRepo         *mocks.MockAuthTokenRepository
 	emailSender           *mocks.MockEmailSender
 	service               service.AuthServiceInterface
 	ctx                   context.Context
@@ -42,7 +42,7 @@ func TestAuthServiceTestSuite(t *testing.T) {
 func (s *AuthServiceTestSuite) SetupTest() {
 	s.userRepo = &mocks.MockUserRepository{}
 	s.refreshTokenRepo = &mocks.MockRefreshTokenRepository{}
-	s.emailVerificationRepo = &mocks.MockEmailVerificationRepository{}
+	s.authTokenRepo = &mocks.MockAuthTokenRepository{}
 	s.emailSender = &mocks.MockEmailSender{}
 	s.ctx = context.Background()
 
@@ -51,7 +51,7 @@ func (s *AuthServiceTestSuite) SetupTest() {
 		&mocks.StubTxManager{},
 		s.userRepo,
 		s.refreshTokenRepo,
-		s.emailVerificationRepo,
+		s.authTokenRepo,
 		s.emailSender,
 		[]byte("test-secret-key-that-is-at-least-32-bytes!"),
 		3600,  // accessTokenTTL
@@ -156,34 +156,37 @@ func (s *AuthServiceTestSuite) newExpiredRefreshToken(userID uuid.UUID) *aggrega
 	}
 }
 
-func (s *AuthServiceTestSuite) newValidVerification(userID uuid.UUID) *aggregate.EmailVerification {
-	return &aggregate.EmailVerification{
+func (s *AuthServiceTestSuite) newValidAuthToken(userID uuid.UUID, tokenType string) *aggregate.AuthToken {
+	return &aggregate.AuthToken{
 		ID:        uuid.New(),
 		UserID:    userID,
 		TokenHash: "somehash",
+		Type:      tokenType,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 		UsedAt:    nil,
 		CreatedAt: time.Now(),
 	}
 }
 
-func (s *AuthServiceTestSuite) newUsedVerification(userID uuid.UUID) *aggregate.EmailVerification {
+func (s *AuthServiceTestSuite) newUsedAuthToken(userID uuid.UUID, tokenType string) *aggregate.AuthToken {
 	now := time.Now()
-	return &aggregate.EmailVerification{
+	return &aggregate.AuthToken{
 		ID:        uuid.New(),
 		UserID:    userID,
 		TokenHash: "somehash",
+		Type:      tokenType,
 		ExpiresAt: time.Now().Add(24 * time.Hour),
 		UsedAt:    &now,
 		CreatedAt: time.Now(),
 	}
 }
 
-func (s *AuthServiceTestSuite) newExpiredVerification(userID uuid.UUID) *aggregate.EmailVerification {
-	return &aggregate.EmailVerification{
+func (s *AuthServiceTestSuite) newExpiredAuthToken(userID uuid.UUID, tokenType string) *aggregate.AuthToken {
+	return &aggregate.AuthToken{
 		ID:        uuid.New(),
 		UserID:    userID,
 		TokenHash: "somehash",
+		Type:      tokenType,
 		ExpiresAt: time.Now().Add(-1 * time.Hour),
 		UsedAt:    nil,
 		CreatedAt: time.Now(),
@@ -201,7 +204,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Admin() {
 	s.userRepo.CreateFn = func(_ context.Context, _ *sql.Tx, user *userAggregate.User) (*userAggregate.User, error) {
 		return user, nil
 	}
-	s.emailVerificationRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.EmailVerification) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.AuthToken) (*aggregate.AuthToken, error) {
 		return v, nil
 	}
 
@@ -232,7 +235,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Student() {
 	s.userRepo.CreateFn = func(_ context.Context, _ *sql.Tx, user *userAggregate.User) (*userAggregate.User, error) {
 		return user, nil
 	}
-	s.emailVerificationRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.EmailVerification) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.AuthToken) (*aggregate.AuthToken, error) {
 		return v, nil
 	}
 
@@ -303,7 +306,7 @@ func (s *AuthServiceTestSuite) TestRegister_SendEmailFails() {
 	s.userRepo.CreateFn = func(_ context.Context, _ *sql.Tx, user *userAggregate.User) (*userAggregate.User, error) {
 		return user, nil
 	}
-	s.emailVerificationRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.EmailVerification) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.AuthToken) (*aggregate.AuthToken, error) {
 		return v, nil
 	}
 	s.emailSender.SendFn = func(_ context.Context, _ dtos.SendEmailRequest) (*dtos.SendEmailResponse, error) {
@@ -620,9 +623,9 @@ func (s *AuthServiceTestSuite) TestChangePassword_WeakNewPassword() {
 
 func (s *AuthServiceTestSuite) TestVerifyEmail_Success() {
 	user := s.newUnverifiedUser()
-	verification := s.newValidVerification(user.ID)
+	verification := s.newValidAuthToken(user.ID, aggregate.AuthTokenType_EmailVerification)
 
-	s.emailVerificationRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string, _ string) (*aggregate.AuthToken, error) {
 		return verification, nil
 	}
 	s.userRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
@@ -632,7 +635,7 @@ func (s *AuthServiceTestSuite) TestVerifyEmail_Success() {
 		s.NotNil(u.EmailVerifiedAt)
 		return nil
 	}
-	s.emailVerificationRepo.InvalidateAllByUserIDFn = func(_ context.Context, _ *sql.Tx, id uuid.UUID) error {
+	s.authTokenRepo.InvalidateAllByUserIDFn = func(_ context.Context, _ *sql.Tx, id uuid.UUID, _ string) error {
 		s.Equal(user.ID, id)
 		return nil
 	}
@@ -643,7 +646,7 @@ func (s *AuthServiceTestSuite) TestVerifyEmail_Success() {
 }
 
 func (s *AuthServiceTestSuite) TestVerifyEmail_TokenNotFound() {
-	s.emailVerificationRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string, _ string) (*aggregate.AuthToken, error) {
 		return nil, authErrors.ErrVerificationTokenInvalid
 	}
 
@@ -654,9 +657,9 @@ func (s *AuthServiceTestSuite) TestVerifyEmail_TokenNotFound() {
 
 func (s *AuthServiceTestSuite) TestVerifyEmail_TokenUsed() {
 	userID := uuid.New()
-	used := s.newUsedVerification(userID)
+	used := s.newUsedAuthToken(userID, aggregate.AuthTokenType_EmailVerification)
 
-	s.emailVerificationRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string, _ string) (*aggregate.AuthToken, error) {
 		return used, nil
 	}
 
@@ -667,9 +670,9 @@ func (s *AuthServiceTestSuite) TestVerifyEmail_TokenUsed() {
 
 func (s *AuthServiceTestSuite) TestVerifyEmail_TokenExpired() {
 	userID := uuid.New()
-	expired := s.newExpiredVerification(userID)
+	expired := s.newExpiredAuthToken(userID, aggregate.AuthTokenType_EmailVerification)
 
-	s.emailVerificationRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string, _ string) (*aggregate.AuthToken, error) {
 		return expired, nil
 	}
 
@@ -680,9 +683,9 @@ func (s *AuthServiceTestSuite) TestVerifyEmail_TokenExpired() {
 
 func (s *AuthServiceTestSuite) TestVerifyEmail_AlreadyVerified() {
 	user := s.newVerifiedAdmin() // already has EmailVerifiedAt set
-	verification := s.newValidVerification(user.ID)
+	verification := s.newValidAuthToken(user.ID, aggregate.AuthTokenType_EmailVerification)
 
-	s.emailVerificationRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.GetByTokenHashFn = func(_ context.Context, _ *sql.Tx, _ string, _ string) (*aggregate.AuthToken, error) {
 		return verification, nil
 	}
 	s.userRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
@@ -703,10 +706,10 @@ func (s *AuthServiceTestSuite) TestResendVerification_Success() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
 		return user, nil
 	}
-	s.emailVerificationRepo.InvalidateAllByUserIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) error {
+	s.authTokenRepo.InvalidateAllByUserIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID, _ string) error {
 		return nil
 	}
-	s.emailVerificationRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.EmailVerification) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.AuthToken) (*aggregate.AuthToken, error) {
 		return v, nil
 	}
 
@@ -752,10 +755,10 @@ func (s *AuthServiceTestSuite) TestResendVerification_SendEmailFails() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
 		return user, nil
 	}
-	s.emailVerificationRepo.InvalidateAllByUserIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) error {
+	s.authTokenRepo.InvalidateAllByUserIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID, _ string) error {
 		return nil
 	}
-	s.emailVerificationRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.EmailVerification) (*aggregate.EmailVerification, error) {
+	s.authTokenRepo.CreateFn = func(_ context.Context, _ *sql.Tx, v *aggregate.AuthToken) (*aggregate.AuthToken, error) {
 		return v, nil
 	}
 	s.emailSender.SendFn = func(_ context.Context, _ dtos.SendEmailRequest) (*dtos.SendEmailResponse, error) {

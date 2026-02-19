@@ -59,7 +59,7 @@ func (s *AuthE2ETestSuite) SetupSuite() {
 	// 2. Real repositories
 	uRepo := userRepo.NewUserRepository(logger)
 	refreshTokenRepo := authRepo.NewRefreshTokenRepository(logger)
-	emailVerificationRepo := authRepo.NewEmailVerificationRepository(logger)
+	authTokenRepo := authRepo.NewAuthTokenRepository(logger)
 
 	// 3. Mock email sender — captures verification URLs
 	emailSender := &mocks.MockEmailSender{
@@ -88,7 +88,7 @@ func (s *AuthE2ETestSuite) SetupSuite() {
 		txManager,
 		uRepo,
 		refreshTokenRepo,
-		emailVerificationRepo,
+		authTokenRepo,
 		emailSender,
 		jwtSecret,
 		3600,  // accessTokenTTL
@@ -111,6 +111,8 @@ func (s *AuthE2ETestSuite) SetupSuite() {
 		r.Post("/logout", hdl.Logout)
 		r.Post("/verify-email", hdl.VerifyEmail)
 		r.Post("/resend-verification", hdl.ResendVerification)
+		r.Post("/forgot-password", hdl.ForgotPassword)
+		r.Post("/reset-password", hdl.ResetPassword)
 
 		// Authenticated routes
 		r.Group(func(r chi.Router) {
@@ -127,7 +129,7 @@ func (s *AuthE2ETestSuite) TearDownTest() {
 		if _, err := tx.ExecContext(s.ctx, "DELETE FROM auth.refresh_tokens"); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(s.ctx, "DELETE FROM auth.email_verifications"); err != nil {
+		if _, err := tx.ExecContext(s.ctx, "DELETE FROM auth.auth_tokens"); err != nil {
 			return err
 		}
 		_, err := tx.ExecContext(s.ctx, "DELETE FROM auth.users")

@@ -67,7 +67,7 @@ func NewApp(cfg Config) (*App, error) {
 	// Repositories
 	userRepository := userRepo.NewUserRepository(logger)
 	refreshTokenRepository := authRepo.NewRefreshTokenRepository(logger)
-	emailVerificationRepository := authRepo.NewEmailVerificationRepository(logger)
+	authTokenRepository := authRepo.NewAuthTokenRepository(logger)
 	scheduleRepository := scheduleRepo.NewScheduleRepository(logger)
 	scheduleGenerationRepository := scheduleRepo.NewScheduleGenerationRepository(logger)
 	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
@@ -91,7 +91,7 @@ func NewApp(cfg Config) (*App, error) {
 		txManager,
 		userRepository,
 		refreshTokenRepository,
-		emailVerificationRepository,
+		authTokenRepository,
 		emailSenderSvc,
 		[]byte(cfg.JWTSecret),
 		cfg.AccessTokenTTL,

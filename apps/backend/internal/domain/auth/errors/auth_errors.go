@@ -20,4 +20,8 @@ var (
 	ErrVerificationTokenUsed    = errors.New("verification token has already been used")
 	ErrEmailAlreadyVerified     = errors.New("email is already verified")
 	ErrSendVerificationFailed   = errors.New("failed to send verification email")
+
+	ErrPasswordResetTokenInvalid = errors.New("invalid password reset token")
+	ErrPasswordResetTokenExpired = errors.New("password reset token has expired")
+	ErrPasswordResetTokenUsed    = errors.New("password reset token has already been used")
 )

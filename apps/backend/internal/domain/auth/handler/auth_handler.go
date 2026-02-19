@@ -37,6 +37,8 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 		r.Post("/logout", h.Logout)
 		r.Post("/verify-email", h.VerifyEmail)
 		r.Post("/resend-verification", h.ResendVerification)
+		r.Post("/forgot-password", h.ForgotPassword)
+		r.Post("/reset-password", h.ResetPassword)
 	})
 }
 
@@ -177,6 +179,46 @@ func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, dtos.MessageResponse{Message: "verification email sent"})
 }
 
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var req dtos.ForgotPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Email == "" {
+		writeError(w, http.StatusBadRequest, "email is required")
+		return
+	}
+
+	if err := h.service.ForgotPassword(r.Context(), req.Email); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.MessageResponse{Message: "if an account exists with that email, a password reset link has been sent"})
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var req dtos.ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Token == "" || req.NewPassword == "" {
+		writeError(w, http.StatusBadRequest, "token and new_password are required")
+		return
+	}
+
+	if err := h.service.ResetPassword(r.Context(), req.Token, req.NewPassword); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.MessageResponse{Message: "password has been reset successfully"})
+}
+
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	ac, ok := database.AuthContextFromContext(r.Context())
 	if !ok {
@@ -226,6 +268,12 @@ func (h *AuthHandler) handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, authErrors.ErrVerificationTokenExpired):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, authErrors.ErrVerificationTokenUsed):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, authErrors.ErrPasswordResetTokenInvalid):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, authErrors.ErrPasswordResetTokenExpired):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, authErrors.ErrPasswordResetTokenUsed):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, authErrors.ErrEmailAlreadyVerified):
 		writeError(w, http.StatusConflict, err.Error())

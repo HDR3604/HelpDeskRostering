@@ -14,7 +14,9 @@ type MockAuthService struct {
 	RegisterFn           func(ctx context.Context, email, password, role string) (*userAggregate.User, error)
 	ChangePasswordFn     func(ctx context.Context, userID, currentPassword, newPassword string) error
 	VerifyEmailFn        func(ctx context.Context, rawToken string) error
-	ResendVerificationFn func(ctx context.Context, email string) error
+	ResendVerificationFn  func(ctx context.Context, email string) error
+	ForgotPasswordFn      func(ctx context.Context, email string) error
+	ResetPasswordFn       func(ctx context.Context, rawToken, newPassword string) error
 	ValidateAccessTokenFn func(tokenString string) (*service.Claims, error)
 }
 
@@ -46,6 +48,14 @@ func (m *MockAuthService) VerifyEmail(ctx context.Context, rawToken string) erro
 
 func (m *MockAuthService) ResendVerification(ctx context.Context, email string) error {
 	return m.ResendVerificationFn(ctx, email)
+}
+
+func (m *MockAuthService) ForgotPassword(ctx context.Context, email string) error {
+	return m.ForgotPasswordFn(ctx, email)
+}
+
+func (m *MockAuthService) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	return m.ResetPasswordFn(ctx, rawToken, newPassword)
 }
 
 func (m *MockAuthService) ValidateAccessToken(tokenString string) (*service.Claims, error) {

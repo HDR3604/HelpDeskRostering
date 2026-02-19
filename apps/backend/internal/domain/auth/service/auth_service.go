@@ -38,22 +38,24 @@ type AuthServiceInterface interface {
 	ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error
 	VerifyEmail(ctx context.Context, rawToken string) error
 	ResendVerification(ctx context.Context, email string) error
+	ForgotPassword(ctx context.Context, email string) error
+	ResetPassword(ctx context.Context, rawToken, newPassword string) error
 	ValidateAccessToken(tokenString string) (*Claims, error)
 }
 
 type AuthService struct {
-	logger                *zap.Logger
-	txManager             database.TxManagerInterface
-	userRepo              userRepository.UserRepositoryInterface
-	refreshTokenRepo      repository.RefreshTokenRepositoryInterface
-	emailVerificationRepo repository.EmailVerificationRepositoryInterface
-	emailSender           emailInterfaces.EmailSenderInterface
-	jwtSecret             []byte
-	accessTokenTTL        int
-	refreshTokenTTL       int
-	verificationTokenTTL  int
-	frontendURL           string
-	fromEmail             string
+	logger               *zap.Logger
+	txManager            database.TxManagerInterface
+	userRepo             userRepository.UserRepositoryInterface
+	refreshTokenRepo     repository.RefreshTokenRepositoryInterface
+	authTokenRepo        repository.AuthTokenRepositoryInterface
+	emailSender          emailInterfaces.EmailSenderInterface
+	jwtSecret            []byte
+	accessTokenTTL       int
+	refreshTokenTTL      int
+	verificationTokenTTL int
+	frontendURL          string
+	fromEmail            string
 }
 
 var _ AuthServiceInterface = (*AuthService)(nil)
@@ -63,7 +65,7 @@ func NewAuthService(
 	txManager database.TxManagerInterface,
 	userRepo userRepository.UserRepositoryInterface,
 	refreshTokenRepo repository.RefreshTokenRepositoryInterface,
-	emailVerificationRepo repository.EmailVerificationRepositoryInterface,
+	authTokenRepo repository.AuthTokenRepositoryInterface,
 	emailSender emailInterfaces.EmailSenderInterface,
 	jwtSecret []byte,
 	accessTokenTTL int,
@@ -73,18 +75,18 @@ func NewAuthService(
 	fromEmail string,
 ) *AuthService {
 	return &AuthService{
-		logger:                logger,
-		txManager:             txManager,
-		userRepo:              userRepo,
-		refreshTokenRepo:      refreshTokenRepo,
-		emailVerificationRepo: emailVerificationRepo,
-		emailSender:           emailSender,
-		jwtSecret:             jwtSecret,
-		accessTokenTTL:        accessTokenTTL,
-		refreshTokenTTL:       refreshTokenTTL,
-		verificationTokenTTL:  verificationTokenTTL,
-		frontendURL:           frontendURL,
-		fromEmail:             fromEmail,
+		logger:               logger,
+		txManager:            txManager,
+		userRepo:             userRepo,
+		refreshTokenRepo:     refreshTokenRepo,
+		authTokenRepo:        authTokenRepo,
+		emailSender:          emailSender,
+		jwtSecret:            jwtSecret,
+		accessTokenTTL:       accessTokenTTL,
+		refreshTokenTTL:      refreshTokenTTL,
+		verificationTokenTTL: verificationTokenTTL,
+		frontendURL:          frontendURL,
+		fromEmail:            fromEmail,
 	}
 }
 
@@ -125,12 +127,12 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 		}
 
 		// Generate and store verification token
-		verification, rawToken, err := aggregate.NewEmailVerification(createdUser.ID, s.verificationTokenTTL)
+		token, rawToken, err := aggregate.NewAuthToken(createdUser.ID, s.verificationTokenTTL, aggregate.AuthTokenType_EmailVerification)
 		if err != nil {
 			return fmt.Errorf("failed to generate verification token: %w", err)
 		}
 
-		_, err = s.emailVerificationRepo.Create(ctx, tx, verification)
+		_, err = s.authTokenRepo.Create(ctx, tx, token)
 		if err != nil {
 			return fmt.Errorf("failed to store verification token: %w", err)
 		}
@@ -376,20 +378,20 @@ func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string) error {
 	}
 
 	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-		verification, err := s.emailVerificationRepo.GetByTokenHash(ctx, tx, tokenHash)
+		token, err := s.authTokenRepo.GetByTokenHash(ctx, tx, tokenHash, aggregate.AuthTokenType_EmailVerification)
 		if err != nil {
 			return err // ErrVerificationTokenInvalid from repo
 		}
 
-		if verification.IsUsed() {
+		if token.IsUsed() {
 			return authErrors.ErrVerificationTokenUsed
 		}
 
-		if verification.IsExpired() {
+		if token.IsExpired() {
 			return authErrors.ErrVerificationTokenExpired
 		}
 
-		user, err := s.userRepo.GetByID(ctx, tx, verification.UserID.String())
+		user, err := s.userRepo.GetByID(ctx, tx, token.UserID.String())
 		if err != nil {
 			return fmt.Errorf("failed to get user: %w", err)
 		}
@@ -404,9 +406,7 @@ func (s *AuthService) VerifyEmail(ctx context.Context, rawToken string) error {
 			return fmt.Errorf("failed to update user: %w", err)
 		}
 
-		verification.MarkUsed()
-		// Update the verification token's used_at via a direct update
-		return s.emailVerificationRepo.InvalidateAllByUserID(ctx, tx, verification.UserID)
+		return s.authTokenRepo.InvalidateAllByUserID(ctx, tx, token.UserID, aggregate.AuthTokenType_EmailVerification)
 	})
 }
 
@@ -425,16 +425,16 @@ func (s *AuthService) ResendVerification(ctx context.Context, email string) erro
 		}
 
 		// Invalidate all existing verification tokens
-		if err := s.emailVerificationRepo.InvalidateAllByUserID(ctx, tx, user.ID); err != nil {
+		if err := s.authTokenRepo.InvalidateAllByUserID(ctx, tx, user.ID, aggregate.AuthTokenType_EmailVerification); err != nil {
 			return fmt.Errorf("failed to invalidate old tokens: %w", err)
 		}
 
-		verification, rawToken, err := aggregate.NewEmailVerification(user.ID, s.verificationTokenTTL)
+		token, rawToken, err := aggregate.NewAuthToken(user.ID, s.verificationTokenTTL, aggregate.AuthTokenType_EmailVerification)
 		if err != nil {
 			return fmt.Errorf("failed to generate verification token: %w", err)
 		}
 
-		_, err = s.emailVerificationRepo.Create(ctx, tx, verification)
+		_, err = s.authTokenRepo.Create(ctx, tx, token)
 		if err != nil {
 			return fmt.Errorf("failed to store verification token: %w", err)
 		}
@@ -458,6 +458,102 @@ func (s *AuthService) ResendVerification(ctx context.Context, email string) erro
 		}
 
 		return nil
+	})
+}
+
+func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
+	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		user, err := s.userRepo.GetByEmail(ctx, tx, email)
+		if err != nil {
+			if errors.Is(err, userErrors.ErrNotFound) {
+				return nil // Silent success — don't leak user existence
+			}
+			return fmt.Errorf("failed to get user: %w", err)
+		}
+
+		// Invalidate any existing password reset tokens
+		if err := s.authTokenRepo.InvalidateAllByUserID(ctx, tx, user.ID, aggregate.AuthTokenType_PasswordReset); err != nil {
+			return fmt.Errorf("failed to invalidate old reset tokens: %w", err)
+		}
+
+		token, rawToken, err := aggregate.NewAuthToken(user.ID, s.verificationTokenTTL, aggregate.AuthTokenType_PasswordReset)
+		if err != nil {
+			return fmt.Errorf("failed to generate password reset token: %w", err)
+		}
+
+		_, err = s.authTokenRepo.Create(ctx, tx, token)
+		if err != nil {
+			return fmt.Errorf("failed to store password reset token: %w", err)
+		}
+
+		resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.frontendURL, rawToken)
+		_, err = s.emailSender.Send(ctx, dtos.SendEmailRequest{
+			From:    s.fromEmail,
+			To:      []string{email},
+			Subject: "Reset Your Password - DCIT Help Desk",
+			Template: &types.EmailTemplate{
+				ID: templates.TemplateID_PasswordReset,
+				Variables: map[string]any{
+					"RESET_URL":  resetURL,
+					"USER_EMAIL": email,
+				},
+			},
+		})
+		if err != nil {
+			s.logger.Error("failed to send password reset email", zap.Error(err))
+			return nil // Silent failure — don't leak info
+		}
+
+		return nil
+	})
+}
+
+func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword string) error {
+	if err := userAggregate.ValidatePassword(newPassword); err != nil {
+		return err
+	}
+
+	tokenHash, err := aggregate.HashToken(rawToken)
+	if err != nil {
+		return fmt.Errorf("failed to hash token: %w", err)
+	}
+
+	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		token, err := s.authTokenRepo.GetByTokenHash(ctx, tx, tokenHash, aggregate.AuthTokenType_PasswordReset)
+		if err != nil {
+			return err // ErrPasswordResetTokenInvalid from repo
+		}
+
+		if token.IsUsed() {
+			return authErrors.ErrPasswordResetTokenUsed
+		}
+
+		if token.IsExpired() {
+			return authErrors.ErrPasswordResetTokenExpired
+		}
+
+		user, err := s.userRepo.GetByID(ctx, tx, token.UserID.String())
+		if err != nil {
+			return fmt.Errorf("failed to get user: %w", err)
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), 14)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+
+		user.Password = string(hashedPassword)
+		if err := s.userRepo.Update(ctx, tx, user); err != nil {
+			return fmt.Errorf("failed to update user: %w", err)
+		}
+
+		// Invalidate all password reset tokens for this user
+		if err := s.authTokenRepo.InvalidateAllByUserID(ctx, tx, user.ID, aggregate.AuthTokenType_PasswordReset); err != nil {
+			return fmt.Errorf("failed to invalidate reset tokens: %w", err)
+		}
+
+		// Revoke all refresh tokens (force re-login on all devices)
+		return s.refreshTokenRepo.RevokeAllByUserID(ctx, tx, user.ID)
 	})
 }
 
