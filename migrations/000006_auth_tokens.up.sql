@@ -5,9 +5,9 @@ ALTER TABLE "auth"."email_verifications" RENAME TO "auth_tokens";
 ALTER TABLE "auth"."auth_tokens"
     ADD COLUMN "type" varchar(30) NOT NULL DEFAULT 'email_verification';
 
--- Rename indexes
-ALTER INDEX idx_email_verifications_token_hash RENAME TO idx_auth_tokens_token_hash;
-ALTER INDEX idx_email_verifications_user_id RENAME TO idx_auth_tokens_user_id;
+-- Rename indexes (must be schema-qualified)
+ALTER INDEX "auth".idx_email_verifications_token_hash RENAME TO idx_auth_tokens_token_hash;
+ALTER INDEX "auth".idx_email_verifications_user_id RENAME TO idx_auth_tokens_user_id;
 
 -- Add index on type
 CREATE INDEX idx_auth_tokens_type ON "auth"."auth_tokens" ("type");

@@ -20,10 +20,10 @@ type authTokensTable struct {
 	ID        postgres.ColumnString
 	UserID    postgres.ColumnString
 	TokenHash postgres.ColumnString
-	Type      postgres.ColumnString
 	ExpiresAt postgres.ColumnTimestampz
 	UsedAt    postgres.ColumnTimestampz
 	CreatedAt postgres.ColumnTimestampz
+	Type      postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -68,13 +68,13 @@ func newAuthTokensTableImpl(schemaName, tableName, alias string) authTokensTable
 		IDColumn        = postgres.StringColumn("id")
 		UserIDColumn    = postgres.StringColumn("user_id")
 		TokenHashColumn = postgres.StringColumn("token_hash")
-		TypeColumn      = postgres.StringColumn("type")
 		ExpiresAtColumn = postgres.TimestampzColumn("expires_at")
 		UsedAtColumn    = postgres.TimestampzColumn("used_at")
 		CreatedAtColumn = postgres.TimestampzColumn("created_at")
-		allColumns      = postgres.ColumnList{IDColumn, UserIDColumn, TokenHashColumn, TypeColumn, ExpiresAtColumn, UsedAtColumn, CreatedAtColumn}
-		mutableColumns  = postgres.ColumnList{UserIDColumn, TokenHashColumn, TypeColumn, ExpiresAtColumn, UsedAtColumn, CreatedAtColumn}
-		defaultColumns  = postgres.ColumnList{IDColumn, TypeColumn, CreatedAtColumn}
+		TypeColumn      = postgres.StringColumn("type")
+		allColumns      = postgres.ColumnList{IDColumn, UserIDColumn, TokenHashColumn, ExpiresAtColumn, UsedAtColumn, CreatedAtColumn, TypeColumn}
+		mutableColumns  = postgres.ColumnList{UserIDColumn, TokenHashColumn, ExpiresAtColumn, UsedAtColumn, CreatedAtColumn, TypeColumn}
+		defaultColumns  = postgres.ColumnList{IDColumn, CreatedAtColumn, TypeColumn}
 	)
 
 	return authTokensTable{
@@ -84,10 +84,10 @@ func newAuthTokensTableImpl(schemaName, tableName, alias string) authTokensTable
 		ID:        IDColumn,
 		UserID:    UserIDColumn,
 		TokenHash: TokenHashColumn,
-		Type:      TypeColumn,
 		ExpiresAt: ExpiresAtColumn,
 		UsedAt:    UsedAtColumn,
 		CreatedAt: CreatedAtColumn,
+		Type:      TypeColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
