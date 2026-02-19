@@ -93,7 +93,7 @@ func (s *AuthHandlerTestSuite) TestRegister_Success() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1",
+		"password": "Secret1!",
 		"role": "admin"
 	}`)
 
@@ -130,7 +130,7 @@ func (s *AuthHandlerTestSuite) TestRegister_EmailAlreadyExists() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1",
+		"password": "Secret1!",
 		"role": "admin"
 	}`)
 
@@ -144,7 +144,7 @@ func (s *AuthHandlerTestSuite) TestRegister_InvalidRole() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1",
+		"password": "Secret1!",
 		"role": "superuser"
 	}`)
 
@@ -172,7 +172,7 @@ func (s *AuthHandlerTestSuite) TestRegister_SendVerificationFailed() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1",
+		"password": "Secret1!",
 		"role": "admin"
 	}`)
 
@@ -186,7 +186,7 @@ func (s *AuthHandlerTestSuite) TestRegister_InternalError() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1",
+		"password": "Secret1!",
 		"role": "admin"
 	}`)
 
@@ -208,7 +208,7 @@ func (s *AuthHandlerTestSuite) TestLogin_Success() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/login", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1"
+		"password": "Secret1!"
 	}`)
 
 	s.Equal(http.StatusOK, rr.Code)
@@ -257,7 +257,7 @@ func (s *AuthHandlerTestSuite) TestLogin_AccountInactive() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/login", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1"
+		"password": "Secret1!"
 	}`)
 
 	s.Equal(http.StatusForbidden, rr.Code)
@@ -270,7 +270,7 @@ func (s *AuthHandlerTestSuite) TestLogin_EmailNotVerified() {
 
 	rr := s.doRequest("POST", "/api/v1/auth/login", `{
 		"email": "test@uwi.edu",
-		"password": "Secret1"
+		"password": "Secret1!"
 	}`)
 
 	s.Equal(http.StatusForbidden, rr.Code)
@@ -551,14 +551,14 @@ func (s *AuthHandlerTestSuite) TestResendVerification_SendFailed() {
 func (s *AuthHandlerTestSuite) TestChangePassword_Success() {
 	s.mockSvc.ChangePasswordFn = func(_ context.Context, userID, currentPassword, newPassword string) error {
 		s.Equal("user-123", userID)
-		s.Equal("OldPass1", currentPassword)
-		s.Equal("NewPass1", newPassword)
+		s.Equal("OldP@ss1!", currentPassword)
+		s.Equal("NewP@ss1!", newPassword)
 		return nil
 	}
 
 	rr := s.doRequest("PATCH", "/api/v1/auth/change-password", `{
-		"current_password": "OldPass1",
-		"new_password": "NewPass1"
+		"current_password": "OldP@ss1!",
+		"new_password": "NewP@ss1!"
 	}`)
 
 	s.Equal(http.StatusNoContent, rr.Code)
@@ -587,8 +587,8 @@ func (s *AuthHandlerTestSuite) TestChangePassword_WrongPassword() {
 	}
 
 	rr := s.doRequest("PATCH", "/api/v1/auth/change-password", `{
-		"current_password": "WrongPass1",
-		"new_password": "NewPass1"
+		"current_password": "Wr0ngP@ss!",
+		"new_password": "NewP@ss1!"
 	}`)
 
 	s.Equal(http.StatusBadRequest, rr.Code)
@@ -600,8 +600,8 @@ func (s *AuthHandlerTestSuite) TestChangePassword_SameAsOld() {
 	}
 
 	rr := s.doRequest("PATCH", "/api/v1/auth/change-password", `{
-		"current_password": "SamePass1",
-		"new_password": "SamePass1"
+		"current_password": "SameP@ss1!",
+		"new_password": "SameP@ss1!"
 	}`)
 
 	s.Equal(http.StatusBadRequest, rr.Code)
@@ -616,8 +616,8 @@ func (s *AuthHandlerTestSuite) TestChangePassword_NoAuthContext() {
 	})
 
 	req := httptest.NewRequest("PATCH", "/api/v1/auth/change-password", strings.NewReader(`{
-		"current_password": "OldPass1",
-		"new_password": "NewPass1"
+		"current_password": "OldP@ss1!",
+		"new_password": "NewP@ss1!"
 	}`))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()

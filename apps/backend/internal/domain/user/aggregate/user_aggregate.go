@@ -72,12 +72,14 @@ func NewUser(email, password string, role Role) (*User, error) {
 }
 
 func ValidatePassword(password string) error {
-	if len(password) < 6 {
+	if len(password) < 8 {
 		return errors.ErrInvalidPasswordLength
 	}
-	hasLetter := regexp.MustCompile(`[A-Za-z]`).MatchString(password)
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
 	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
-	if !hasLetter || !hasDigit {
+	hasSpecial := regexp.MustCompile(`[^A-Za-z0-9]`).MatchString(password)
+	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
 		return errors.ErrInvalidPasswordComplexity
 	}
 	return nil

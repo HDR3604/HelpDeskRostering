@@ -163,6 +163,11 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 	return createdUser, nil
 }
 
+// dummyHash is a pre-computed bcrypt hash (cost 14) used to prevent timing attacks.
+// When a user is not found, we still run bcrypt against this hash so the response
+// time is indistinguishable from a wrong-password attempt.
+var dummyHash = []byte("$2a$14$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, string, error) {
 	var accessToken, rawRefreshToken string
 
@@ -170,6 +175,9 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 		user, err := s.userRepo.GetByEmail(ctx, tx, email)
 		if err != nil {
 			if errors.Is(err, userErrors.ErrNotFound) {
+				// Spend time on a dummy bcrypt compare to prevent timing-based
+				// user enumeration (same latency as a real password check).
+				bcrypt.CompareHashAndPassword(dummyHash, []byte(password)) //nolint:errcheck
 				return authErrors.ErrInvalidCredentials
 			}
 			return fmt.Errorf("failed to get user: %w", err)

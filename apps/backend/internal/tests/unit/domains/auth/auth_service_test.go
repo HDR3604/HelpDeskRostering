@@ -80,7 +80,7 @@ func (s *AuthServiceTestSuite) newVerifiedAdmin() *userAggregate.User {
 	return &userAggregate.User{
 		ID:              uuid.New(),
 		Email:           "admin@uwi.edu",
-		Password:        hashPassword("Password1"),
+		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Admin,
 		IsActive:        true,
 		EmailVerifiedAt: &now,
@@ -92,7 +92,7 @@ func (s *AuthServiceTestSuite) newVerifiedStudent() *userAggregate.User {
 	return &userAggregate.User{
 		ID:              uuid.New(),
 		Email:           "student@my.uwi.edu",
-		Password:        hashPassword("Password1"),
+		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Student,
 		IsActive:        true,
 		EmailVerifiedAt: &now,
@@ -103,7 +103,7 @@ func (s *AuthServiceTestSuite) newUnverifiedUser() *userAggregate.User {
 	return &userAggregate.User{
 		ID:              uuid.New(),
 		Email:           "admin@uwi.edu",
-		Password:        hashPassword("Password1"),
+		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Admin,
 		IsActive:        true,
 		EmailVerifiedAt: nil,
@@ -115,7 +115,7 @@ func (s *AuthServiceTestSuite) newInactiveUser() *userAggregate.User {
 	return &userAggregate.User{
 		ID:              uuid.New(),
 		Email:           "admin@uwi.edu",
-		Password:        hashPassword("Password1"),
+		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Admin,
 		IsActive:        false,
 		EmailVerifiedAt: &now,
@@ -211,7 +211,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Admin() {
 		return &dtos.SendEmailResponse{ID: "test-id"}, nil
 	}
 
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "Password1", "admin")
+	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "admin")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -242,7 +242,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Student() {
 		return &dtos.SendEmailResponse{ID: "test-id"}, nil
 	}
 
-	result, err := s.service.Register(s.ctx, "student@my.uwi.edu", "Password1", "student")
+	result, err := s.service.Register(s.ctx, "student@my.uwi.edu", "P@ssword1", "student")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -262,21 +262,21 @@ func (s *AuthServiceTestSuite) TestRegister_EmailAlreadyExists() {
 		return existing, nil
 	}
 
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "Password1", "admin")
+	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "admin")
 
 	s.ErrorIs(err, userErrors.ErrEmailAlreadyExists)
 	s.Nil(result)
 }
 
 func (s *AuthServiceTestSuite) TestRegister_InvalidEmail() {
-	result, err := s.service.Register(s.ctx, "bad-email", "Password1", "admin")
+	result, err := s.service.Register(s.ctx, "bad-email", "P@ssword1", "admin")
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *AuthServiceTestSuite) TestRegister_InvalidRole() {
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "Password1", "superuser")
+	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "superuser")
 
 	s.Require().Error(err)
 	s.Nil(result)
@@ -290,7 +290,7 @@ func (s *AuthServiceTestSuite) TestRegister_WeakPassword() {
 }
 
 func (s *AuthServiceTestSuite) TestRegister_RoleEmailMismatch() {
-	result, err := s.service.Register(s.ctx, "student@my.uwi.edu", "Password1", "admin")
+	result, err := s.service.Register(s.ctx, "student@my.uwi.edu", "P@ssword1", "admin")
 
 	s.Require().Error(err)
 	s.Nil(result)
@@ -310,7 +310,7 @@ func (s *AuthServiceTestSuite) TestRegister_SendEmailFails() {
 		return nil, errors.New("email service down")
 	}
 
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "Password1", "admin")
+	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "admin")
 
 	s.ErrorIs(err, authErrors.ErrSendVerificationFailed)
 	s.Nil(result)
@@ -330,7 +330,7 @@ func (s *AuthServiceTestSuite) TestLogin_Success_Admin() {
 		return token, nil
 	}
 
-	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "Password1")
+	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "P@ssword1")
 
 	s.Require().NoError(err)
 	s.NotEmpty(accessToken)
@@ -351,7 +351,7 @@ func (s *AuthServiceTestSuite) TestLogin_Success_Student() {
 		return token, nil
 	}
 
-	accessToken, refreshToken, err := s.service.Login(s.ctx, "student@my.uwi.edu", "Password1")
+	accessToken, refreshToken, err := s.service.Login(s.ctx, "student@my.uwi.edu", "P@ssword1")
 
 	s.Require().NoError(err)
 	s.NotEmpty(accessToken)
@@ -363,7 +363,7 @@ func (s *AuthServiceTestSuite) TestLogin_UserNotFound() {
 		return nil, userErrors.ErrNotFound
 	}
 
-	accessToken, refreshToken, err := s.service.Login(s.ctx, "nobody@uwi.edu", "Password1")
+	accessToken, refreshToken, err := s.service.Login(s.ctx, "nobody@uwi.edu", "P@ssword1")
 
 	s.ErrorIs(err, authErrors.ErrInvalidCredentials)
 	s.Empty(accessToken)
@@ -389,7 +389,7 @@ func (s *AuthServiceTestSuite) TestLogin_AccountInactive() {
 		return user, nil
 	}
 
-	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "Password1")
+	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "P@ssword1")
 
 	s.ErrorIs(err, authErrors.ErrAccountInactive)
 	s.Empty(accessToken)
@@ -402,7 +402,7 @@ func (s *AuthServiceTestSuite) TestLogin_EmailNotVerified() {
 		return user, nil
 	}
 
-	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "Password1")
+	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "P@ssword1")
 
 	s.ErrorIs(err, authErrors.ErrEmailNotVerified)
 	s.Empty(accessToken)
@@ -418,7 +418,7 @@ func (s *AuthServiceTestSuite) TestLogin_RefreshTokenCreateFails() {
 		return nil, errors.New("db write error")
 	}
 
-	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "Password1")
+	accessToken, refreshToken, err := s.service.Login(s.ctx, "admin@uwi.edu", "P@ssword1")
 
 	s.Require().Error(err)
 	s.Empty(accessToken)
@@ -579,7 +579,7 @@ func (s *AuthServiceTestSuite) TestChangePassword_Success() {
 		return nil
 	}
 
-	err := s.service.ChangePassword(s.ctx, user.ID.String(), "Password1", "NewPass1")
+	err := s.service.ChangePassword(s.ctx, user.ID.String(), "P@ssword1", "NewP@ss1!")
 
 	s.Require().NoError(err)
 }
@@ -590,7 +590,7 @@ func (s *AuthServiceTestSuite) TestChangePassword_WrongCurrentPassword() {
 		return user, nil
 	}
 
-	err := s.service.ChangePassword(s.ctx, user.ID.String(), "WrongPass1", "NewPass1")
+	err := s.service.ChangePassword(s.ctx, user.ID.String(), "WrongPass1", "NewP@ss1!")
 
 	s.ErrorIs(err, authErrors.ErrPasswordMismatch)
 }
@@ -601,14 +601,14 @@ func (s *AuthServiceTestSuite) TestChangePassword_SameAsOld() {
 		return user, nil
 	}
 
-	err := s.service.ChangePassword(s.ctx, user.ID.String(), "Password1", "Password1")
+	err := s.service.ChangePassword(s.ctx, user.ID.String(), "P@ssword1", "P@ssword1")
 
 	s.ErrorIs(err, authErrors.ErrPasswordSameAsOld)
 }
 
 func (s *AuthServiceTestSuite) TestChangePassword_WeakNewPassword() {
 	// ValidatePassword is called BEFORE InSystemTx, so no mock setup needed for repos
-	err := s.service.ChangePassword(s.ctx, uuid.New().String(), "Password1", "abc")
+	err := s.service.ChangePassword(s.ctx, uuid.New().String(), "P@ssword1", "abc")
 
 	s.Require().Error(err)
 	s.ErrorIs(err, userErrors.ErrInvalidPasswordLength)

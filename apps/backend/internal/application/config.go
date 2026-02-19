@@ -42,11 +42,11 @@ func LoadConfig() (Config, error) {
 
 	// JWT
 	cfg.JWTSecret = os.Getenv("JWT_SECRET")
-	if cfg.Environment == "production" && cfg.JWTSecret == "" {
-		return Config{}, fmt.Errorf("JWT_SECRET is required in production")
-	}
 	if cfg.JWTSecret == "" {
-		cfg.JWTSecret = "dev-secret-do-not-use-in-production"
+		return Config{}, fmt.Errorf("JWT_SECRET environment variable is required")
+	}
+	if len(cfg.JWTSecret) < 32 {
+		return Config{}, fmt.Errorf("JWT_SECRET must be at least 32 characters")
 	}
 
 	cfg.AccessTokenTTL = 900 // 15 minutes
