@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronsUpDown,
   GraduationCap,
   Landmark,
   CreditCard,
@@ -33,6 +34,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { cn } from "@/lib/utils"
 
 const TT_BANKS = [
   "Bank of Baroda (Trinidad and Tobago) Limited",
@@ -86,6 +101,7 @@ const STEPS = [
 export function BankingDetailsForm() {
   const { currentStudent } = useUser()
   const [step, setStep] = React.useState(0)
+  const [bankOpen, setBankOpen] = React.useState(false)
 
   const form = useForm<BankingDetailsValues>({
     resolver: zodResolver(bankingDetailsSchema),
@@ -233,25 +249,64 @@ export function BankingDetailsForm() {
                       control={form.control}
                       name="bankName"
                       render={({ field }) => (
-                        <FormItem>
+                        <FormItem className="flex flex-col">
                           <FormLabel>Bank</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            value={field.value}
+                          <Popover
+                            open={bankOpen}
+                            onOpenChange={setBankOpen}
                           >
-                            <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select your bank" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {TT_BANKS.map((bank) => (
-                                <SelectItem key={bank} value={bank}>
-                                  {bank}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={bankOpen}
+                                  className={cn(
+                                    "w-full justify-between font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  {field.value || "Search for your bank..."}
+                                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[--radix-popover-trigger-width] p-0"
+                              align="start"
+                            >
+                              <Command>
+                                <CommandInput placeholder="Search banks..." />
+                                <CommandList>
+                                  <CommandEmpty>
+                                    No bank found.
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {TT_BANKS.map((bank) => (
+                                      <CommandItem
+                                        key={bank}
+                                        value={bank}
+                                        onSelect={() => {
+                                          field.onChange(bank)
+                                          setBankOpen(false)
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 size-4",
+                                            field.value === bank
+                                              ? "opacity-100"
+                                              : "opacity-0"
+                                          )}
+                                        />
+                                        {bank}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                           <FormMessage />
                         </FormItem>
                       )}
