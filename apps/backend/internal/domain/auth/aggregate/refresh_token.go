@@ -44,6 +44,7 @@ func NewRefreshToken(userID uuid.UUID, ttl int) (*RefreshToken, string, error) {
 	expiresAt := time.Now().Add(time.Second * time.Duration(ttl))
 
 	return &RefreshToken{
+		ID:        uuid.New(),
 		UserID:    userID,
 		TokenHash: tokenHash,
 		ExpiresAt: expiresAt,
