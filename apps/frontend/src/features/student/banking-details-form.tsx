@@ -9,13 +9,8 @@ import {
   Check,
   ChevronsUpDown,
   GraduationCap,
-  Landmark,
-  CreditCard,
-  Hash,
 } from "lucide-react"
-import { Link } from "@tanstack/react-router"
 
-import { useUser } from "@/hooks/use-user"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -62,14 +57,25 @@ const TT_BANKS = [
 
 const bankingDetailsSchema = z.object({
   bankName: z.string().min(1, "Please select a bank"),
-  branchName: z.string().min(1, "Branch name is required"),
+  branchName: z
+    .string()
+    .min(1, "Branch name is required")
+    .max(100, "Branch name is too long"),
   accountType: z.enum(["chequeing", "savings"], {
     required_error: "Please select an account type",
   }),
   accountNumber: z
     .string()
     .min(1, "Account number is required")
-    .regex(/^\d+$/, "Account number must contain only digits"),
+    .regex(/^\d+$/, "Account number must contain only digits")
+    .min(7, "Account number must be at least 7 digits")
+    .max(16, "Account number must be at most 16 digits"),
+  confirmAccountNumber: z
+    .string()
+    .min(1, "Please confirm your account number"),
+}).refine((data) => data.accountNumber === data.confirmAccountNumber, {
+  message: "Account numbers do not match",
+  path: ["confirmAccountNumber"],
 })
 
 type BankingDetailsValues = z.infer<typeof bankingDetailsSchema>
@@ -79,27 +85,20 @@ const STEPS = [
     title: "What bank do you use?",
     description: "We need this to route your payments correctly.",
     fields: ["bankName", "branchName"] as const,
-    icon: Landmark,
-    label: "Bank info",
   },
   {
     title: "What type of account is it?",
     description: "Select the account type you'd like to be paid into.",
     fields: ["accountType"] as const,
-    icon: CreditCard,
-    label: "Account type",
   },
   {
     title: "What's your account number?",
     description: "This is the account where your salary will be deposited.",
-    fields: ["accountNumber"] as const,
-    icon: Hash,
-    label: "Account number",
+    fields: ["accountNumber", "confirmAccountNumber"] as const,
   },
 ] as const
 
 export function BankingDetailsForm() {
-  const { currentStudent } = useUser()
   const [step, setStep] = React.useState(0)
   const [bankOpen, setBankOpen] = React.useState(false)
 
@@ -110,6 +109,7 @@ export function BankingDetailsForm() {
       branchName: "",
       accountType: undefined,
       accountNumber: "",
+      confirmAccountNumber: "",
     },
   })
 
@@ -127,240 +127,183 @@ export function BankingDetailsForm() {
     setStep((s) => s - 1)
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+    if (e.key === "Enter" && !isLastStep) {
+      e.preventDefault()
+      handleNext()
+    }
+  }
+
   function onSubmit(values: BankingDetailsValues) {
     console.log("Banking details submitted:", values)
     toast.success("Banking details saved successfully")
   }
 
   return (
-    <div className="flex min-h-screen">
-      {/* Left panel — brand + step indicator */}
-      <aside className="hidden w-80 flex-col justify-between border-r bg-muted/50 p-8 lg:flex xl:w-96">
-        <div>
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+    <div className="flex min-h-screen items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md space-y-8">
+          {/* Logo + title */}
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <GraduationCap className="size-5" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="font-semibold">HelpDesk</span>
+              <span className="text-lg font-semibold">HelpDesk</span>
               <span className="text-xs text-muted-foreground">Rostering</span>
             </div>
-          </Link>
+          </div>
 
-          {/* Step list */}
-          <nav className="mt-12 space-y-1">
-            {STEPS.map((s, i) => {
-              const Icon = s.icon
-              const isActive = i === step
-              const isComplete = i < step
-
-              return (
+          {/* Progress bar */}
+          <div className="space-y-3">
+            <div className="flex gap-1.5">
+              {STEPS.map((_, i) => (
                 <div
                   key={i}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-                    isActive
-                      ? "bg-background text-foreground shadow-sm"
-                      : isComplete
-                        ? "text-foreground"
-                        : "text-muted-foreground"
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${
+                    i <= step ? "bg-primary" : "bg-muted"
                   }`}
-                >
-                  <div
-                    className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
-                      isComplete
-                        ? "bg-primary text-primary-foreground"
-                        : isActive
-                          ? "border-2 border-primary text-primary"
-                          : "border border-muted-foreground/30 text-muted-foreground"
-                    }`}
-                  >
-                    {isComplete ? (
-                      <Check className="size-3.5" />
-                    ) : (
-                      <Icon className="size-3.5" />
-                    )}
-                  </div>
-                  <span className={isActive ? "font-medium" : ""}>
-                    {s.label}
-                  </span>
-                </div>
-              )
-            })}
-          </nav>
-        </div>
-
-        <p className="text-xs text-muted-foreground">
-          Your information is encrypted and stored securely.
-        </p>
-      </aside>
-
-      {/* Right panel — form */}
-      <main className="flex flex-1 flex-col">
-        {/* Mobile header */}
-        <header className="flex items-center gap-3 border-b p-4 lg:hidden">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <GraduationCap className="size-4" />
+                />
+              ))}
             </div>
-            <span className="font-semibold">HelpDesk</span>
-          </Link>
-        </header>
+            <p className="text-sm font-medium text-muted-foreground">
+              Step {step + 1} of {STEPS.length}
+            </p>
+          </div>
 
-        {/* Form area — vertically centered */}
-        <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-12">
-          <div className="w-full max-w-md space-y-8">
-            {/* Mobile progress bar */}
-            <div className="space-y-3 lg:hidden">
-              <div className="flex gap-1.5">
-                {STEPS.map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      i <= step ? "bg-primary" : "bg-muted"
-                    }`}
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Step {step + 1} of {STEPS.length}
-              </p>
-            </div>
+          {/* Step heading */}
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {currentStep.title}
+            </h1>
+            <p className="text-muted-foreground">
+              {currentStep.description}
+            </p>
+          </div>
 
-            {/* Step heading */}
-            <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {currentStep.title}
-              </h1>
-              <p className="text-muted-foreground">
-                {currentStep.description}
-              </p>
-            </div>
-
-            {/* Form fields */}
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-8"
-              >
-                {step === 0 && (
-                  <div className="space-y-5">
-                    <FormField
-                      control={form.control}
-                      name="bankName"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Bank</FormLabel>
-                          <Popover
-                            open={bankOpen}
-                            onOpenChange={setBankOpen}
-                          >
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  aria-expanded={bankOpen}
-                                  className={cn(
-                                    "w-full justify-between font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  {field.value || "Search for your bank..."}
-                                  <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              className="w-[--radix-popover-trigger-width] p-0"
-                              align="start"
-                            >
-                              <Command>
-                                <CommandInput placeholder="Search banks..." />
-                                <CommandList>
-                                  <CommandEmpty>
-                                    No bank found.
-                                  </CommandEmpty>
-                                  <CommandGroup>
-                                    {TT_BANKS.map((bank) => (
-                                      <CommandItem
-                                        key={bank}
-                                        value={bank}
-                                        onSelect={() => {
-                                          field.onChange(bank)
-                                          setBankOpen(false)
-                                        }}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 size-4",
-                                            field.value === bank
-                                              ? "opacity-100"
-                                              : "opacity-0"
-                                          )}
-                                        />
-                                        {bank}
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="branchName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Branch Name</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="e.g. St. Augustine"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                )}
-
-                {step === 1 && (
+          {/* Form */}
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              onKeyDown={handleKeyDown}
+              className="space-y-8"
+            >
+              {step === 0 && (
+                <div className="space-y-5">
                   <FormField
                     control={form.control}
-                    name="accountType"
+                    name="bankName"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Account Type</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Bank</FormLabel>
+                        <Popover
+                          open={bankOpen}
+                          onOpenChange={setBankOpen}
                         >
-                          <FormControl>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select account type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="chequeing">Chequeing</SelectItem>
-                            <SelectItem value="savings">Savings</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Choose whether this is a chequeing or savings account.
-                        </FormDescription>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={bankOpen}
+                                className={cn(
+                                  "w-full justify-between font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value || "Search for your bank..."}
+                                <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            className="w-[--radix-popover-trigger-width] p-0"
+                            align="start"
+                          >
+                            <Command>
+                              <CommandInput placeholder="Search banks..." />
+                              <CommandList>
+                                <CommandEmpty>No bank found.</CommandEmpty>
+                                <CommandGroup>
+                                  {TT_BANKS.map((bank) => (
+                                    <CommandItem
+                                      key={bank}
+                                      value={bank}
+                                      onSelect={() => {
+                                        field.onChange(bank)
+                                        setBankOpen(false)
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 size-4",
+                                          field.value === bank
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {bank}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
+                  <FormField
+                    control={form.control}
+                    name="branchName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Branch Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g. St. Augustine"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
-                {step === 2 && (
+              {step === 1 && (
+                <FormField
+                  control={form.control}
+                  name="accountType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select account type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="chequeing">Chequeing</SelectItem>
+                          <SelectItem value="savings">Savings</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Choose whether this is a chequeing or savings account.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {step === 2 && (
+                <div className="space-y-5">
                   <FormField
                     control={form.control}
                     name="accountNumber"
@@ -374,46 +317,61 @@ export function BankingDetailsForm() {
                             {...field}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="confirmAccountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Account Number</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Re-enter your account number"
+                            inputMode="numeric"
+                            {...field}
+                          />
+                        </FormControl>
                         <FormDescription>
-                          Double-check this is correct — it's used for direct
-                          deposit.
+                          Please re-enter to make sure it's correct.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
-
-                {/* Navigation */}
-                <div className="flex items-center gap-3 pt-2">
-                  {step > 0 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={handleBack}
-                    >
-                      <ArrowLeft className="mr-2 size-4" />
-                      Back
-                    </Button>
-                  )}
-                  <div className="flex-1" />
-                  {isLastStep ? (
-                    <Button type="submit">
-                      <Check className="mr-2 size-4" />
-                      Submit
-                    </Button>
-                  ) : (
-                    <Button type="button" onClick={handleNext}>
-                      Continue
-                      <ArrowRight className="ml-2 size-4" />
-                    </Button>
-                  )}
                 </div>
-              </form>
-            </Form>
-          </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex items-center gap-3 pt-2">
+                {step > 0 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleBack}
+                  >
+                    <ArrowLeft className="mr-2 size-4" />
+                    Back
+                  </Button>
+                )}
+                <div className="flex-1" />
+                {isLastStep ? (
+                  <Button type="submit">
+                    <Check className="mr-2 size-4" />
+                    Submit
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={handleNext}>
+                    Continue
+                    <ArrowRight className="ml-2 size-4" />
+                  </Button>
+                )}
+              </div>
+            </form>
+          </Form>
         </div>
-      </main>
     </div>
   )
 }
