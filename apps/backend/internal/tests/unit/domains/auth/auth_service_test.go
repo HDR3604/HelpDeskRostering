@@ -199,7 +199,7 @@ func (s *AuthServiceTestSuite) newExpiredAuthToken(userID uuid.UUID, tokenType s
 
 func (s *AuthServiceTestSuite) TestRegister_Success_Admin() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 	s.userRepo.CreateFn = func(_ context.Context, _ *sql.Tx, user *userAggregate.User) (*userAggregate.User, error) {
 		return user, nil
@@ -230,7 +230,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Admin() {
 
 func (s *AuthServiceTestSuite) TestRegister_Success_Student() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 	s.userRepo.CreateFn = func(_ context.Context, _ *sql.Tx, user *userAggregate.User) (*userAggregate.User, error) {
 		return user, nil
@@ -301,7 +301,7 @@ func (s *AuthServiceTestSuite) TestRegister_RoleEmailMismatch() {
 
 func (s *AuthServiceTestSuite) TestRegister_SendEmailFails() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 	s.userRepo.CreateFn = func(_ context.Context, _ *sql.Tx, user *userAggregate.User) (*userAggregate.User, error) {
 		return user, nil
@@ -363,7 +363,7 @@ func (s *AuthServiceTestSuite) TestLogin_Success_Student() {
 
 func (s *AuthServiceTestSuite) TestLogin_UserNotFound() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 
 	accessToken, refreshToken, err := s.service.Login(s.ctx, "nobody@uwi.edu", "P@ssword1")
@@ -731,12 +731,12 @@ func (s *AuthServiceTestSuite) TestResendVerification_Success() {
 
 func (s *AuthServiceTestSuite) TestResendVerification_UserNotFound() {
 	s.userRepo.GetByEmailFn = func(_ context.Context, _ *sql.Tx, _ string) (*userAggregate.User, error) {
-		return nil, userErrors.ErrNotFound
+		return nil, userErrors.ErrUserNotFound
 	}
 
 	err := s.service.ResendVerification(s.ctx, "nobody@uwi.edu")
 
-	s.ErrorIs(err, userErrors.ErrNotFound)
+	s.ErrorIs(err, userErrors.ErrUserNotFound)
 }
 
 func (s *AuthServiceTestSuite) TestResendVerification_AlreadyVerified() {

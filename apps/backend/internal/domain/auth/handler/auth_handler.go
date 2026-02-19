@@ -291,7 +291,7 @@ func (h *AuthHandler) handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, userErrors.ErrEmailAdmin),
 		errors.Is(err, userErrors.ErrEmailStudent):
 		writeError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, userErrors.ErrNotFound):
+	case errors.Is(err, userErrors.ErrUserNotFound):
 		writeError(w, http.StatusNotFound, "user not found")
 	default:
 		h.logger.Error("unhandled service error", zap.Error(err))

@@ -114,7 +114,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		// Check email uniqueness
 		existing, err := s.userRepo.GetByEmail(ctx, tx, email)
-		if err != nil && !errors.Is(err, userErrors.ErrNotFound) {
+		if err != nil && !errors.Is(err, userErrors.ErrUserNotFound) {
 			return fmt.Errorf("failed to check existing email: %w", err)
 		}
 		if existing != nil {
@@ -176,7 +176,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		user, err := s.userRepo.GetByEmail(ctx, tx, email)
 		if err != nil {
-			if errors.Is(err, userErrors.ErrNotFound) {
+			if errors.Is(err, userErrors.ErrUserNotFound) {
 				// Spend time on a dummy bcrypt compare to prevent timing-based
 				// user enumeration (same latency as a real password check).
 				bcrypt.CompareHashAndPassword(dummyHash, []byte(password)) //nolint:errcheck
@@ -414,8 +414,8 @@ func (s *AuthService) ResendVerification(ctx context.Context, email string) erro
 	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		user, err := s.userRepo.GetByEmail(ctx, tx, email)
 		if err != nil {
-			if errors.Is(err, userErrors.ErrNotFound) {
-				return userErrors.ErrNotFound
+			if errors.Is(err, userErrors.ErrUserNotFound) {
+				return userErrors.ErrUserNotFound
 			}
 			return fmt.Errorf("failed to get user: %w", err)
 		}
@@ -465,7 +465,7 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
 	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		user, err := s.userRepo.GetByEmail(ctx, tx, email)
 		if err != nil {
-			if errors.Is(err, userErrors.ErrNotFound) {
+			if errors.Is(err, userErrors.ErrUserNotFound) {
 				return nil // Silent success — don't leak user existence
 			}
 			return fmt.Errorf("failed to get user: %w", err)

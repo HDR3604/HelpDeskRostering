@@ -506,7 +506,7 @@ func (s *AuthHandlerTestSuite) TestResendVerification_MissingEmail() {
 
 func (s *AuthHandlerTestSuite) TestResendVerification_UserNotFound() {
 	s.mockSvc.ResendVerificationFn = func(_ context.Context, _ string) error {
-		return userErrors.ErrNotFound
+		return userErrors.ErrUserNotFound
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/resend-verification", `{
