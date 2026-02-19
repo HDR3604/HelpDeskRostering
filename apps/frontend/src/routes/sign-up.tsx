@@ -4,9 +4,13 @@ import { StepIndicator } from '@/components/sign-up/StepIndicator'
 import { Step1StudentInfo } from '@/components/sign-up/Step1StudentInfo'
 import { Step2TranscriptVerify } from '@/components/sign-up/Step2TranscriptVerify'
 import { Step3Availability } from '@/components/sign-up/Step3Availability'
+import { Step4Review } from '@/components/sign-up/Step4Review'
+import { SubmissionSuccess } from '@/components/sign-up/SubmissionSuccess'
+import { ViewApplication } from '@/components/sign-up/ViewApplication'
 import { Card, CardContent } from '@/components/ui/card'
 import { simulateTranscriptExtraction } from '@/lib/mock-transcript'
 import type { Step1Data, Step2Data, Step3Data } from '@/lib/sign-up-schemas'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/sign-up')({
     component: SignUpPage,
@@ -22,6 +26,7 @@ const STEPS = [
 function SignUpPage() {
     const [currentStep, setCurrentStep] = useState(1)
     const [isProcessing, setIsProcessing] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
 
     // Collected data across steps
     const [step1Data, setStep1Data] = useState<Step1Data | null>(null)
@@ -59,14 +64,54 @@ function SignUpPage() {
         setCurrentStep(4)
     }
 
+    // ── Submit handler ──────────────────────────────────────────────────────
+    async function handleSubmit() {
+        if (!step1Data || !step2Data || !step3Data) return
+
+        setIsSubmitting(true)
+        try {
+            // Simulate API call
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+
+            const payload = {
+                student_id: parseInt(step1Data.studentId),
+                email_address: step1Data.email,
+                first_name: step1Data.firstName,
+                last_name: step1Data.lastName,
+                phone_number: step1Data.phoneNumber,
+                transcript_metadata: {
+                    overall_gpa: step2Data.overallGpa,
+                    degree_gpa: step2Data.degreeGpa,
+                    degree_programme: step2Data.degreeProgramme,
+                    courses: step2Data.courses.map((c) => ({
+                        [c.courseCode]: c.grade,
+                    })),
+                    current_level: step2Data.currentYear,
+                },
+                availability: step3Data.availability,
+            }
+
+            console.log('Submission payload:', JSON.stringify(payload, null, 2))
+            setCurrentStep(5)
+        } catch (err) {
+            console.error('Submission failed:', err)
+            toast.error('Something went wrong. Please try again.')
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
     return (
         <div className="w-full max-w-4xl mx-auto py-8 px-4">
-            <h1 className="text-2xl font-bold mb-2">Student Registration</h1>
-            <p className="text-muted-foreground mb-8">
-                Complete the steps below to register as a Help Desk assistant.
-            </p>
-
-            <StepIndicator steps={STEPS} currentStep={currentStep} />
+            {currentStep <= 4 && (
+                <>
+                    <h1 className="text-2xl font-bold mb-2">Student Application</h1>
+                    <p className="text-muted-foreground mb-8">
+                        Complete the steps below to apply to be a Help Desk Assistant.
+                    </p>
+                    <StepIndicator steps={STEPS} currentStep={currentStep} />
+                </>
+            )}
 
             <Card className="border shadow-sm">
                 <CardContent className="pt-6">
@@ -94,10 +139,30 @@ function SignUpPage() {
                         />
                     )}
 
-                    {currentStep === 4 && (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p>Step 4: Review — coming soon</p>
-                        </div>
+                    {currentStep === 4 && step1Data && step2Data && step3Data && (
+                        <Step4Review
+                            step1={step1Data}
+                            step2={step2Data}
+                            step3={step3Data}
+                            onBack={() => setCurrentStep(3)}
+                            onGoToStep={setCurrentStep}
+                            onSubmit={handleSubmit}
+                            isSubmitting={isSubmitting}
+                        />
+                    )}
+
+                    {currentStep === 5 && (
+                        <SubmissionSuccess
+                            onViewApplication={() => setCurrentStep(6)}
+                        />
+                    )}
+
+                    {currentStep === 6 && step1Data && step2Data && step3Data && (
+                        <ViewApplication
+                            step1={step1Data}
+                            step2={step2Data}
+                            step3={step3Data}
+                        />
                     )}
                 </CardContent>
             </Card>
