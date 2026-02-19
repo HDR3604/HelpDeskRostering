@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { StepIndicator } from '@/components/sign-up/StepIndicator'
 import { Step1StudentInfo } from '@/components/sign-up/Step1StudentInfo'
 import { Step2TranscriptVerify } from '@/components/sign-up/Step2TranscriptVerify'
+import { Step3Availability } from '@/components/sign-up/Step3Availability'
 import { Card, CardContent } from '@/components/ui/card'
 import { simulateTranscriptExtraction } from '@/lib/mock-transcript'
 import type { Step1Data, Step2Data, Step3Data } from '@/lib/sign-up-schemas'
@@ -52,6 +53,12 @@ function SignUpPage() {
         setCurrentStep(3)
     }
 
+    // ── Step 3 handler ─────────────────────────────────────────────────────
+    function handleStep3Next(availability: Record<string, number[]>) {
+        setStep3Data({ availability })
+        setCurrentStep(4)
+    }
+
     return (
         <div className="w-full max-w-4xl mx-auto py-8 px-4">
             <h1 className="text-2xl font-bold mb-2">Student Registration</h1>
@@ -80,9 +87,11 @@ function SignUpPage() {
                     )}
 
                     {currentStep === 3 && (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <p>Step 3: Available Times — coming soon</p>
-                        </div>
+                        <Step3Availability
+                            defaultValues={step3Data?.availability}
+                            onNext={handleStep3Next}
+                            onBack={() => setCurrentStep(2)}
+                        />
                     )}
 
                     {currentStep === 4 && (
