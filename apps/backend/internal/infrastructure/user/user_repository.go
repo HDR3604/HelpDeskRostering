@@ -73,7 +73,7 @@ func (r *UserRepository) GetByID(ctx context.Context, tx *sql.Tx, userID string)
 	err = stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			return nil, userErrors.ErrNotFound
+			return nil, userErrors.ErrUserNotFound
 		}
 		r.logger.Error("failed to get user by ID", zap.Error(err))
 		return nil, fmt.Errorf("failed to get user by ID: %w", err)
@@ -90,7 +90,7 @@ func (r *UserRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email strin
 	err := stmt.QueryContext(ctx, tx, &user)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			return nil, userErrors.ErrNotFound
+			return nil, userErrors.ErrUserNotFound
 		}
 		r.logger.Error("failed to get user by email", zap.Error(err))
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
