@@ -39,7 +39,7 @@ func (s *UserService) HashPassword(password string) (string, error) {
 
 func (s *UserService) Create(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error) {
 	// Validate via aggregate FIRST using plain password, before hashing
-	_, err := aggregate.NewUser(email, password, role)
+	user, err := aggregate.NewUser(email, password, role)
 	if err != nil {
 		s.logger.Error("failed to validate user input", zap.Error(err))
 		return nil, err
@@ -50,27 +50,21 @@ func (s *UserService) Create(ctx context.Context, email, password string, role a
 		s.logger.Error("failed to hash password", zap.Error(err))
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
-
-	unusedEmail, err := s.repository.GetByEmail(ctx, nil, email)
-	if err != nil && !errors.Is(err, userErrors.ErrUserNotFound) {
-		s.logger.Error("failed to check existing email", zap.String("email", email), zap.Error(err))
-		return nil, fmt.Errorf("failed to check existing email: %w", err)
-	}
-	if unusedEmail != nil {
-		s.logger.Error("email already exists", zap.String("email", email))
-		return nil, userErrors.ErrEmailAlreadyExists
-	}
-
-	user, err := aggregate.NewUser(email, hashedPassword, role)
-	if err != nil {
-		s.logger.Error("failed to create user aggregate", zap.String("email", email), zap.Error(err))
-		return nil, fmt.Errorf("failed to create user aggregate: %w", err)
-	}
+	user.Password = hashedPassword
 
 	s.logger.Info("creating user", zap.String("email", email), zap.String("role", string(role)))
 	var createdUser *aggregate.User
 	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		var createErr error
+		existingEmail, err := s.repository.GetByEmail(ctx, tx, email)
+		if err != nil && !errors.Is(err, userErrors.ErrUserNotFound) {
+			s.logger.Error("failed to check existing email", zap.String("email", email), zap.Error(err))
+			return fmt.Errorf("failed to check existing email: %w", err)
+		}
+		if existingEmail != nil {
+			s.logger.Error("email already exists", zap.String("email", email))
+			return userErrors.ErrEmailAlreadyExists
+		}
 		createdUser, createErr = s.repository.Create(ctx, tx, user)
 		return createErr
 	})
@@ -106,16 +100,38 @@ func (s *UserService) GetByEmail(ctx context.Context, email string) (*aggregate.
 	return user, nil
 }
 
-func (s *UserService) Update(ctx context.Context, user *aggregate.User) error {
-	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-		return s.repository.Update(ctx, tx, user)
+func (s *UserService) Update(ctx context.Context, tx *sql.Tx, userID string) error {
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		existingUser, err := s.repository.GetByID(ctx, tx, userID)
+		if err != nil {
+			s.logger.Error("failed to get user for update", zap.String("userID", userID), zap.Error(err))
+			return fmt.Errorf("failed to get user for update: %w", err)
+		} else if existingUser == nil {
+			s.logger.Error("user not found for update", zap.String("userID", userID))
+			return userErrors.ErrUserNotFound
+		} else {
+			err = s.repository.Update(ctx, tx, existingUser)
+			if err != nil {
+				s.logger.Error("failed to update user", zap.String("userID", userID), zap.Error(err))
+				return fmt.Errorf("failed to update user: %w", err)
+			}
+		}
+		return err
 	})
+	return err
 }
 
-func (s *UserService) DeactivateByEmailDomain(ctx context.Context, emailDomain aggregate.EmailDomain) error {
-	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-		return s.repository.DeactivateByEmailDomain(ctx, tx, emailDomain)
+func (s *UserService) DeactivateByEmailDomain(ctx context.Context, tx *sql.Tx, emailDomain aggregate.EmailDomain) error {
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		err := s.repository.DeactivateByEmailDomain(ctx, tx, emailDomain)
+		if err != nil {
+			s.logger.Error("failed to deactivate users by email domain", zap.String("emailDomain", string(emailDomain)), zap.Error(err))
+			return fmt.Errorf("failed to deactivate users by email domain: %w", err)
+		}
+		return nil
 	})
+	return err
 }
 
 func (s *UserService) List(ctx context.Context) ([]*aggregate.User, error) {

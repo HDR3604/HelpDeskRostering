@@ -295,23 +295,39 @@ func (s *UserServiceTestSuite) TestGetByEmail_RepositoryError() {
 
 func (s *UserServiceTestSuite) TestUpdate_Success() {
 	user := s.newAdminUser()
+	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
+		return user, nil
+	}
 	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, u *aggregate.User) error {
 		s.Equal(user.ID, u.ID)
 		return nil
 	}
 
-	err := s.service.Update(s.ctx, user)
+	err := s.service.Update(s.ctx, nil, user.ID.String())
 
 	s.Require().NoError(err)
 }
 
+func (s *UserServiceTestSuite) TestUpdate_NotFound() {
+	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
+		return nil, userErrors.ErrUserNotFound
+	}
+
+	err := s.service.Update(s.ctx, nil, uuid.New().String())
+
+	s.Require().Error(err)
+}
+
 func (s *UserServiceTestSuite) TestUpdate_RepositoryError() {
 	user := s.newAdminUser()
+	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id string) (*aggregate.User, error) {
+		return user, nil
+	}
 	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, u *aggregate.User) error {
 		return errors.New("db update error")
 	}
 
-	err := s.service.Update(s.ctx, user)
+	err := s.service.Update(s.ctx, nil, user.ID.String())
 
 	s.Require().Error(err)
 	s.Contains(err.Error(), "db update error")
@@ -325,7 +341,7 @@ func (s *UserServiceTestSuite) TestDeactivateByEmailDomain_StudentDomain_Success
 		return nil
 	}
 
-	err := s.service.DeactivateByEmailDomain(s.ctx, aggregate.EmailDomain_Student)
+	err := s.service.DeactivateByEmailDomain(s.ctx, nil, aggregate.EmailDomain_Student)
 
 	s.Require().NoError(err)
 }
@@ -336,7 +352,7 @@ func (s *UserServiceTestSuite) TestDeactivateByEmailDomain_StaffDomain_Success()
 		return nil
 	}
 
-	err := s.service.DeactivateByEmailDomain(s.ctx, aggregate.EmailDomain_Staff)
+	err := s.service.DeactivateByEmailDomain(s.ctx, nil, aggregate.EmailDomain_Staff)
 
 	s.Require().NoError(err)
 }
@@ -346,7 +362,7 @@ func (s *UserServiceTestSuite) TestDeactivateByEmailDomain_RepositoryError() {
 		return errors.New("db error")
 	}
 
-	err := s.service.DeactivateByEmailDomain(s.ctx, aggregate.EmailDomain_Student)
+	err := s.service.DeactivateByEmailDomain(s.ctx, nil, aggregate.EmailDomain_Student)
 
 	s.Require().Error(err)
 }
