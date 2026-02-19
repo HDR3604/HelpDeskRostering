@@ -3,7 +3,7 @@ import { useUser } from "@/hooks/use-user"
 import { AdminDashboard } from "@/features/admin/admin-dashboard"
 import { StudentDashboard } from "@/features/student/student-dashboard"
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_app/")({
   component: DashboardPage,
 })
 

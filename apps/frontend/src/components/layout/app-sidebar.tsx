@@ -7,6 +7,7 @@ import {
   LogOut,
   GraduationCap,
   ArrowLeftRight,
+  ClipboardList,
 } from "lucide-react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useUser } from "@/hooks/use-user"
@@ -42,6 +43,7 @@ const ADMIN_NAV = [
 
 const STUDENT_NAV = [
   { title: "My Schedule", to: "/", icon: Calendar },
+  { title: "Onboarding", to: "/onboarding", icon: ClipboardList },
   { title: "Settings", to: "/settings", icon: Settings },
 ] as const
 

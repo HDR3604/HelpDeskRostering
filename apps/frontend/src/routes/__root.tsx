@@ -1,6 +1,5 @@
 import { Outlet, createRootRoute } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "../hooks/use-theme"
 import { UserProvider } from "../hooks/use-user"
