@@ -7,11 +7,7 @@ import {
   Download,
   Type,
   Archive,
-  Zap,
-  Search,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   Users,
   ClipboardList,
@@ -21,7 +17,6 @@ import {
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Rectangle, XAxis, YAxis } from "recharts"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import {
   ChartContainer,
@@ -32,14 +27,6 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -47,28 +34,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { DataTable } from "@/components/ui/data-table"
 import { cn } from "@/lib/utils"
 import { StatPill } from "./stat-pill"
+import { getScheduleColumns } from "./columns/schedule-columns"
 import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
-
-type ScheduleStatus = "active" | "archived" | "draft"
-
-function getStatus(schedule: ScheduleResponse): ScheduleStatus {
-  if (schedule.is_active) return "active"
-  if (schedule.archived_at) return "archived"
-  return "draft"
-}
-
-const scheduleStatusStyle: Record<ScheduleStatus, string> = {
-  active: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
-  draft: "bg-blue-500/15 text-blue-500 hover:bg-blue-500/15",
-  archived: "bg-muted text-muted-foreground hover:bg-muted",
-}
-
-function formatDateRange(from: string, to: string | null): string {
-  return from + (to ? ` — ${to}` : " onwards")
-}
 
 function formatDateShort(date: string): string {
   const d = new Date(date + "T00:00:00")
@@ -125,6 +96,11 @@ export function ScheduleListView({
   const draftSchedules = schedules.filter((s) => !s.is_active && !s.archived_at)
   const stats = getScheduleStats(activeSchedule)
 
+  const scheduleColumns = useMemo(
+    () => getScheduleColumns({ onOpen: onOpenSchedule, onRename, onSetActive, onDownload, onArchive }),
+    [onOpenSchedule, onRename, onSetActive, onDownload, onArchive],
+  )
+
   return (
     <div className="flex flex-col gap-6" style={{ minHeight: "calc(100dvh - 3.5rem - 3rem)" }}>
       {/* Page header */}
@@ -158,15 +134,6 @@ export function ScheduleListView({
         </Card>
       )}
 
-      {/* Schedule overview */}
-      {activeSchedule && (
-        <ScheduleOverview
-          schedule={activeSchedule}
-          shiftTemplates={shiftTemplates}
-          studentNames={studentNames}
-        />
-      )}
-
       {/* Draft schedules */}
       {draftSchedules.length > 0 && (
         <Card>
@@ -178,13 +145,11 @@ export function ScheduleListView({
             <CardDescription>Schedules that haven't been activated yet.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ScheduleTable
-              schedules={draftSchedules}
-              onOpenSchedule={onOpenSchedule}
-              onRename={onRename}
-              onSetActive={onSetActive}
-              onDownload={onDownload}
-              onArchive={onArchive}
+            <DataTable
+              columns={scheduleColumns}
+              data={draftSchedules}
+              onRowClick={(row) => onOpenSchedule(row.schedule_id)}
+              emptyMessage="No draft schedules."
             />
           </CardContent>
         </Card>
@@ -194,11 +159,17 @@ export function ScheduleListView({
       {archivedSchedules.length > 0 && (
         <ArchivedSection
           schedules={archivedSchedules}
+          columns={scheduleColumns}
           onOpenSchedule={onOpenSchedule}
-          onRename={onRename}
-          onSetActive={onSetActive}
-          onDownload={onDownload}
-          onArchive={onArchive}
+        />
+      )}
+
+      {/* Schedule overview */}
+      {activeSchedule && (
+        <ScheduleOverview
+          schedule={activeSchedule}
+          shiftTemplates={shiftTemplates}
+          studentNames={studentNames}
         />
       )}
 
@@ -630,200 +601,37 @@ function HoursTrendChart({ data }: { data: { week: string; hours: number }[] }) 
 
 // --- Archived section (collapsible) ---
 
-const PAGE_SIZE = 5
-
 function ArchivedSection({
   schedules,
+  columns,
   onOpenSchedule,
-  onRename,
-  onSetActive,
-  onDownload,
-  onArchive,
 }: {
   schedules: ScheduleResponse[]
+  columns: ReturnType<typeof getScheduleColumns>
   onOpenSchedule: (id: string) => void
-  onRename: (s: ScheduleResponse) => void
-  onSetActive: (s: ScheduleResponse) => void
-  onDownload: (s: ScheduleResponse) => void
-  onArchive: (s: ScheduleResponse) => void
 }) {
   const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState("")
-  const [page, setPage] = useState(0)
-
-  const filtered = useMemo(() => {
-    if (!search) return schedules
-    const q = search.toLowerCase()
-    return schedules.filter((s) => s.title.toLowerCase().includes(q))
-  }, [schedules, search])
-
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-
-  const handleSearch = (value: string) => {
-    setSearch(value)
-    setPage(0)
-  }
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="flex items-center justify-between">
-        <CollapsibleTrigger asChild>
-          <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
-            <span>Archived Schedules</span>
-            <Badge className="bg-muted text-muted-foreground hover:bg-muted text-xs">{schedules.length}</Badge>
-          </button>
-        </CollapsibleTrigger>
-        {open && schedules.length > PAGE_SIZE && (
-          <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="h-8 pl-8 text-xs"
-            />
-          </div>
-        )}
-      </div>
+      <CollapsibleTrigger asChild>
+        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+          <span>Archived Schedules</span>
+          <Badge className="bg-muted text-muted-foreground hover:bg-muted text-xs">{schedules.length}</Badge>
+        </button>
+      </CollapsibleTrigger>
       <CollapsibleContent className="pt-3">
-        {paginated.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">No matching schedules.</p>
-        ) : (
-          <ScheduleTable
-            schedules={paginated}
-            onOpenSchedule={onOpenSchedule}
-            onRename={onRename}
-            onSetActive={onSetActive}
-            onDownload={onDownload}
-            onArchive={onArchive}
-          />
-        )}
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-3">
-            <p className="text-xs text-muted-foreground">
-              {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-7 w-7"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
+        <DataTable
+          columns={columns}
+          data={schedules}
+          searchPlaceholder="Search..."
+          globalFilter
+          pageSize={5}
+          onRowClick={(row) => onOpenSchedule(row.schedule_id)}
+          emptyMessage="No matching schedules."
+        />
       </CollapsibleContent>
     </Collapsible>
-  )
-}
-
-// --- Reusable table for drafts / archived ---
-
-function ScheduleTable({
-  schedules,
-  onOpenSchedule,
-  onRename,
-  onSetActive,
-  onDownload,
-  onArchive,
-}: {
-  schedules: ScheduleResponse[]
-  onOpenSchedule: (id: string) => void
-  onRename: (s: ScheduleResponse) => void
-  onSetActive: (s: ScheduleResponse) => void
-  onDownload: (s: ScheduleResponse) => void
-  onArchive: (s: ScheduleResponse) => void
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Title</TableHead>
-          <TableHead>Date Range</TableHead>
-          <TableHead className="text-center">Students</TableHead>
-          <TableHead className="text-center">Assignments</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {schedules.map((schedule) => {
-          const status = getStatus(schedule)
-          const uniqueStudents = new Set(schedule.assignments.map((a) => a.assistant_id)).size
-
-          return (
-            <TableRow
-              key={schedule.schedule_id}
-              className="cursor-pointer transition-colors hover:bg-primary/[0.04]"
-              onClick={() => onOpenSchedule(schedule.schedule_id)}
-            >
-              <TableCell className="font-medium">{schedule.title}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {formatDateRange(schedule.effective_from, schedule.effective_to)}
-              </TableCell>
-              <TableCell className="text-center">{uniqueStudents}</TableCell>
-              <TableCell className="text-center">{schedule.assignments.length}</TableCell>
-              <TableCell>
-                <Badge className={`capitalize ${scheduleStatusStyle[status]}`}>
-                  {status}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpenSchedule(schedule.schedule_id) }}>
-                      <Pencil className="mr-2 h-3.5 w-3.5" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(schedule) }}>
-                      <Type className="mr-2 h-3.5 w-3.5" />
-                      Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
-                      <Download className="mr-2 h-3.5 w-3.5" />
-                      Download
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!schedule.is_active && (
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onSetActive(schedule) }}>
-                        <Zap className="mr-2 h-3.5 w-3.5" />
-                        Set Active
-                      </DropdownMenuItem>
-                    )}
-                    {!schedule.archived_at && (
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
-                        <Archive className="mr-2 h-3.5 w-3.5" />
-                        Archive
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
-            </TableRow>
-          )
-        })}
-      </TableBody>
-    </Table>
   )
 }

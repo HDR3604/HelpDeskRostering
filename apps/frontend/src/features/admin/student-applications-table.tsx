@@ -1,18 +1,12 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { FileText, Check, X, RefreshCw, LoaderCircle, ArrowRight } from "lucide-react"
+import { RefreshCw, LoaderCircle, ArrowRight } from "lucide-react"
 import { Link } from "@tanstack/react-router"
+import { DataTable } from "@/components/ui/data-table"
 import { TranscriptDialog } from "./transcript-dialog"
+import { getStudentColumns } from "./columns/student-columns"
 import type { Student } from "@/types/student"
 import { getApplicationStatus, type ApplicationStatus } from "@/types/student"
 
@@ -21,12 +15,6 @@ interface StudentApplicationsTableProps {
   onAccept: (studentId: number) => void
   onReject: (studentId: number) => void
   onSync: () => Promise<void>
-}
-
-const statusStyle: Record<ApplicationStatus, string> = {
-  pending: "bg-amber-500/15 text-amber-500 hover:bg-amber-500/15",
-  accepted: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
-  rejected: "bg-red-500/15 text-red-500 hover:bg-red-500/15",
 }
 
 const statusOrder: Record<ApplicationStatus, number> = {
@@ -49,8 +37,14 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
     }
   }
 
-  const sorted = [...students].sort(
-    (a, b) => statusOrder[getApplicationStatus(a)] - statusOrder[getApplicationStatus(b)]
+  const sorted = useMemo(
+    () => [...students].sort((a, b) => statusOrder[getApplicationStatus(a)] - statusOrder[getApplicationStatus(b)]),
+    [students],
+  )
+
+  const columns = useMemo(
+    () => getStudentColumns({ onAccept, onReject, onViewTranscript: setTranscriptStudent }),
+    [onAccept, onReject],
   )
 
   return (
@@ -83,81 +77,12 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
               <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           )}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Programme</TableHead>
-                <TableHead className="text-center">GPA</TableHead>
-                <TableHead>Transcript</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sorted.map((student) => {
-                const status = getApplicationStatus(student)
-                return (
-                  <TableRow key={student.student_id}>
-                    <TableCell className="font-mono text-xs">{student.student_id}</TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{student.first_name} {student.last_name}</p>
-                        <p className="text-xs text-muted-foreground">{student.email_address}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm">{student.transcript_metadata.degree_programme}</p>
-                        <p className="text-xs text-muted-foreground">Level {student.transcript_metadata.current_level}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <span className="font-semibold">{student.transcript_metadata.overall_gpa.toFixed(2)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setTranscriptStudent(student)}
-                      >
-                        <FileText className="mr-1 h-3.5 w-3.5" />
-                        View
-                      </Button>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={`capitalize ${statusStyle[status]}`}>
-                        {status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          disabled={status !== "pending"}
-                          onClick={() => onAccept(student.student_id)}
-                        >
-                          <Check className="mr-1 h-3 w-3" />
-                          Accept
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          disabled={status !== "pending"}
-                          onClick={() => onReject(student.student_id)}
-                        >
-                          <X className="mr-1 h-3 w-3" />
-                          Reject
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={sorted}
+            pageSize={999}
+            emptyMessage="No applications yet."
+          />
           <div className="mt-4 flex justify-center">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/applications">
