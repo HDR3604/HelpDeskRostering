@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import type { ScheduleResponse } from "@/types/schedule"
-import { MOCK_SCHEDULES, MOCK_STUDENTS, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS, MOCK_HOURS_TREND } from "@/lib/mock-data"
+import { MOCK_SCHEDULES, MOCK_STUDENTS, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS, MOCK_HOURS_TREND, MOCK_SCHEDULER_CONFIGS } from "@/lib/mock-data"
 import { ScheduleListView } from "@/features/admin/schedule/schedule-list-view"
 import { CreateScheduleDialog } from "@/features/admin/schedule/create-schedule-dialog"
 import { RenameScheduleDialog } from "@/features/admin/schedule/rename-schedule-dialog"
@@ -95,6 +95,7 @@ function ScheduleListPage() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         students={MOCK_STUDENTS}
+        configs={MOCK_SCHEDULER_CONFIGS}
         onCreated={handleCreateSchedule}
       />
 

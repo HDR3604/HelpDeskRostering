@@ -18,4 +18,5 @@ export interface ScheduleResponse {
   effective_from: string
   effective_to: string | null
   generation_id: string | null
+  config_id: string | null
 }

@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +23,13 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -38,6 +45,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import type { Student } from "@/types/student"
 import type { ScheduleResponse } from "@/types/schedule"
+import type { SchedulerConfig } from "@/types/scheduler-config"
 import { getApplicationStatus } from "@/types/student"
 
 const createScheduleSchema = z
@@ -45,6 +53,7 @@ const createScheduleSchema = z
     title: z.string().min(1, "Title is required").max(100),
     effectiveFrom: z.string().min(1, "Start date is required"),
     effectiveTo: z.string().min(1, "End date is required"),
+    configId: z.string().min(1, "Select a scheduler config"),
     studentIds: z.array(z.string()).min(1, "Select at least one student"),
   })
   .refine((d) => new Date(d.effectiveTo) >= new Date(d.effectiveFrom), {
@@ -58,13 +67,15 @@ interface CreateScheduleDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   students: Student[]
+  configs: SchedulerConfig[]
   onCreated: (schedule: ScheduleResponse) => void
 }
 
-export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }: CreateScheduleDialogProps) {
+export function CreateScheduleDialog({ open, onOpenChange, students, configs, onCreated }: CreateScheduleDialogProps) {
   const [studentPickerOpen, setStudentPickerOpen] = useState(false)
 
   const acceptedStudents = students.filter((s) => getApplicationStatus(s) === "accepted")
+  const defaultConfig = configs.find((c) => c.is_default)
 
   const form = useForm<CreateScheduleValues>({
     resolver: zodResolver(createScheduleSchema),
@@ -72,6 +83,7 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
       title: "",
       effectiveFrom: "",
       effectiveTo: "",
+      configId: defaultConfig?.id ?? "",
       studentIds: [],
     },
   })
@@ -84,6 +96,20 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
       form.setValue("studentIds", current.filter((id) => id !== studentId), { shouldValidate: true })
     } else {
       form.setValue("studentIds", [...current, studentId], { shouldValidate: true })
+    }
+  }
+
+  function removeStudent(studentId: string) {
+    const current = form.getValues("studentIds")
+    form.setValue("studentIds", current.filter((id) => id !== studentId), { shouldValidate: true })
+  }
+
+  function toggleAll() {
+    const allIds = acceptedStudents.map((s) => String(s.student_id))
+    if (selectedIds.length === acceptedStudents.length) {
+      form.setValue("studentIds", [], { shouldValidate: true })
+    } else {
+      form.setValue("studentIds", allIds, { shouldValidate: true })
     }
   }
 
@@ -100,6 +126,7 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
       effective_from: values.effectiveFrom,
       effective_to: values.effectiveTo,
       generation_id: null,
+      config_id: values.configId,
     }
     onCreated(newSchedule)
     form.reset()
@@ -107,7 +134,7 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create Schedule</DialogTitle>
           <DialogDescription>Set up a new weekly schedule with selected students.</DialogDescription>
@@ -160,10 +187,55 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
 
             <FormField
               control={form.control}
+              name="configId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Scheduler Config</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a config..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {configs.map((config) => (
+                        <SelectItem key={config.id} value={config.id}>
+                          <span className="flex items-center gap-2">
+                            {config.name}
+                            {config.is_default && (
+                              <Badge className="bg-muted text-muted-foreground hover:bg-muted text-[10px] px-1.5 py-0">
+                                Default
+                              </Badge>
+                            )}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="studentIds"
               render={() => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Students</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Students</FormLabel>
+                    {acceptedStudents.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={toggleAll}
+                      >
+                        {selectedIds.length === acceptedStudents.length ? "Deselect all" : "Select all"}
+                      </Button>
+                    )}
+                  </div>
                   <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -212,8 +284,18 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
                       {selectedIds.map((sid) => {
                         const student = students.find((s) => String(s.student_id) === sid)
                         return (
-                          <Badge key={sid} className="bg-muted text-muted-foreground hover:bg-muted text-xs">
+                          <Badge
+                            key={sid}
+                            className="bg-muted text-muted-foreground hover:bg-muted text-xs gap-1 pr-1"
+                          >
                             {student ? `${student.first_name} ${student.last_name}` : sid}
+                            <button
+                              type="button"
+                              className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
+                              onClick={() => removeStudent(sid)}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </Badge>
                         )
                       })}
