@@ -18,6 +18,8 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
 import { Route as AppApplicationsRouteImport } from './routes/_app/applications'
 import { Route as AppAboutRouteImport } from './routes/_app/about'
+import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/index'
+import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedule/$scheduleId'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -63,6 +65,16 @@ const AppAboutRoute = AppAboutRouteImport.update({
   path: '/about',
   getParentRoute: () => AppRoute,
 } as any)
+const AppScheduleIndexRoute = AppScheduleIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppScheduleRoute,
+} as any)
+const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
+  id: '/$scheduleId',
+  path: '/$scheduleId',
+  getParentRoute: () => AppScheduleRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -70,19 +82,22 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRoute
   '/about': typeof AppAboutRoute
   '/applications': typeof AppApplicationsRoute
-  '/schedule': typeof AppScheduleRoute
+  '/schedule': typeof AppScheduleRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/showcase': typeof AppShowcaseRoute
+  '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/schedule/': typeof AppScheduleIndexRoute
 }
 export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/about': typeof AppAboutRoute
   '/applications': typeof AppApplicationsRoute
-  '/schedule': typeof AppScheduleRoute
   '/settings': typeof AppSettingsRoute
   '/showcase': typeof AppShowcaseRoute
   '/': typeof AppIndexRoute
+  '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/schedule': typeof AppScheduleIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -91,10 +106,12 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/_app/about': typeof AppAboutRoute
   '/_app/applications': typeof AppApplicationsRoute
-  '/_app/schedule': typeof AppScheduleRoute
+  '/_app/schedule': typeof AppScheduleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/_app/showcase': typeof AppShowcaseRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/_app/schedule/': typeof AppScheduleIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,16 +124,19 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/showcase'
+    | '/schedule/$scheduleId'
+    | '/schedule/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/onboarding'
     | '/sign-up'
     | '/about'
     | '/applications'
-    | '/schedule'
     | '/settings'
     | '/showcase'
     | '/'
+    | '/schedule/$scheduleId'
+    | '/schedule'
   id:
     | '__root__'
     | '/_app'
@@ -128,6 +148,8 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/showcase'
     | '/_app/'
+    | '/_app/schedule/$scheduleId'
+    | '/_app/schedule/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -201,13 +223,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAboutRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/schedule/': {
+      id: '/_app/schedule/'
+      path: '/'
+      fullPath: '/schedule/'
+      preLoaderRoute: typeof AppScheduleIndexRouteImport
+      parentRoute: typeof AppScheduleRoute
+    }
+    '/_app/schedule/$scheduleId': {
+      id: '/_app/schedule/$scheduleId'
+      path: '/$scheduleId'
+      fullPath: '/schedule/$scheduleId'
+      preLoaderRoute: typeof AppScheduleScheduleIdRouteImport
+      parentRoute: typeof AppScheduleRoute
+    }
   }
 }
+
+interface AppScheduleRouteChildren {
+  AppScheduleScheduleIdRoute: typeof AppScheduleScheduleIdRoute
+  AppScheduleIndexRoute: typeof AppScheduleIndexRoute
+}
+
+const AppScheduleRouteChildren: AppScheduleRouteChildren = {
+  AppScheduleScheduleIdRoute: AppScheduleScheduleIdRoute,
+  AppScheduleIndexRoute: AppScheduleIndexRoute,
+}
+
+const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
+  AppScheduleRouteChildren,
+)
 
 interface AppRouteChildren {
   AppAboutRoute: typeof AppAboutRoute
   AppApplicationsRoute: typeof AppApplicationsRoute
-  AppScheduleRoute: typeof AppScheduleRoute
+  AppScheduleRoute: typeof AppScheduleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppShowcaseRoute: typeof AppShowcaseRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -216,7 +266,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAboutRoute: AppAboutRoute,
   AppApplicationsRoute: AppApplicationsRoute,
-  AppScheduleRoute: AppScheduleRoute,
+  AppScheduleRoute: AppScheduleRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppShowcaseRoute: AppShowcaseRoute,
   AppIndexRoute: AppIndexRoute,

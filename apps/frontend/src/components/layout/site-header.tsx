@@ -21,7 +21,11 @@ const PAGE_TITLES: Record<string, string> = {
 export function SiteHeader() {
   const router = useRouterState()
   const currentPath = router.location.pathname
-  const pageTitle = PAGE_TITLES[currentPath] ?? "Page"
+  // Match exact path first, then try the first segment for nested routes
+  const pageTitle =
+    PAGE_TITLES[currentPath] ??
+    PAGE_TITLES["/" + currentPath.split("/").filter(Boolean)[0]] ??
+    "Page"
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
