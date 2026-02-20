@@ -4,10 +4,7 @@ import { MOCK_SCHEDULES, MOCK_SHIFT_TEMPLATES, MOCK_STUDENTS } from "@/lib/mock-
 import { ScheduleEditor } from "@/features/admin/schedule/schedule-editor"
 import { ScheduleEditorSkeleton } from "@/features/admin/schedule/schedule-editor-skeleton"
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
 export const Route = createFileRoute("/_app/schedule/$scheduleId")({
-  loader: () => sleep(1500), // TODO: remove — fake delay for testing skeletons
   component: ScheduleEditorPage,
   pendingComponent: ScheduleEditorSkeleton,
 })

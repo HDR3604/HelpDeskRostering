@@ -1,18 +1,14 @@
-import { useState, useMemo, Fragment } from "react"
+import { lazy, Suspense, useState, useMemo, Fragment } from "react"
 import {
   CalendarDays,
+  LoaderCircle,
   Plus,
   MoreHorizontal,
   Pencil,
   Download,
   Type,
   Archive,
-  ChevronDown,
   ExternalLink,
-  Users,
-  ClipboardList,
-  BarChart3,
-  TrendingUp,
 } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Rectangle, XAxis, YAxis } from "recharts"
 import { Button } from "@/components/ui/button"
@@ -33,10 +29,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { DataTable } from "@/components/ui/data-table"
 import { cn } from "@/lib/utils"
-import { StatPill } from "./stat-pill"
+
+const ScheduleTables = lazy(() =>
+  import("./schedule-tables").then((m) => ({ default: m.ScheduleTables })),
+)
 import { getScheduleColumns } from "./columns/schedule-columns"
 import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
@@ -70,11 +67,13 @@ interface ScheduleListViewProps {
   missedShifts: { name: string; missed: number; total: number; fill: string }[]
   hoursTrend: { week: string; hours: number }[]
   onCreateNew: () => void
+  creatingSchedule?: boolean
   onOpenSchedule: (scheduleId: string) => void
   onRename: (schedule: ScheduleResponse) => void
   onSetActive: (schedule: ScheduleResponse) => void
   onDownload: (schedule: ScheduleResponse) => void
   onArchive: (schedule: ScheduleResponse) => void
+  onUnarchive: (schedule: ScheduleResponse) => void
 }
 
 export function ScheduleListView({
@@ -85,20 +84,21 @@ export function ScheduleListView({
   missedShifts,
   hoursTrend,
   onCreateNew,
+  creatingSchedule,
   onOpenSchedule,
   onRename,
   onSetActive,
   onDownload,
   onArchive,
+  onUnarchive,
 }: ScheduleListViewProps) {
   const activeSchedule = schedules.find((s) => s.is_active) ?? null
-  const archivedSchedules = schedules.filter((s) => s.archived_at)
-  const draftSchedules = schedules.filter((s) => !s.is_active && !s.archived_at)
+  const pastSchedules = schedules.filter((s) => !s.is_active)
   const stats = getScheduleStats(activeSchedule)
 
   const scheduleColumns = useMemo(
-    () => getScheduleColumns({ onOpen: onOpenSchedule, onRename, onSetActive, onDownload, onArchive }),
-    [onOpenSchedule, onRename, onSetActive, onDownload, onArchive],
+    () => getScheduleColumns({ onOpen: onOpenSchedule, onRename, onSetActive, onDownload, onArchive, onUnarchive }),
+    [onOpenSchedule, onRename, onSetActive, onDownload, onArchive, onUnarchive],
   )
 
   return (
@@ -109,68 +109,59 @@ export function ScheduleListView({
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Schedule</h1>
           <p className="mt-1 text-muted-foreground">Create and manage weekly schedules.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={onCreateNew}>
-          <Plus className="mr-1 h-3.5 w-3.5" />
+        <Button variant="outline" size="sm" disabled={creatingSchedule} onClick={onCreateNew}>
+          {creatingSchedule
+            ? <LoaderCircle className="mr-1 h-3.5 w-3.5 animate-spin" />
+            : <Plus className="mr-1 h-3.5 w-3.5" />}
           Create Schedule
         </Button>
       </div>
 
       {/* Active schedule */}
-      {activeSchedule ? (
-        <ActiveScheduleCard
-          schedule={activeSchedule}
-          stats={stats}
-          onOpen={onOpenSchedule}
-          onRename={onRename}
-          onDownload={onDownload}
-          onArchive={onArchive}
-        />
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
-            <p className="mt-3 text-sm text-muted-foreground">No active schedule. Create one or activate a draft.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Draft schedules */}
-      {draftSchedules.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <CardTitle>Drafts</CardTitle>
-              <Badge className="bg-muted text-muted-foreground hover:bg-muted">{draftSchedules.length}</Badge>
-            </div>
-            <CardDescription>Schedules that haven't been activated yet.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DataTable
-              columns={scheduleColumns}
-              data={draftSchedules}
-              onRowClick={(row) => onOpenSchedule(row.schedule_id)}
-              emptyMessage="No draft schedules."
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Active Schedule</h2>
+          <p className="text-sm text-muted-foreground">The currently published weekly schedule.</p>
+        </div>
+        {activeSchedule ? (
+          <>
+            <ActiveScheduleCard
+              schedule={activeSchedule}
+              stats={stats}
+              onOpen={onOpenSchedule}
+              onRename={onRename}
+              onDownload={onDownload}
+              onArchive={onArchive}
             />
-          </CardContent>
-        </Card>
-      )}
+            <ScheduleOverview
+              schedule={activeSchedule}
+              shiftTemplates={shiftTemplates}
+              studentNames={studentNames}
+            />
+          </>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
+              <p className="mt-3 text-sm text-muted-foreground">No active schedule. Create one or activate an existing schedule.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
-      {/* Archived schedules */}
-      {archivedSchedules.length > 0 && (
-        <ArchivedSection
-          schedules={archivedSchedules}
-          columns={scheduleColumns}
-          onOpenSchedule={onOpenSchedule}
-        />
-      )}
-
-      {/* Schedule overview */}
-      {activeSchedule && (
-        <ScheduleOverview
-          schedule={activeSchedule}
-          shiftTemplates={shiftTemplates}
-          studentNames={studentNames}
-        />
+      {/* Past schedules (lazy — loads DataTable on demand) */}
+      {pastSchedules.length > 0 && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center rounded-lg border py-16">
+            <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        }>
+          <ScheduleTables
+            schedules={pastSchedules}
+            columns={scheduleColumns}
+            onOpenSchedule={onOpenSchedule}
+          />
+        </Suspense>
       )}
 
       {/* Analytics */}
@@ -215,64 +206,54 @@ function ActiveScheduleCard({
 
   return (
     <Card
-      className="group cursor-pointer overflow-hidden transition-colors hover:bg-muted/50"
+      className="group cursor-pointer overflow-hidden border-l-2 border-l-emerald-500 transition-colors hover:bg-muted/50"
       onClick={() => onOpen(schedule.schedule_id)}
     >
-      <div className="flex flex-col p-4 sm:px-5 sm:py-4">
-        {/* Top row: title + actions */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-              <CalendarDays className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-base font-semibold">{schedule.title}</span>
-                <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Active</Badge>
-              </div>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {formatDateShort(schedule.effective_from)}
-                {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
-              </p>
-            </div>
+      <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-semibold">{schedule.title}</span>
+            <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[11px]">Active</Badge>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(schedule.schedule_id) }}>
-                  <Pencil className="mr-2 h-3.5 w-3.5" />
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(schedule) }}>
-                  <Type className="mr-2 h-3.5 w-3.5" />
-                  Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
-                  <Download className="mr-2 h-3.5 w-3.5" />
-                  Download
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
-                  <Archive className="mr-2 h-3.5 w-3.5" />
-                  Archive
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
+            <span>
+              {formatDateShort(schedule.effective_from)}
+              {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
+            </span>
+            <span className="text-border">·</span>
+            <span><span className="tabular-nums">{stats.totalStudents}</span> students</span>
+            <span className="text-border">·</span>
+            <span><span className="tabular-nums">{stats.totalAssignments}</span> shifts</span>
           </div>
         </div>
-
-        {/* Stats row */}
-        <div className="mt-4 flex flex-wrap gap-2 pl-[3.25rem]">
-          <StatPill icon={Users} value={stats.totalStudents} label="students" />
-          <StatPill icon={ClipboardList} value={stats.totalAssignments} label="assignments" />
-          <StatPill icon={BarChart3} value={stats.avgHoursPerStudent.toFixed(1)} label="avg/student" />
-          <StatPill icon={TrendingUp} value={peakDayLabel} label="peak day" />
+        <div className="flex items-center gap-1 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(schedule.schedule_id) }}>
+                <Pencil className="mr-2 h-3.5 w-3.5" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(schedule) }}>
+                <Type className="mr-2 h-3.5 w-3.5" />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
+                <Download className="mr-2 h-3.5 w-3.5" />
+                Download
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
+                <Archive className="mr-2 h-3.5 w-3.5" />
+                Archive
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
       </div>
     </Card>
@@ -408,13 +389,13 @@ function ScheduleOverview({
                     <div
                       key={`${slot.start}-${dayIdx}`}
                       className={cn(
-                        "border-b border-border p-1",
+                        "min-h-10 border-b border-border p-1.5 sm:p-2",
                         dayIdx > 0 && "border-l border-border",
                         dayIdx === today && "bg-foreground/[0.03]",
                       )}
                     >
-                      {students.length > 0 && (
-                        <div className="flex flex-col gap-0.5">
+                      {students.length > 0 ? (
+                        <div className="flex flex-col gap-0.5 sm:gap-1">
                           {students.map((sid) => {
                             const color = OVERVIEW_COLORS[studentColorIndex[sid] ?? 0]
                             const name = studentNames[sid] || sid.slice(0, 6)
@@ -422,13 +403,17 @@ function ScheduleOverview({
                             return (
                               <div
                                 key={sid}
-                                className={cn("flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs leading-none", color.bg)}
+                                className={cn("flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs leading-none", color.bg)}
                               >
                                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />
                                 <span className="min-w-0 truncate font-medium text-foreground">{firstName}</span>
                               </div>
                             )
                           })}
+                        </div>
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <span className="text-[9px] text-muted-foreground/30">—</span>
                         </div>
                       )}
                     </div>
@@ -599,39 +584,3 @@ function HoursTrendChart({ data }: { data: { week: string; hours: number }[] }) 
   )
 }
 
-// --- Archived section (collapsible) ---
-
-function ArchivedSection({
-  schedules,
-  columns,
-  onOpenSchedule,
-}: {
-  schedules: ScheduleResponse[]
-  columns: ReturnType<typeof getScheduleColumns>
-  onOpenSchedule: (id: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger asChild>
-        <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
-          <span>Archived Schedules</span>
-          <Badge className="bg-muted text-muted-foreground hover:bg-muted text-xs">{schedules.length}</Badge>
-        </button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="pt-3">
-        <DataTable
-          columns={columns}
-          data={schedules}
-          searchPlaceholder="Search..."
-          globalFilter
-          pageSize={5}
-          onRowClick={(row) => onOpenSchedule(row.schedule_id)}
-          emptyMessage="No matching schedules."
-        />
-      </CollapsibleContent>
-    </Collapsible>
-  )
-}

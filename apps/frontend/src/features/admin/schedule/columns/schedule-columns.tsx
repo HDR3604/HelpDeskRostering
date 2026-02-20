@@ -8,25 +8,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Pencil, Type, Download, Archive, Zap } from "lucide-react"
+import { MoreHorizontal, Pencil, Type, Download, Archive, ArchiveRestore, Zap } from "lucide-react"
 import type { ScheduleResponse } from "@/types/schedule"
 
-type ScheduleStatus = "active" | "archived" | "draft"
-
-function getStatus(schedule: ScheduleResponse): ScheduleStatus {
-  if (schedule.is_active) return "active"
-  if (schedule.archived_at) return "archived"
-  return "draft"
-}
-
-const scheduleStatusStyle: Record<ScheduleStatus, string> = {
-  active: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
-  draft: "bg-blue-500/15 text-blue-500 hover:bg-blue-500/15",
-  archived: "bg-muted text-muted-foreground hover:bg-muted",
+function formatDateShort(date: string): string {
+  const d = new Date(date + "T00:00:00")
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 }
 
 function formatDateRange(from: string, to: string | null): string {
-  return from + (to ? ` — ${to}` : " onwards")
+  return formatDateShort(from) + (to ? ` — ${formatDateShort(to)}` : " onwards")
 }
 
 interface ScheduleColumnCallbacks {
@@ -35,9 +26,10 @@ interface ScheduleColumnCallbacks {
   onSetActive: (s: ScheduleResponse) => void
   onDownload: (s: ScheduleResponse) => void
   onArchive: (s: ScheduleResponse) => void
+  onUnarchive: (s: ScheduleResponse) => void
 }
 
-export function getScheduleColumns({ onOpen, onRename, onSetActive, onDownload, onArchive }: ScheduleColumnCallbacks): ColumnDef<ScheduleResponse>[] {
+export function getScheduleColumns({ onOpen, onRename, onSetActive, onDownload, onArchive, onUnarchive }: ScheduleColumnCallbacks): ColumnDef<ScheduleResponse>[] {
   return [
     {
       accessorKey: "title",
@@ -74,13 +66,16 @@ export function getScheduleColumns({ onOpen, onRename, onSetActive, onDownload, 
     },
     {
       id: "status",
-      accessorFn: (row) => getStatus(row),
+      accessorFn: (row) => row.archived_at ? "archived" : "inactive",
       header: "Status",
       cell: ({ row }) => {
-        const status = getStatus(row.original)
+        const archived = !!row.original.archived_at
         return (
-          <Badge className={`capitalize ${scheduleStatusStyle[status]}`}>
-            {status}
+          <Badge className={archived
+            ? "bg-muted text-muted-foreground hover:bg-muted"
+            : "bg-blue-500/15 text-blue-500 hover:bg-blue-500/15"
+          }>
+            {archived ? "Archived" : "Inactive"}
           </Badge>
         )
       },
@@ -123,6 +118,12 @@ export function getScheduleColumns({ onOpen, onRename, onSetActive, onDownload, 
                   <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
                     <Archive className="mr-2 h-3.5 w-3.5" />
                     Archive
+                  </DropdownMenuItem>
+                )}
+                {schedule.archived_at && (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onUnarchive(schedule) }}>
+                    <ArchiveRestore className="mr-2 h-3.5 w-3.5" />
+                    Unarchive
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>

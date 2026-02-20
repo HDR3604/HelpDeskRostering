@@ -280,6 +280,24 @@ export const MOCK_SCHEDULES: ScheduleResponse[] = [
     generation_id: null,
     config_id: null,
   },
+  {
+    schedule_id: "sched-003",
+    title: "Week 3 — Feb 3-7 Schedule",
+    is_active: false,
+    assignments: [
+      { assistant_id: "816034567", shift_id: "st-001", day_of_week: 0, start: "08:00:00", end: "09:00:00" },
+      { assistant_id: "816090123", shift_id: "st-009", day_of_week: 1, start: "08:00:00", end: "09:00:00" },
+      { assistant_id: "816034567", shift_id: "st-017", day_of_week: 2, start: "08:00:00", end: "09:00:00" },
+    ],
+    created_at: "2026-02-01T10:00:00Z",
+    created_by: "admin-001",
+    updated_at: null,
+    archived_at: null,
+    effective_from: "2026-02-03",
+    effective_to: "2026-02-07",
+    generation_id: null,
+    config_id: null,
+  },
 ]
 
 // --- Scheduler Configs ---
