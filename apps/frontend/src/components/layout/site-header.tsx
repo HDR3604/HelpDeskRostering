@@ -16,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/about": "About",
   "/showcase": "Component Showcase",
+  "/onboarding": "Onboarding",
 }
 
 export function SiteHeader() {

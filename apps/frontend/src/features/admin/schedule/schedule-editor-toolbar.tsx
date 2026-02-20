@@ -90,21 +90,21 @@ export function ScheduleEditorToolbar({
         {/* Stats + Save */}
         <div className="flex items-center gap-3 shrink-0">
           {/* Stats pills — hidden on mobile */}
-          <div className="hidden md:flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1">
-              <Users className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium tabular-nums">{totalStudents}</span>
-              <span className="text-[10px] text-muted-foreground">students</span>
+          <div className="hidden md:flex items-center gap-2">
+            <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium tabular-nums">{totalStudents}</span>
+              <span className="text-xs text-muted-foreground">students</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1">
-              <CalendarDays className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium tabular-nums">{totalAssignments}</span>
-              <span className="text-[10px] text-muted-foreground">slots</span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium tabular-nums">{totalAssignments}</span>
+              <span className="text-xs text-muted-foreground">slots</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs font-medium tabular-nums">{totalHours}h</span>
-              <span className="text-[10px] text-muted-foreground">total</span>
+            <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
+              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium tabular-nums">{totalHours}h</span>
+              <span className="text-xs text-muted-foreground">total</span>
             </div>
           </div>
 

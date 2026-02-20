@@ -15,11 +15,11 @@ function AppLayout() {
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
-        <main className="flex-1 p-3 sm:p-6">
+        <div className="flex-1 p-3 sm:p-6">
           <div key={pathname} className="animate-in fade-in duration-200">
             <Outlet />
           </div>
-        </main>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   )
