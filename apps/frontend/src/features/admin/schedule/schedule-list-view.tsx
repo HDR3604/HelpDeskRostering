@@ -13,6 +13,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Users,
+  ClipboardList,
+  BarChart3,
+  TrendingUp,
 } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Rectangle, XAxis, YAxis } from "recharts"
 import { Button } from "@/components/ui/button"
@@ -44,6 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
+import { StatPill } from "./stat-pill"
 import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 
@@ -234,59 +239,69 @@ function ActiveScheduleCard({
   onDownload: (s: ScheduleResponse) => void
   onArchive: (s: ScheduleResponse) => void
 }) {
+  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+  const peakDayLabel = DAYS[stats.peakDay] ?? "—"
+
   return (
     <Card
-      className="cursor-pointer transition-colors hover:bg-accent/50"
+      className="group cursor-pointer overflow-hidden transition-colors hover:bg-muted/50"
       onClick={() => onOpen(schedule.schedule_id)}
     >
-      <div className="flex items-center justify-between gap-3 px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-            <CalendarDays className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold leading-none">{schedule.title}</span>
-              <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Active</Badge>
+      <div className="flex flex-col p-4 sm:px-5 sm:py-4">
+        {/* Top row: title + actions */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
+              <CalendarDays className="h-5 w-5" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              {formatDateShort(schedule.effective_from)}
-              {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
-              <span className="mx-1.5 text-border">|</span>
-              {stats.totalStudents} student{stats.totalStudents !== 1 ? "s" : ""}
-              <span className="mx-1.5 text-border">|</span>
-              {stats.totalAssignments} assignment{stats.totalAssignments !== 1 ? "s" : ""}
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate text-base font-semibold">{schedule.title}</span>
+                <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Active</Badge>
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {formatDateShort(schedule.effective_from)}
+                {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(schedule.schedule_id) }}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(schedule) }}>
+                  <Type className="mr-2 h-3.5 w-3.5" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
+                  <Download className="mr-2 h-3.5 w-3.5" />
+                  Download
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
+                  <Archive className="mr-2 h-3.5 w-3.5" />
+                  Archive
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(schedule.schedule_id) }}>
-                <Pencil className="mr-2 h-3.5 w-3.5" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(schedule) }}>
-                <Type className="mr-2 h-3.5 w-3.5" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
-                <Download className="mr-2 h-3.5 w-3.5" />
-                Download
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
-                <Archive className="mr-2 h-3.5 w-3.5" />
-                Archive
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+
+        {/* Stats row */}
+        <div className="mt-4 flex flex-wrap gap-2 pl-[3.25rem]">
+          <StatPill icon={Users} value={stats.totalStudents} label="students" />
+          <StatPill icon={ClipboardList} value={stats.totalAssignments} label="assignments" />
+          <StatPill icon={BarChart3} value={stats.avgHoursPerStudent.toFixed(1)} label="avg/student" />
+          <StatPill icon={TrendingUp} value={peakDayLabel} label="peak day" />
         </div>
       </div>
     </Card>
@@ -382,13 +397,13 @@ function ScheduleOverview({
             }}
           >
             {/* Day header row */}
-            <div className="border-b border-border/60" />
+            <div className="border-b border-border" />
             {OVERVIEW_DAYS.map((day, idx) => (
               <div
                 key={day}
                 className={cn(
-                  "flex items-center justify-center border-b border-border/60 py-2",
-                  idx > 0 && "border-l border-border/60",
+                  "flex items-center justify-center border-b border-border py-2",
+                  idx > 0 && "border-l border-border",
                   idx === today && "bg-foreground/[0.03]",
                 )}
               >
@@ -407,7 +422,7 @@ function ScheduleOverview({
             {timeSlots.map((slot) => (
               <Fragment key={slot.start}>
                 {/* Time gutter */}
-                <div className="flex items-start justify-end border-b border-r border-border/60 pr-2 pt-1.5">
+                <div className="flex items-start justify-end border-b border-r border-border pr-2 pt-1.5">
                   <span className="text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
                     {formatHour(slot.start)}
                   </span>
@@ -422,8 +437,8 @@ function ScheduleOverview({
                     <div
                       key={`${slot.start}-${dayIdx}`}
                       className={cn(
-                        "border-b border-border/60 p-1",
-                        dayIdx > 0 && "border-l border-border/60",
+                        "border-b border-border p-1",
+                        dayIdx > 0 && "border-l border-border",
                         dayIdx === today && "bg-foreground/[0.03]",
                       )}
                     >
@@ -436,10 +451,10 @@ function ScheduleOverview({
                             return (
                               <div
                                 key={sid}
-                                className={cn("flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px]", color.bg)}
+                                className={cn("flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs leading-none", color.bg)}
                               >
                                 <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />
-                                <span className="truncate font-medium text-foreground">{firstName}</span>
+                                <span className="min-w-0 truncate font-medium text-foreground">{firstName}</span>
                               </div>
                             )
                           })}
@@ -755,7 +770,7 @@ function ScheduleTable({
           return (
             <TableRow
               key={schedule.schedule_id}
-              className="cursor-pointer"
+              className="cursor-pointer transition-colors hover:bg-primary/[0.04]"
               onClick={() => onOpenSchedule(schedule.schedule_id)}
             >
               <TableCell className="font-medium">{schedule.title}</TableCell>

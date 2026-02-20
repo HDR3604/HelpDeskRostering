@@ -42,13 +42,13 @@ export function ScheduleEditorSkeleton() {
         <div className="flex-1 min-w-0 overflow-x-auto sm:overflow-x-hidden rounded-lg sm:rounded-xl border bg-card">
           <div className="grid grid-cols-[2.5rem_repeat(5,1fr)] sm:grid-cols-[4.5rem_repeat(5,1fr)] h-fit select-none">
             {/* Day header row */}
-            <div className="sticky top-0 left-0 z-30 border-b border-border/60 bg-card" />
+            <div className="sticky top-0 left-0 z-30 border-b border-border bg-card" />
             {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, idx) => (
               <div
                 key={day}
                 className={cn(
-                  "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-2.5 sm:py-3.5",
-                  idx > 0 && "border-l border-border/60",
+                  "sticky top-0 z-20 flex items-center justify-center border-b border-border bg-card py-2.5 sm:py-3.5",
+                  idx > 0 && "border-l border-border",
                 )}
               >
                 <Skeleton className="h-3 w-4 sm:w-7" />
@@ -59,7 +59,7 @@ export function ScheduleEditorSkeleton() {
             {CHIP_COUNTS.map((row, rowIdx) => (
               <Fragment key={rowIdx}>
                 {/* Time gutter */}
-                <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-1.5 sm:pr-3 pt-2">
+                <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border bg-card pr-1.5 sm:pr-3 pt-2">
                   <Skeleton className="h-3 w-5 sm:w-10" />
                 </div>
 
@@ -68,8 +68,8 @@ export function ScheduleEditorSkeleton() {
                   <div
                     key={`${rowIdx}-${dayIdx}`}
                     className={cn(
-                      "border-b border-border/60 p-0.5 sm:p-1.5",
-                      dayIdx > 0 && "border-l border-border/60",
+                      "border-b border-border p-0.5 sm:p-1.5",
+                      dayIdx > 0 && "border-l border-border",
                     )}
                   >
                     <div className="rounded-md">

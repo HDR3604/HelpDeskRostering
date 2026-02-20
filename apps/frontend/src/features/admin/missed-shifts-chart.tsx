@@ -44,7 +44,7 @@ export function MissedShiftsChart({ data }: MissedShiftsChartProps) {
         <CardDescription>Week of Feb 17 – 21</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="h-[220px] w-full">
           <BarChart
             accessibilityLayer
             data={stacked}

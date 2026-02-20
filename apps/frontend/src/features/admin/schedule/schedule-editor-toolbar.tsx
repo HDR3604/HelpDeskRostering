@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { ArrowLeft, Check, X, Loader2, Users, CalendarDays, Clock } from "lucide-react"
+import { StatPill } from "./stat-pill"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -91,21 +92,9 @@ export function ScheduleEditorToolbar({
         <div className="flex items-center gap-3 shrink-0">
           {/* Stats pills — hidden on mobile */}
           <div className="hidden md:flex items-center gap-2">
-            <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
-              <Users className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-sm font-medium tabular-nums">{totalStudents}</span>
-              <span className="text-xs text-muted-foreground">students</span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
-              <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-sm font-medium tabular-nums">{totalAssignments}</span>
-              <span className="text-xs text-muted-foreground">slots</span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-muted/50 px-3 py-1.5">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-sm font-medium tabular-nums">{totalHours}h</span>
-              <span className="text-xs text-muted-foreground">total</span>
-            </div>
+            <StatPill icon={Users} value={totalStudents} label="students" />
+            <StatPill icon={CalendarDays} value={totalAssignments} label="slots" />
+            <StatPill icon={Clock} value={`${totalHours}h`} label="total" />
           </div>
 
           {saveStatus && (

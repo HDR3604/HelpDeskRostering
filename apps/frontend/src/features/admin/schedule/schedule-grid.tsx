@@ -58,13 +58,13 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
       style={{ gridTemplateRows: `auto repeat(${timeSlots.length}, auto)` }}
     >
       {/* Day header row */}
-      <div className="sticky top-0 left-0 z-30 border-b border-border/60 bg-card" />
+      <div className="sticky top-0 left-0 z-30 border-b border-border bg-card" />
       {DAYS_SHORT.map((day, idx) => (
         <div
           key={day}
           className={cn(
-            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-2.5 sm:py-3.5",
-            idx > 0 && "border-l border-border/60",
+            "sticky top-0 z-20 flex items-center justify-center border-b border-border bg-card py-2.5 sm:py-3.5",
+            idx > 0 && "border-l border-border",
           )}
         >
           <span
@@ -85,7 +85,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
       {timeSlots.map((slot) => (
         <Fragment key={slot.start}>
           {/* Time gutter */}
-          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-1.5 sm:pr-3 pt-2">
+          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border bg-card pr-1.5 sm:pr-3 pt-2">
             <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
               <span className="sm:hidden">{formatHourShort(slot.start)}</span>
               <span className="hidden sm:inline">{formatHour(slot.start)}</span>
@@ -99,9 +99,9 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
               <div
                 key={`c-${slot.start}-${dayIdx}`}
                 className={cn(
-                  "border-b border-border/60 p-0.5 sm:p-1.5",
-                  dayIdx > 0 && "border-l border-border/60",
-                  dayIdx === today && "bg-primary/[0.02]",
+                  "border-b border-border p-0.5 sm:p-1.5",
+                  dayIdx > 0 && "border-l border-border",
+                  dayIdx === today && "bg-primary/[0.04]",
                 )}
               >
                 {shift && (
