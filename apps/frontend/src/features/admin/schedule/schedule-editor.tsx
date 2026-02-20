@@ -21,7 +21,7 @@ interface ScheduleEditorProps {
 }
 
 export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onBack }: ScheduleEditorProps) {
-  const { state, dispatch, unassignedStudents, studentColorIndex, handleSave } =
+  const { state, dispatch, assignedStudentIds, studentColorIndex, handleSave } =
     useScheduleEditor(schedule, shiftTemplates, students, onSave)
 
   const studentNames = useMemo(() => buildStudentNameMap(students), [students])
@@ -75,6 +75,18 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     return hours
   }, [state.assignmentsByShift, shiftTemplates])
 
+  // Toolbar stats
+  const toolbarStats = useMemo(() => {
+    const assignedIds = new Set<string>()
+    let totalAssignments = 0
+    for (const ids of Object.values(state.assignmentsByShift)) {
+      totalAssignments += ids.length
+      for (const id of ids) assignedIds.add(id)
+    }
+    const totalHours = Object.values(studentHours).reduce((sum, h) => sum + h, 0)
+    return { totalAssignments, totalStudents: assignedIds.size, totalHours }
+  }, [state.assignmentsByShift, studentHours])
+
   // DnD
   const [activeId, setActiveId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -94,14 +106,16 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     setActiveId(String(event.active.id))
   }, [])
 
+  const dropSucceededRef = useRef(false)
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
-      setActiveId(null)
+      dropSucceededRef.current = false
       const { active, over } = event
-      if (!over) return
+      if (!over) { setActiveId(null); return }
 
       const source = parseDragId(String(active.id))
-      if (!source) return
+      if (!source) { setActiveId(null); return }
 
       const destId = String(over.id)
 
@@ -109,6 +123,7 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
         if (source.context === "cell") {
           dispatch({ type: "UNASSIGN_STUDENT", shiftId: source.shiftId, studentId: source.studentId })
         }
+        setActiveId(null)
         return
       }
 
@@ -116,16 +131,20 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
         const destShiftId = destId.replace("shift::", "")
         if (source.context === "pool") {
           dispatch({ type: "ASSIGN_STUDENT", shiftId: destShiftId, studentId: source.studentId })
+          dropSucceededRef.current = true
         } else if (source.context === "cell" && source.shiftId !== destShiftId) {
           dispatch({ type: "MOVE_STUDENT", fromShiftId: source.shiftId, toShiftId: destShiftId, studentId: source.studentId })
+          dropSucceededRef.current = true
         }
       }
+
+      setActiveId(null)
     },
     [dispatch],
   )
 
   return (
-    <div className="flex flex-col gap-4" style={{ height: "calc(100dvh - 3.5rem - 3rem)" }}>
+    <div className="flex flex-col gap-3 flex-1 min-h-0">
       <ScheduleEditorToolbar
         scheduleTitle={schedule.title}
         dateRange={dateRange}
@@ -134,11 +153,14 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
         hasChanges={state.isDirty}
         isSaving={state.isSaving}
         saveStatus={saveStatus}
+        totalAssignments={toolbarStats.totalAssignments}
+        totalStudents={toolbarStats.totalStudents}
+        totalHours={toolbarStats.totalHours}
       />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex min-h-0 flex-1 gap-4">
-          <div className="flex-1 min-w-0 overflow-auto rounded-xl border bg-card shadow-sm">
+        <div className="flex min-h-0 flex-1 gap-3">
+          <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden rounded-xl border bg-card">
             <ScheduleGrid
               shiftTemplates={shiftTemplates}
               assignmentsByShift={state.assignmentsByShift}
@@ -149,14 +171,15 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
           </div>
 
           <StudentPool
-            unassignedStudents={unassignedStudents}
+            students={students}
+            assignedStudentIds={assignedStudentIds}
             studentColorIndex={studentColorIndex}
             studentHours={studentHours}
             dispatch={dispatch}
           />
         </div>
 
-        <DragOverlay>
+        <DragOverlay dropAnimation={dropSucceededRef.current ? null : undefined}>
           {activeDragData && (
             <StudentChipOverlay name={activeDragData.name} colorIndex={activeDragData.colorIndex} />
           )}

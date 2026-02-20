@@ -378,7 +378,7 @@ function ScheduleOverview({
             className="grid min-w-[36rem]"
             style={{
               gridTemplateColumns: "3.5rem repeat(5, 1fr)",
-              gridTemplateRows: `auto repeat(${timeSlots.length}, 1fr)`,
+              gridTemplateRows: `auto repeat(${timeSlots.length}, auto)`,
             }}
           >
             {/* Day header row */}

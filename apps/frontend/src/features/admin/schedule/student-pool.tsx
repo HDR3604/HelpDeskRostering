@@ -1,54 +1,99 @@
 import { useState } from "react"
 import { useDroppable } from "@dnd-kit/core"
-import { Search, Users, X } from "lucide-react"
+import { Search, Users, X, PanelRightClose, PanelRightOpen } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { Student } from "@/types/student"
 import type { EditorAction } from "./types"
 import { StudentChip } from "./student-chip"
 
 interface StudentPoolProps {
-  unassignedStudents: Student[]
+  students: Student[]
+  assignedStudentIds: Set<string>
   studentColorIndex: Record<string, number>
   studentHours: Record<string, number>
   dispatch: React.Dispatch<EditorAction>
 }
 
-export function StudentPool({ unassignedStudents, studentColorIndex, studentHours, dispatch }: StudentPoolProps) {
+export function StudentPool({ students, assignedStudentIds, studentColorIndex, studentHours, dispatch }: StudentPoolProps) {
   const [search, setSearch] = useState("")
+  const [collapsed, setCollapsed] = useState(false)
   const { setNodeRef, isOver } = useDroppable({ id: "pool" })
 
+  const assignedCount = assignedStudentIds.size
+  const allStudentCount = students.length
+
   const filtered = search
-    ? unassignedStudents.filter((s) =>
+    ? students.filter((s) =>
         `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()),
       )
-    : unassignedStudents
+    : students
+
+  // Collapsed strip
+  if (collapsed) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex w-12 shrink-0 flex-col items-center rounded-xl border bg-card py-3 gap-3 transition-colors",
+          isOver && "ring-2 ring-primary/20 ring-inset bg-accent/50",
+        )}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed(false)}>
+              <PanelRightOpen className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Show students</TooltipContent>
+        </Tooltip>
+
+        <div className="flex flex-col items-center gap-1">
+          <Users className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-medium tabular-nums text-muted-foreground">
+            {assignedCount}/{allStudentCount}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "flex w-64 shrink-0 flex-col rounded-xl border bg-card shadow-sm overflow-hidden transition-colors",
+        "flex w-64 shrink-0 flex-col rounded-xl border bg-card overflow-hidden transition-colors",
         isOver && "ring-2 ring-primary/20 ring-inset bg-accent/50",
       )}
     >
       {/* Header */}
-      <div className="shrink-0 border-b px-4 py-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Students</h3>
-          <span className="text-xs text-muted-foreground">
-            {unassignedStudents.length} available
+      <div className="shrink-0 border-b px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <h3 className="text-sm font-semibold flex-1">Students</h3>
+          <span className="text-[10px] tabular-nums text-muted-foreground shrink-0">
+            {assignedCount}/{allStudentCount}
           </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 -mr-1" onClick={() => setCollapsed(true)}>
+                <PanelRightClose className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Hide panel</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
       {/* Search */}
-      <div className="shrink-0 px-3 pt-3 pb-2">
+      <div className="shrink-0 px-3 pt-2.5 pb-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search..."
+            placeholder="Search students..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 pl-8 pr-7 text-xs"
@@ -65,43 +110,35 @@ export function StudentPool({ unassignedStudents, studentColorIndex, studentHour
         </div>
       </div>
 
-      {/* Unassigned list */}
+      {/* Student list */}
       <ScrollArea className="flex-1 min-h-0">
         <div className="px-1.5 pb-2">
           {filtered.length > 0 ? (
             filtered.map((student) => {
               const sid = String(student.student_id)
-              const hours = studentHours[sid] ?? 0
-              const maxH = student.max_weekly_hours
-
               return (
-                <div key={sid} className="flex items-center">
-                  <div className="flex-1 min-w-0">
-                    <StudentChip
-                      studentId={sid}
-                      name={`${student.first_name} ${student.last_name}`}
-                      colorIndex={studentColorIndex[sid] ?? 0}
-                      context="pool"
-                      dispatch={dispatch}
-                    />
-                  </div>
-                  <span className="shrink-0 pr-2.5 text-[10px] tabular-nums text-muted-foreground">
-                    {hours}/{maxH ?? "∞"}h
-                  </span>
-                </div>
+                <StudentChip
+                  key={sid}
+                  studentId={sid}
+                  name={`${student.first_name} ${student.last_name}`}
+                  colorIndex={studentColorIndex[sid] ?? 0}
+                  context="pool"
+                  hours={studentHours[sid] ?? 0}
+                  maxHours={student.max_weekly_hours}
+                  dispatch={dispatch}
+                />
               )
             })
           ) : (
             <div className="flex flex-col items-center py-8 text-center">
               <Users className="h-5 w-5 text-muted-foreground/30" />
               <p className="mt-1.5 text-xs text-muted-foreground">
-                {search ? "No matches" : "All assigned"}
+                {search ? "No matches" : "No students"}
               </p>
             </div>
           )}
         </div>
       </ScrollArea>
-
     </div>
   )
 }

@@ -36,13 +36,15 @@ function ScheduleEditorPage() {
   }
 
   return (
-    <ScheduleEditor
-      key={scheduleId}
-      schedule={schedule}
-      shiftTemplates={MOCK_SHIFT_TEMPLATES}
-      students={MOCK_STUDENTS}
-      onSave={handleSave}
-      onBack={handleBack}
-    />
+    <div className="mx-auto max-w-7xl" style={{ height: "calc(100dvh - 3.5rem - 3rem)" }}>
+      <ScheduleEditor
+        key={scheduleId}
+        schedule={schedule}
+        shiftTemplates={MOCK_SHIFT_TEMPLATES}
+        students={MOCK_STUDENTS}
+        onSave={handleSave}
+        onBack={handleBack}
+      />
+    </div>
   )
 }

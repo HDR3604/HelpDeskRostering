@@ -47,8 +47,8 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
 
   return (
     <div
-      className="grid h-full grid-cols-[4.5rem_repeat(5,1fr)]"
-      style={{ gridTemplateRows: `auto repeat(${timeSlots.length}, 1fr)` }}
+      className="grid grid-cols-[4.5rem_repeat(5,1fr)] h-fit select-none"
+      style={{ gridTemplateRows: `auto repeat(${timeSlots.length}, auto)` }}
     >
       {/* Day header row */}
       <div className="sticky top-0 left-0 z-30 border-b border-border/60 bg-card" />
@@ -56,20 +56,19 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
         <div
           key={day}
           className={cn(
-            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-3",
+            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-3.5",
             idx > 0 && "border-l border-border/60",
           )}
         >
           <span
             className={cn(
-              "text-xs font-medium",
+              "text-xs font-semibold uppercase tracking-wide",
               idx === today
                 ? "text-foreground"
                 : "text-muted-foreground",
             )}
           >
-            <span className="hidden lg:inline">{day}</span>
-            <span className="lg:hidden">{DAYS_SHORT[idx]}</span>
+            {DAYS_SHORT[idx]}
           </span>
         </div>
       ))}

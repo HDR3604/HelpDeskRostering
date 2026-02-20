@@ -11,10 +11,13 @@ interface StudentChipProps {
   colorIndex: number
   context: "pool" | "cell"
   shiftId?: string
+  hours?: number
+  maxHours?: number | null
+  assigned?: boolean
   dispatch?: React.Dispatch<EditorAction>
 }
 
-export function StudentChip({ studentId, name, colorIndex, context, shiftId, dispatch }: StudentChipProps) {
+export function StudentChip({ studentId, name, colorIndex, context, shiftId, hours, maxHours, dispatch }: StudentChipProps) {
   const dragId = buildDragId(
     context === "pool"
       ? { context: "pool", studentId }
@@ -58,6 +61,8 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, dis
   }
 
   // Pool sidebar chip
+  const atMax = maxHours != null && (hours ?? 0) >= maxHours
+
   return (
     <div
       ref={setNodeRef}
@@ -65,13 +70,21 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, dis
       {...listeners}
       {...attributes}
       className={cn(
-        "group flex items-center gap-2.5 rounded-md px-2.5 py-2 cursor-grab select-none transition-colors",
+        "group flex items-center gap-2 rounded-md px-2.5 py-1.5 cursor-grab select-none transition-colors",
         "hover:bg-accent/50",
         isDragging && "opacity-30",
       )}
     >
       <span className={cn("h-2 w-2 shrink-0 rounded-full", color.dot)} />
-      <span className="min-w-0 flex-1 truncate text-sm text-foreground">{name}</span>
+      <span className="min-w-0 flex-1 truncate text-xs text-foreground">{name}</span>
+      <span
+        className={cn(
+          "text-[10px] tabular-nums shrink-0",
+          atMax ? "text-red-500" : "text-muted-foreground/70",
+        )}
+      >
+        {hours ?? 0}/{maxHours ?? "∞"}h
+      </span>
     </div>
   )
 }
