@@ -23,10 +23,10 @@ interface StudentApplicationsTableProps {
   onSync: () => Promise<void>
 }
 
-const statusVariant: Record<ApplicationStatus, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "outline",
-  accepted: "default",
-  rejected: "destructive",
+const statusStyle: Record<ApplicationStatus, string> = {
+  pending: "bg-amber-500/15 text-amber-500 hover:bg-amber-500/15",
+  accepted: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
+  rejected: "bg-red-500/15 text-red-500 hover:bg-red-500/15",
 }
 
 const statusOrder: Record<ApplicationStatus, number> = {
@@ -62,7 +62,7 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
               <div className="flex items-center gap-2">
                 <CardTitle>Student Applications</CardTitle>
                 {pendingCount > 0 && (
-                  <Badge variant="secondary">
+                  <Badge className="bg-amber-500/15 text-amber-500 hover:bg-amber-500/15">
                     {pendingCount} pending
                   </Badge>
                 )}
@@ -127,7 +127,7 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
                       </Button>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusVariant[status]} className="capitalize">
+                      <Badge className={`capitalize ${statusStyle[status]}`}>
                         {status}
                       </Badge>
                     </TableCell>

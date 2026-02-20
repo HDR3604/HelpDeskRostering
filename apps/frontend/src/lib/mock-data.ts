@@ -327,6 +327,15 @@ export const MOCK_MISSED_SHIFTS = [
   { name: "Natasha Briggs", missed: 4, total: 6, fill: "var(--chart-5)" },
 ]
 
+// Total hours logged per week across the semester (for trend chart)
+export const MOCK_HOURS_TREND = [
+  { week: "Wk 1", hours: 62 },
+  { week: "Wk 2", hours: 78 },
+  { week: "Wk 3", hours: 85 },
+  { week: "Wk 4", hours: 74 },
+  { week: "Wk 5", hours: 96 },
+]
+
 // --- Time Logs (clock in / clock out records for the current schedule week) ---
 
 // Jane Doe: completed Mon 8-12, currently off clock (Tue has no shift)

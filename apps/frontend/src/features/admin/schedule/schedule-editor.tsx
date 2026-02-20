@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core"
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core"
 import type { ScheduleResponse } from "@/types/schedule"
@@ -21,21 +21,43 @@ interface ScheduleEditorProps {
 }
 
 export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onBack }: ScheduleEditorProps) {
-  const { state, dispatch, unassignedStudents, studentColorIndex, handleGenerate, handleSave } =
+  const { state, dispatch, unassignedStudents, studentColorIndex, handleSave } =
     useScheduleEditor(schedule, shiftTemplates, students, onSave)
 
   const studentNames = useMemo(() => buildStudentNameMap(students), [students])
 
-  const dateRange = schedule.effective_from + (schedule.effective_to ? ` — ${schedule.effective_to}` : " onwards")
+  // Save status feedback
+  const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(null)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Count total assignments
-  const assignmentCount = useMemo(() => {
-    let count = 0
-    for (const ids of Object.values(state.assignmentsByShift)) {
-      count += ids.length
+  useEffect(() => {
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  }, [])
+
+  const wrappedSave = useCallback(async () => {
+    try {
+      await handleSave()
+      setSaveStatus("success")
+    } catch {
+      setSaveStatus("error")
     }
-    return count
-  }, [state.assignmentsByShift])
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => setSaveStatus(null), 2000)
+  }, [handleSave])
+
+  // Cmd+S / Ctrl+S keyboard shortcut
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault()
+        if (state.isDirty && !state.isSaving) wrappedSave()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [state.isDirty, state.isSaving, wrappedSave])
+
+  const dateRange = schedule.effective_from + (schedule.effective_to ? ` — ${schedule.effective_to}` : " onwards")
 
   const studentHours = useMemo(() => {
     const hours: Record<string, number> = {}
@@ -107,20 +129,15 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
       <ScheduleEditorToolbar
         scheduleTitle={schedule.title}
         dateRange={dateRange}
-        isActive={schedule.is_active}
-        studentCount={students.length}
-        assignmentCount={assignmentCount}
         onBack={onBack}
-        onSave={handleSave}
-        onGenerate={handleGenerate}
+        onSave={wrappedSave}
         hasChanges={state.isDirty}
-        isGenerating={state.isGenerating}
         isSaving={state.isSaving}
+        saveStatus={saveStatus}
       />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="flex min-h-0 flex-1 gap-4">
-          {/* Calendar grid — inside a Card */}
           <div className="flex-1 min-w-0 overflow-auto rounded-xl border bg-card shadow-sm">
             <ScheduleGrid
               shiftTemplates={shiftTemplates}
@@ -131,10 +148,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
             />
           </div>
 
-          {/* Student pool — Card sidebar */}
           <StudentPool
             unassignedStudents={unassignedStudents}
-            allStudents={students}
             studentColorIndex={studentColorIndex}
             studentHours={studentHours}
             dispatch={dispatch}

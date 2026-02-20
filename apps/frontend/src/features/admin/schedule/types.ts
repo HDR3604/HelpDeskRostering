@@ -41,14 +41,14 @@ export function parseDragId(id: string): DragSource | null {
   return null
 }
 
-// Student color palette (matches mini-weekly-schedule dashboard style)
+// Student color palette — distinct hues, visible in both light and dark mode
 export const STUDENT_COLORS = [
-  { bg: "bg-chart-1/15", text: "text-chart-1", dot: "bg-chart-1", border: "border-chart-1", borderL: "border-l-chart-1" },
-  { bg: "bg-chart-2/15", text: "text-chart-2", dot: "bg-chart-2", border: "border-chart-2", borderL: "border-l-chart-2" },
-  { bg: "bg-chart-3/15", text: "text-chart-3", dot: "bg-chart-3", border: "border-chart-3", borderL: "border-l-chart-3" },
-  { bg: "bg-chart-4/15", text: "text-chart-4", dot: "bg-chart-4", border: "border-chart-4", borderL: "border-l-chart-4" },
-  { bg: "bg-chart-5/15", text: "text-chart-5", dot: "bg-chart-5", border: "border-chart-5", borderL: "border-l-chart-5" },
-  { bg: "bg-blue-500/15", text: "text-blue-500", dot: "bg-blue-500", border: "border-blue-500", borderL: "border-l-blue-500" },
-  { bg: "bg-pink-500/15", text: "text-pink-500", dot: "bg-pink-500", border: "border-pink-500", borderL: "border-l-pink-500" },
-  { bg: "bg-amber-500/15", text: "text-amber-500", dot: "bg-amber-500", border: "border-amber-500", borderL: "border-l-amber-500" },
+  { bg: "bg-blue-100 dark:bg-blue-500/20", dot: "bg-blue-500" },
+  { bg: "bg-emerald-100 dark:bg-emerald-500/20", dot: "bg-emerald-500" },
+  { bg: "bg-violet-100 dark:bg-violet-500/20", dot: "bg-violet-500" },
+  { bg: "bg-rose-100 dark:bg-rose-500/20", dot: "bg-rose-500" },
+  { bg: "bg-amber-100 dark:bg-amber-500/20", dot: "bg-amber-500" },
+  { bg: "bg-teal-100 dark:bg-teal-500/20", dot: "bg-teal-500" },
+  { bg: "bg-pink-100 dark:bg-pink-500/20", dot: "bg-pink-500" },
+  { bg: "bg-sky-100 dark:bg-sky-500/20", dot: "bg-sky-500" },
 ]

@@ -41,7 +41,7 @@ export function ActiveScheduleCard({ schedule }: ActiveScheduleCardProps) {
             <CardTitle>{schedule.title}</CardTitle>
             <CardDescription>Currently active schedule</CardDescription>
           </div>
-          <Badge className="shrink-0">Active</Badge>
+          <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Active</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

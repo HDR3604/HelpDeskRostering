@@ -100,7 +100,7 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
             <CardTitle>{schedule.title}</CardTitle>
             <p className="text-sm text-muted-foreground">Active schedule overview</p>
           </div>
-          <Badge className="shrink-0">Active</Badge>
+          <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Active</Badge>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
           {stats.map((s) => (
@@ -125,7 +125,7 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
                   className={cn(
                     "text-center text-xs font-medium py-1.5 rounded-md",
                     isToday
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-foreground/[0.06] text-foreground"
                       : "text-muted-foreground"
                   )}
                 >

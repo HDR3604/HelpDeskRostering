@@ -160,7 +160,7 @@ export function AdminDashboard() {
       <div className="space-y-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Weekly Analytics</h2>
+            <h2 className="text-lg font-semibold">Analytics</h2>
             <p className="text-sm text-muted-foreground">Hours worked and attendance for the current schedule period.</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

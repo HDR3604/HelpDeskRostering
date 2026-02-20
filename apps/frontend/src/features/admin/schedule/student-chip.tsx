@@ -27,7 +27,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, dis
   const color = STUDENT_COLORS[colorIndex % STUDENT_COLORS.length]
   const firstName = name.split(" ")[0]
 
-  // Grid cell chip — compact colored event block
+  // Grid cell chip
   if (context === "cell") {
     return (
       <div
@@ -36,7 +36,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, dis
         {...listeners}
         {...attributes}
         className={cn(
-          "group flex items-center gap-1.5 rounded px-1.5 py-1 text-[11px] leading-none cursor-grab select-none",
+          "group flex items-center gap-1.5 rounded-md px-2 py-1 text-xs leading-none cursor-grab select-none",
           color.bg,
           isDragging && "opacity-30",
         )}
@@ -57,7 +57,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, dis
     )
   }
 
-  // Pool sidebar chip — dot + name, clean list item
+  // Pool sidebar chip
   return (
     <div
       ref={setNodeRef}
@@ -65,7 +65,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, dis
       {...listeners}
       {...attributes}
       className={cn(
-        "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 cursor-grab select-none transition-colors",
+        "group flex items-center gap-2.5 rounded-md px-2.5 py-2 cursor-grab select-none transition-colors",
         "hover:bg-accent/50",
         isDragging && "opacity-30",
       )}
@@ -83,7 +83,7 @@ export function StudentChipOverlay({ name, colorIndex }: { name: string; colorIn
 
   return (
     <div className={cn(
-      "flex items-center gap-1.5 rounded px-2 py-1 text-[11px] leading-none shadow-lg ring-1 ring-black/5",
+      "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs leading-none shadow-lg ring-1 ring-black/5",
       color.bg,
     )}>
       <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />

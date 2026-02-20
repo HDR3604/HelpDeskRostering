@@ -1,23 +1,21 @@
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { useDroppable } from "@dnd-kit/core"
-import { Search, Users } from "lucide-react"
+import { Search, Users, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Student } from "@/types/student"
 import type { EditorAction } from "./types"
-import { STUDENT_COLORS } from "./types"
 import { StudentChip } from "./student-chip"
 
 interface StudentPoolProps {
   unassignedStudents: Student[]
-  allStudents: Student[]
   studentColorIndex: Record<string, number>
   studentHours: Record<string, number>
   dispatch: React.Dispatch<EditorAction>
 }
 
-export function StudentPool({ unassignedStudents, allStudents, studentColorIndex, studentHours, dispatch }: StudentPoolProps) {
+export function StudentPool({ unassignedStudents, studentColorIndex, studentHours, dispatch }: StudentPoolProps) {
   const [search, setSearch] = useState("")
   const { setNodeRef, isOver } = useDroppable({ id: "pool" })
 
@@ -26,11 +24,6 @@ export function StudentPool({ unassignedStudents, allStudents, studentColorIndex
         `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()),
       )
     : unassignedStudents
-
-  const assignedStudents = useMemo(
-    () => allStudents.filter((s) => !unassignedStudents.some((u) => u.student_id === s.student_id)),
-    [allStudents, unassignedStudents],
-  )
 
   return (
     <div
@@ -58,8 +51,17 @@ export function StudentPool({ unassignedStudents, allStudents, studentColorIndex
             placeholder="Search..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 pl-8 text-xs"
+            className="h-8 pl-8 pr-7 text-xs"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -100,26 +102,6 @@ export function StudentPool({ unassignedStudents, allStudents, studentColorIndex
         </div>
       </ScrollArea>
 
-      {/* Assigned section */}
-      {assignedStudents.length > 0 && (
-        <div className="shrink-0 border-t px-4 py-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-2">
-            Assigned ({assignedStudents.length})
-          </p>
-          <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {assignedStudents.map((student) => {
-              const sid = String(student.student_id)
-              const color = STUDENT_COLORS[studentColorIndex[sid] % STUDENT_COLORS.length]
-              return (
-                <div key={sid} className="flex items-center gap-1.5 text-xs">
-                  <span className={cn("h-2 w-2 rounded-full shrink-0", color.dot)} />
-                  <span className="text-muted-foreground">{student.first_name}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
