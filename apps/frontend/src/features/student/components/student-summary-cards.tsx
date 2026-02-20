@@ -2,6 +2,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { Clock, CalendarCheck, CalendarClock, CircleDot, TrendingUp, Minus } from "lucide-react"
 import { MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS } from "@/lib/mock-data"
+import { ALL_DAYS_SHORT } from "@/lib/constants"
+import { formatHour, getScheduledHours } from "@/lib/format"
+import { getNextAssignment } from "../utils"
 import type { Student } from "@/types/student"
 import type { Assignment } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
@@ -20,44 +23,6 @@ interface StatCard {
   icon: React.ElementType
   trend?: { value: string; direction: "up" | "neutral" }
   iconClassName: string
-}
-
-const DAY_NAMES_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-
-function getNextAssignment(assignments: Assignment[]): Assignment | null {
-  if (assignments.length === 0) return null
-
-  const now = new Date()
-  const jsDay = now.getDay()
-  const today = jsDay === 0 ? 6 : jsDay - 1
-  const currentHour = now.getHours()
-
-  const sorted = [...assignments].sort((a, b) => {
-    if (a.day_of_week !== b.day_of_week) return a.day_of_week - b.day_of_week
-    return a.start.localeCompare(b.start)
-  })
-
-  for (const a of sorted) {
-    const endHour = parseInt(a.end.split(":")[0], 10)
-    if (a.day_of_week > today || (a.day_of_week === today && endHour > currentHour)) {
-      return a
-    }
-  }
-
-  return sorted[0]
-}
-
-function formatTimeShort(t: string) {
-  const hour = parseInt(t.split(":")[0], 10)
-  return hour <= 12 ? `${hour} AM` : `${hour - 12} PM`
-}
-
-function getScheduledHours(assignments: Assignment[]): number {
-  return assignments.reduce((sum, a) => {
-    const start = parseInt(a.start.split(":")[0], 10)
-    const end = parseInt(a.end.split(":")[0], 10)
-    return sum + (end - start)
-  }, 0)
 }
 
 function formatDuration(ms: number): string {
@@ -100,7 +65,7 @@ export function StudentSummaryCards({ student, assignments, shiftTemplates, time
     const since = Date.now() - new Date(latestLog.exit_at).getTime()
     clockTrend = `Last clocked out ${formatDuration(since)} ago`
   } else if (next) {
-    clockTrend = `Next: ${DAY_NAMES_SHORT[next.day_of_week]} ${formatTimeShort(next.start)}`
+    clockTrend = `Next: ${ALL_DAYS_SHORT[next.day_of_week]} ${formatHour(next.start)}`
   } else {
     clockTrend = "No shifts scheduled"
   }
@@ -122,7 +87,7 @@ export function StudentSummaryCards({ student, assignments, shiftTemplates, time
     },
     {
       title: "Next Shift",
-      value: next ? `${DAY_NAMES_SHORT[next.day_of_week]} ${formatTimeShort(next.start)}` : "—",
+      value: next ? `${ALL_DAYS_SHORT[next.day_of_week]} ${formatHour(next.start)}` : "—",
       icon: CalendarClock,
       iconClassName: "bg-violet-500/10 text-violet-500",
       trend: template ? { value: template.name, direction: "neutral" } : undefined,

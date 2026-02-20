@@ -44,6 +44,16 @@ export function toDateString(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
+/** Duration in hours between two time strings: getShiftDuration("08:00", "10:00") → 2. */
+export function getShiftDuration(start: string, end: string): number {
+  return parseHour(end) - parseHour(start)
+}
+
+/** Total hours across a list of assignments with start/end time strings. */
+export function getScheduledHours(assignments: { start: string; end: string }[]): number {
+  return assignments.reduce((sum, a) => sum + getShiftDuration(a.start, a.end), 0)
+}
+
 /** Adds days to a date string: addDays("2025-02-17", 7) → "2025-02-24". */
 export function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr + "T00:00:00")

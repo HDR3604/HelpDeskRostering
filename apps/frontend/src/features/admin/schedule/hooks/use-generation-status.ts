@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import type { ScheduleResponse, GenerationStatusUpdate, Assignment } from "@/types/schedule"
 import type { Student } from "@/types/student"
 import { MOCK_SHIFT_TEMPLATES } from "@/lib/mock-data"
-import { autoGenerate } from "./auto-generate"
+import { autoGenerate } from "../auto-generate"
 
 interface GenerationFormValues {
   title: string

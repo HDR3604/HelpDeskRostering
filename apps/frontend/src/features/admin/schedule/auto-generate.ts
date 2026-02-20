@@ -1,6 +1,7 @@
 import type { ShiftTemplate } from "@/types/shift-template"
 import type { Student } from "@/types/student"
 
+// TODO: Remove this file — dev-only stub. Schedule generation will be handled by the backend.
 /** Simple greedy auto-generation algorithm */
 export function autoGenerate(shifts: ShiftTemplate[], students: Student[]): Record<string, string[]> {
   const result: Record<string, string[]> = {}

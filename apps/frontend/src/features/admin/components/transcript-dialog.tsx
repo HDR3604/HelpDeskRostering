@@ -9,7 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-import { WEEKDAYS_SHORT, APPLICATION_STATUS_STYLES } from "@/lib/constants"
+import { WEEKDAYS_SHORT, APPLICATION_STATUS_STYLES, gradeColor } from "@/lib/constants"
 import { Clock, GraduationCap, Search } from "lucide-react"
 import type { Student } from "@/types/student"
 import { getApplicationStatus } from "@/types/student"
@@ -26,14 +26,6 @@ function formatHourLabel(h: number) {
   return h <= 12 ? `${h}am` : `${h - 12}pm`
 }
 
-function gradeColor(grade: string | null): string {
-  if (!grade) return "text-muted-foreground"
-  if (grade.startsWith("A")) return "text-emerald-600 dark:text-emerald-400"
-  if (grade.startsWith("B")) return "text-blue-600 dark:text-blue-400"
-  if (grade.startsWith("C")) return "text-amber-600 dark:text-amber-400"
-  if (grade.startsWith("D") || grade.startsWith("F")) return "text-red-600 dark:text-red-400"
-  return "text-muted-foreground"
-}
 
 export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDialogProps) {
   const [courseSearch, setCourseSearch] = useState("")

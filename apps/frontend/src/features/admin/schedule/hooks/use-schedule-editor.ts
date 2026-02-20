@@ -3,8 +3,8 @@ import { toast } from "sonner"
 import type { ScheduleResponse, Assignment } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 import type { Student } from "@/types/student"
-import type { EditorState, EditorAction } from "./types"
-import { autoGenerate } from "./auto-generate"
+import type { EditorState, EditorAction } from "../types"
+import { autoGenerate } from "../auto-generate"
 
 function isDirty(current: Record<string, string[]>, original: Record<string, string[]>): boolean {
   const allKeys = Array.from(new Set([...Object.keys(current), ...Object.keys(original)]))

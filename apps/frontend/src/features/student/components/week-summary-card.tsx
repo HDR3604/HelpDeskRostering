@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { CalendarDays, Layers, Clock } from "lucide-react"
+import { formatDateRange, getScheduledHours } from "@/lib/format"
 import type { Assignment, ScheduleResponse } from "@/types/schedule"
 
 interface WeekSummaryCardProps {
@@ -8,17 +9,9 @@ interface WeekSummaryCardProps {
   schedule: ScheduleResponse
 }
 
-function getTotalHours(assignments: Assignment[]): number {
-  return assignments.reduce((sum, a) => {
-    const startH = parseInt(a.start.split(":")[0], 10)
-    const endH = parseInt(a.end.split(":")[0], 10)
-    return sum + (endH - startH)
-  }, 0)
-}
-
 export function WeekSummaryCard({ assignments, schedule }: WeekSummaryCardProps) {
   const totalShifts = assignments.length
-  const totalHours = getTotalHours(assignments)
+  const totalHours = getScheduledHours(assignments)
 
   const stats = [
     { icon: Layers, label: "Shifts", value: totalShifts },
@@ -34,10 +27,7 @@ export function WeekSummaryCard({ assignments, schedule }: WeekSummaryCardProps)
       <CardContent className="space-y-4">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4" />
-          <span>
-            {schedule.effective_from}
-            {schedule.effective_to ? ` — ${schedule.effective_to}` : " onwards"}
-          </span>
+          <span>{formatDateRange(schedule.effective_from, schedule.effective_to)}</span>
         </div>
 
         <Separator />

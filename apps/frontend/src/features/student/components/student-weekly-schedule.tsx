@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { CalendarPlus, Clock } from "lucide-react"
+import { WEEKDAYS_SHORT, WEEKDAYS_FULL, getTodayWeekdayIndex } from "@/lib/constants"
+import { formatHour, getShiftDuration } from "@/lib/format"
 import type { Assignment, ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 
@@ -9,19 +11,6 @@ interface StudentWeeklyScheduleProps {
   assignments: Assignment[]
   shiftTemplates: ShiftTemplate[]
   schedule: ScheduleResponse
-}
-
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-const FULL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-
-function formatTime12(t: string) {
-  const hour = parseInt(t.split(":")[0], 10)
-  if (hour === 12) return "12 PM"
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
-}
-
-function getShiftHours(start: string, end: string): number {
-  return parseInt(end.split(":")[0], 10) - parseInt(start.split(":")[0], 10)
 }
 
 /** Build an .ics file string for all assignments in the schedule week */
@@ -51,7 +40,7 @@ function buildIcs(assignments: Assignment[], shiftTemplates: ShiftTemplate[], sc
       `DTSTART:${dtStart}`,
       `DTEND:${dtEnd}`,
       `SUMMARY:Helpdesk — ${template?.name ?? "Shift"}`,
-      `DESCRIPTION:${FULL_DAYS[a.day_of_week]} ${formatTime12(a.start)} – ${formatTime12(a.end)}`,
+      `DESCRIPTION:${WEEKDAYS_FULL[a.day_of_week]} ${formatHour(a.start)} – ${formatHour(a.end)}`,
       `UID:${schedule.schedule_id}-${a.shift_id}-${a.day_of_week}@helpdesk`,
       "END:VEVENT",
     )
@@ -104,9 +93,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
     byDay[Number(day)].sort((a, b) => a.start.localeCompare(b.start))
   }
 
-  // Check which day is today (0=Mon)
-  const jsDay = new Date().getDay()
-  const today = jsDay === 0 ? 6 : jsDay - 1
+  const today = getTodayWeekdayIndex()
 
   function handleExportCalendar() {
     const ics = buildIcs(assignments, shiftTemplates, schedule)
@@ -128,7 +115,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
       <CardContent>
         {/* Desktop: column grid */}
         <div className="hidden sm:grid sm:grid-cols-5 sm:gap-2">
-          {DAYS.map((day, idx) => {
+          {WEEKDAYS_SHORT.map((day, idx) => {
             const isToday = idx === today
             const dayAssignments = byDay[idx] || []
 
@@ -151,7 +138,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                 {dayAssignments.length > 0 ? (
                   dayAssignments.map((a) => {
                     const template = shiftTemplates.find((t) => t.id === a.shift_id)
-                    const hours = getShiftHours(a.start, a.end)
+                    const hours = getShiftDuration(a.start, a.end)
                     return (
                       <div
                         key={a.shift_id}
@@ -162,7 +149,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                         </p>
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Clock className="h-3 w-3 shrink-0" />
-                          <span>{formatTime12(a.start)} – {formatTime12(a.end)}</span>
+                          <span>{formatHour(a.start)} – {formatHour(a.end)}</span>
                         </div>
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
                           {hours} {hours === 1 ? "hour" : "hours"}
@@ -182,7 +169,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
 
         {/* Mobile: vertical day list */}
         <div className="space-y-2 sm:hidden">
-          {DAYS.map((day, idx) => {
+          {WEEKDAYS_SHORT.map((day, idx) => {
             const isToday = idx === today
             const dayAssignments = byDay[idx] || []
             if (dayAssignments.length === 0) return null
@@ -196,11 +183,8 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span className={cn(
-                    "text-sm font-semibold",
-                    isToday ? "text-foreground" : "text-foreground"
-                  )}>
-                    {FULL_DAYS[idx]}
+                  <span className="text-sm font-semibold text-foreground">
+                    {WEEKDAYS_FULL[idx]}
                   </span>
                   {isToday && (
                     <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-medium text-foreground">
@@ -211,7 +195,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                 <div className="mt-1.5 space-y-1.5">
                   {dayAssignments.map((a) => {
                     const template = shiftTemplates.find((t) => t.id === a.shift_id)
-                    const hours = getShiftHours(a.start, a.end)
+                    const hours = getShiftDuration(a.start, a.end)
                     return (
                       <div
                         key={a.shift_id}
@@ -221,7 +205,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                           <p className="text-xs font-semibold">{template?.name ?? "Shift"}</p>
                           <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                             <Clock className="h-3 w-3" />
-                            <span>{formatTime12(a.start)} – {formatTime12(a.end)}</span>
+                            <span>{formatHour(a.start)} – {formatHour(a.end)}</span>
                           </div>
                         </div>
                         <span className="text-xs font-medium text-muted-foreground">

@@ -49,7 +49,7 @@ import { toDateString, addDays } from "@/lib/format"
 import type { ScheduleResponse, GenerationStatusUpdate } from "@/types/schedule"
 import type { SchedulerConfig } from "@/types/scheduler-config"
 import { getApplicationStatus } from "@/types/student"
-import { useGenerationStatus } from "../use-generation-status"
+import { useGenerationStatus } from "../hooks/use-generation-status"
 
 const createScheduleSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
