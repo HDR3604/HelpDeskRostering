@@ -19,7 +19,7 @@ export function HoursTrendChart({ data }: { data: { week: string; hours: number 
         <CardDescription>Total hours worked per week this semester</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="h-[240px] w-full">
           <LineChart accessibilityLayer data={data} margin={{ top: 16, right: 16 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={10} />

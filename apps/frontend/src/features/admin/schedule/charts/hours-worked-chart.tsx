@@ -22,7 +22,7 @@ export function HoursWorkedChart({ data }: { data: { name: string; hours: number
         <CardDescription>Week of Feb 17 – 21</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="h-[220px] w-full">
           <BarChart
             accessibilityLayer
             data={sorted}

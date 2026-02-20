@@ -291,7 +291,7 @@ function ScheduleOverview({
                                       <span className="min-w-0 truncate font-medium text-foreground">{firstName}</span>
                                     </div>
                                   </TooltipTrigger>
-                                  <TooltipContent side="top" sideOffset={4} showArrow={false} className="bg-background text-foreground border border-border/50 rounded-lg shadow-xl px-2.5 py-1.5 text-xs">
+                                  <TooltipContent side="top">
                                     {name}
                                   </TooltipContent>
                                 </Tooltip>

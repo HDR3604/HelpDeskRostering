@@ -78,7 +78,7 @@ export function ScheduleEditorToolbar({
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" sideOffset={4} showArrow={false} className="bg-background text-foreground border border-border/50 rounded-lg shadow-xl px-2.5 py-1.5 text-xs">Back to schedules</TooltipContent>
+            <TooltipContent side="bottom">Back to schedules</TooltipContent>
           </Tooltip>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -139,7 +139,7 @@ export function ScheduleEditorToolbar({
                   Save
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom" sideOffset={4} showArrow={false} className="bg-background text-foreground border border-border/50 rounded-lg shadow-xl px-2.5 py-1.5 text-xs">
+              <TooltipContent side="bottom">
                 <kbd className="text-[10px]">⌘S</kbd>
               </TooltipContent>
             </Tooltip>
