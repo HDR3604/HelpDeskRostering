@@ -20,11 +20,21 @@ import {
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 
+export type ScheduleStatus = "active" | "inactive" | "archived"
+
+const STATUS_BADGE: Record<ScheduleStatus, { label: string; className: string }> = {
+  active: { label: "Active", className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15" },
+  inactive: { label: "Inactive", className: "bg-blue-500/15 text-blue-500 hover:bg-blue-500/15" },
+  archived: { label: "Archived", className: "bg-muted text-muted-foreground hover:bg-muted" },
+}
+
 interface ScheduleEditorToolbarProps {
   scheduleTitle: string
+  scheduleStatus: ScheduleStatus
   dateRange: string
   onBack: () => void
   onSave: () => void
+  onRename: () => void
   hasChanges: boolean
   isSaving: boolean
   saveStatus: "success" | "error" | null
@@ -35,9 +45,11 @@ interface ScheduleEditorToolbarProps {
 
 export function ScheduleEditorToolbar({
   scheduleTitle,
+  scheduleStatus,
   dateRange,
   onBack,
   onSave,
+  onRename,
   hasChanges,
   isSaving,
   saveStatus,
@@ -70,14 +82,20 @@ export function ScheduleEditorToolbar({
           </Tooltip>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{scheduleTitle}</h1>
-              {hasChanges ? (
+              <button
+                type="button"
+                onClick={onRename}
+                className="text-xl sm:text-2xl font-bold tracking-tight truncate hover:underline decoration-muted-foreground/40 underline-offset-4 cursor-pointer text-left"
+                title="Click to rename"
+              >
+                {scheduleTitle}
+              </button>
+              <Badge className={cn(STATUS_BADGE[scheduleStatus].className, "text-xs px-2 py-0.5 shrink-0")}>
+                {STATUS_BADGE[scheduleStatus].label}
+              </Badge>
+              {hasChanges && (
                 <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 text-xs px-2 py-0.5 shrink-0">
                   Unsaved
-                </Badge>
-              ) : (
-                <Badge className="bg-muted text-muted-foreground hover:bg-muted text-xs px-2 py-0.5 shrink-0">
-                  Draft
                 </Badge>
               )}
             </div>

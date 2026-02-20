@@ -22,6 +22,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+const EMPTY_COLUMN_FILTERS: ColumnFiltersState = []
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -45,7 +47,7 @@ export function DataTable<TData, TValue>({
   onRowClick,
   emptyMessage = "No results.",
   toolbarSlot,
-  columnFilters = [],
+  columnFilters = EMPTY_COLUMN_FILTERS,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilter, setColumnFilter] = useState("")

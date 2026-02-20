@@ -154,7 +154,7 @@ export function ScheduleListView({
         )}
       </div>
 
-      {/* Past schedules (lazy — loads DataTable on demand) */}
+      {/* Schedules table (lazy — loads DataTable on demand) */}
       {pastSchedules.length > 0 && (
         <Suspense fallback={
           <div className="flex items-center justify-center rounded-lg border py-16">

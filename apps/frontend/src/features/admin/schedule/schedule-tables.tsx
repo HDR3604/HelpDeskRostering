@@ -20,8 +20,15 @@ interface ScheduleTablesProps {
   onOpenSchedule: (id: string) => void
 }
 
+function isToday(dateStr: string) {
+  const d = new Date(dateStr)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
+}
+
 export function ScheduleTables({ schedules, columns, onOpenSchedule }: ScheduleTablesProps) {
-  const [open, setOpen] = useState(false)
+  const hasNew = schedules.some((s) => isToday(s.created_at))
+  const [open, setOpen] = useState(hasNew)
   const [statusFilter, setStatusFilter] = useState("all")
 
   const sorted = useMemo(
@@ -58,8 +65,17 @@ export function ScheduleTables({ schedules, columns, onOpenSchedule }: ScheduleT
       <CollapsibleTrigger asChild>
         <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
-          <span>Past Schedules</span>
+          <span>Schedules</span>
           <Badge className="bg-muted text-muted-foreground hover:bg-muted text-xs">{schedules.length}</Badge>
+          {hasNew && (
+            <span className="flex items-center gap-1.5 text-xs text-emerald-500">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              New schedule available
+            </span>
+          )}
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-2">

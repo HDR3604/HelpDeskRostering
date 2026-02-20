@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RefreshCw, LoaderCircle, ArrowRight } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { DataTable } from "@/components/ui/data-table"
-import { TranscriptDialog } from "./transcript-dialog"
 import { getStudentColumns } from "./columns/student-columns"
 import type { Student } from "@/types/student"
 import { getApplicationStatus, type ApplicationStatus } from "@/types/student"
@@ -15,6 +14,7 @@ interface StudentApplicationsTableProps {
   onAccept: (studentId: number) => void
   onReject: (studentId: number) => void
   onSync: () => Promise<void>
+  onViewTranscript: (student: Student) => void
 }
 
 const statusOrder: Record<ApplicationStatus, number> = {
@@ -23,8 +23,7 @@ const statusOrder: Record<ApplicationStatus, number> = {
   rejected: 2,
 }
 
-export function StudentApplicationsTable({ students, onAccept, onReject, onSync }: StudentApplicationsTableProps) {
-  const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(null)
+export function StudentApplicationsTable({ students, onAccept, onReject, onSync, onViewTranscript }: StudentApplicationsTableProps) {
   const [syncing, setSyncing] = useState(false)
   const pendingCount = students.filter((s) => getApplicationStatus(s) === "pending").length
 
@@ -43,7 +42,7 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
   )
 
   const columns = useMemo(
-    () => getStudentColumns({ onAccept, onReject, onViewTranscript: setTranscriptStudent }),
+    () => getStudentColumns({ onAccept, onReject, onViewTranscript }),
     [onAccept, onReject],
   )
 
@@ -93,12 +92,6 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync 
           </div>
         </CardContent>
       </Card>
-
-      <TranscriptDialog
-        student={transcriptStudent}
-        open={!!transcriptStudent}
-        onOpenChange={(open) => { if (!open) setTranscriptStudent(null) }}
-      />
     </>
   )
 }

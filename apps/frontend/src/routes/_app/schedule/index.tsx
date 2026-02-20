@@ -33,6 +33,8 @@ function ScheduleListPage() {
   const [notifyTarget, setNotifyTarget] = useState<ScheduleResponse | null>(null)
 
   function handleCreateSchedule(newSchedule: ScheduleResponse) {
+    // Add to global mock array so the editor route can find it
+    MOCK_SCHEDULES.unshift(newSchedule)
     setSchedules((prev) => [newSchedule, ...prev])
     setCreateDialogOpen(false)
     navigate({ to: "/schedule/$scheduleId", params: { scheduleId: newSchedule.schedule_id } })

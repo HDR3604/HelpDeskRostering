@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { Clock, GraduationCap, Search } from "lucide-react"
 import type { Student } from "@/types/student"
@@ -54,7 +53,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] gap-0 overflow-hidden p-0">
+      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="sr-only">
           <DialogTitle>Student Transcript</DialogTitle>
           <DialogDescription>
@@ -103,7 +102,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
         </div>
 
         {/* Scrollable body */}
-        <ScrollArea className="flex-1 overflow-y-auto border-t">
+        <div className="flex-1 overflow-y-auto border-t">
           <div className="space-y-5 px-6 pt-4 pb-6">
             {/* Availability heatmap */}
             <div>
@@ -175,7 +174,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
                   className="h-8 pl-8 text-xs"
                 />
               </div>
-              <ScrollArea className="h-48">
+              <div className="max-h-48 overflow-y-auto">
                 <div className="space-y-0.5">
                   {t.courses
                     .filter((c) => {
@@ -197,10 +196,10 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
                       </div>
                     ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )

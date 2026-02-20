@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
+import { toast } from "sonner"
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core"
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core"
 import type { ScheduleResponse } from "@/types/schedule"
@@ -7,7 +8,8 @@ import type { Student } from "@/types/student"
 import { buildStudentNameMap } from "@/lib/mock-data"
 import { parseDragId } from "./types"
 import { useScheduleEditor } from "./use-schedule-editor"
-import { ScheduleEditorToolbar } from "./schedule-editor-toolbar"
+import { ScheduleEditorToolbar, type ScheduleStatus } from "./schedule-editor-toolbar"
+import { RenameScheduleDialog } from "./rename-schedule-dialog"
 import { ScheduleGrid } from "./schedule-grid"
 import { StudentPool } from "./student-pool"
 import { StudentChipOverlay } from "./student-chip"
@@ -25,6 +27,19 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     useScheduleEditor(schedule, shiftTemplates, students, onSave)
 
   const studentNames = useMemo(() => buildStudentNameMap(students), [students])
+
+  // Schedule status
+  const scheduleStatus: ScheduleStatus = schedule.archived_at ? "archived" : schedule.is_active ? "active" : "inactive"
+
+  // Rename
+  const [scheduleTitle, setScheduleTitle] = useState(schedule.title)
+  const [renameOpen, setRenameOpen] = useState(false)
+
+  function handleRename(newTitle: string) {
+    setScheduleTitle(newTitle)
+    schedule.title = newTitle
+    toast.success("Schedule renamed", { description: `Renamed to "${newTitle}".` })
+  }
 
   // Save status feedback
   const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(null)
@@ -173,10 +188,12 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
   return (
     <div className="flex flex-col gap-5">
       <ScheduleEditorToolbar
-        scheduleTitle={schedule.title}
+        scheduleTitle={scheduleTitle}
+        scheduleStatus={scheduleStatus}
         dateRange={dateRange}
         onBack={onBack}
         onSave={wrappedSave}
+        onRename={() => setRenameOpen(true)}
         hasChanges={state.isDirty}
         isSaving={state.isSaving}
         saveStatus={saveStatus}
@@ -215,6 +232,13 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
           )}
         </DragOverlay>
       </DndContext>
+
+      <RenameScheduleDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        currentTitle={scheduleTitle}
+        onRename={handleRename}
+      />
     </div>
   )
 }

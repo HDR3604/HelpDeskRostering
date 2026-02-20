@@ -10,6 +10,7 @@ import {
 import { ChevronDown, X } from "lucide-react"
 import { SummaryCards } from "./summary-cards"
 import { StudentApplicationsTable } from "./student-applications-table"
+import { TranscriptDialog } from "./transcript-dialog"
 import { MiniWeeklySchedule } from "./mini-weekly-schedule"
 import { HoursWorkedChart } from "./hours-worked-chart"
 import { MissedShiftsChart } from "./missed-shifts-chart"
@@ -21,6 +22,7 @@ const TOAST_DURATION = 5000
 
 export function AdminDashboard() {
   const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
+  const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(null)
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set())
   const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
@@ -154,6 +156,7 @@ export function AdminDashboard() {
           await new Promise((r) => setTimeout(r, 800))
           setStudents([...MOCK_STUDENTS])
         }}
+        onViewTranscript={setTranscriptStudent}
       />
 
       {/* Charts */}
@@ -205,6 +208,12 @@ export function AdminDashboard() {
         schedule={MOCK_ACTIVE_SCHEDULE}
         shiftTemplates={MOCK_SHIFT_TEMPLATES}
         studentNames={STUDENT_NAME_MAP}
+      />
+
+      <TranscriptDialog
+        student={transcriptStudent}
+        open={transcriptStudent !== null}
+        onOpenChange={(open) => { if (!open) setTranscriptStudent(null) }}
       />
     </div>
   )
