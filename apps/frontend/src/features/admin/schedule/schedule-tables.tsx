@@ -3,6 +3,13 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
 import { getScheduleColumns } from "./columns/schedule-columns"
 import type { ScheduleResponse } from "@/types/schedule"
@@ -15,6 +22,7 @@ interface ScheduleTablesProps {
 
 export function ScheduleTables({ schedules, columns, onOpenSchedule }: ScheduleTablesProps) {
   const [open, setOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState("all")
 
   const sorted = useMemo(
     () => [...schedules].sort((a, b) => {
@@ -26,7 +34,24 @@ export function ScheduleTables({ schedules, columns, onOpenSchedule }: ScheduleT
     [schedules],
   )
 
+  const columnFilters = statusFilter !== "all"
+    ? [{ id: "status", value: statusFilter }]
+    : []
+
   const showSearch = schedules.length > 5
+
+  const filterSelect = (
+    <Select value={statusFilter} onValueChange={setStatusFilter}>
+      <SelectTrigger className="h-8 w-[130px] text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All statuses</SelectItem>
+        <SelectItem value="inactive">Inactive</SelectItem>
+        <SelectItem value="archived">Archived</SelectItem>
+      </SelectContent>
+    </Select>
+  )
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -39,10 +64,12 @@ export function ScheduleTables({ schedules, columns, onOpenSchedule }: ScheduleT
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-2">
         <Card>
-          <CardContent className={showSearch ? "pt-4" : "pt-0"}>
+          <CardContent className="pt-4">
             <DataTable
               columns={columns}
               data={sorted}
+              columnFilters={columnFilters}
+              toolbarSlot={filterSelect}
               {...(showSearch ? { searchPlaceholder: "Search...", globalFilter: true } : {})}
               pageSize={5}
               onRowClick={(row) => onOpenSchedule(row.schedule_id)}

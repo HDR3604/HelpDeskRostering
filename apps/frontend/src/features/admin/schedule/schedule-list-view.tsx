@@ -9,6 +9,7 @@ import {
   Type,
   Archive,
   ExternalLink,
+  ZapOff,
 } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Rectangle, XAxis, YAxis } from "recharts"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 const ScheduleTables = lazy(() =>
@@ -74,6 +76,7 @@ interface ScheduleListViewProps {
   onDownload: (schedule: ScheduleResponse) => void
   onArchive: (schedule: ScheduleResponse) => void
   onUnarchive: (schedule: ScheduleResponse) => void
+  onDeactivate: (schedule: ScheduleResponse) => void
 }
 
 export function ScheduleListView({
@@ -91,6 +94,7 @@ export function ScheduleListView({
   onDownload,
   onArchive,
   onUnarchive,
+  onDeactivate,
 }: ScheduleListViewProps) {
   const activeSchedule = schedules.find((s) => s.is_active) ?? null
   const pastSchedules = schedules.filter((s) => !s.is_active)
@@ -119,10 +123,6 @@ export function ScheduleListView({
 
       {/* Active schedule */}
       <div className="space-y-3">
-        <div>
-          <h2 className="text-lg font-semibold">Active Schedule</h2>
-          <p className="text-sm text-muted-foreground">The currently published weekly schedule.</p>
-        </div>
         {activeSchedule ? (
           <>
             <ActiveScheduleCard
@@ -132,6 +132,7 @@ export function ScheduleListView({
               onRename={onRename}
               onDownload={onDownload}
               onArchive={onArchive}
+              onDeactivate={onDeactivate}
             />
             <ScheduleOverview
               schedule={activeSchedule}
@@ -193,6 +194,7 @@ function ActiveScheduleCard({
   onRename,
   onDownload,
   onArchive,
+  onDeactivate,
 }: {
   schedule: ScheduleResponse
   stats: ReturnType<typeof getScheduleStats>
@@ -200,6 +202,7 @@ function ActiveScheduleCard({
   onRename: (s: ScheduleResponse) => void
   onDownload: (s: ScheduleResponse) => void
   onArchive: (s: ScheduleResponse) => void
+  onDeactivate: (s: ScheduleResponse) => void
 }) {
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
   const peakDayLabel = DAYS[stats.peakDay] ?? "—"
@@ -247,6 +250,10 @@ function ActiveScheduleCard({
                 Download
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeactivate(schedule) }}>
+                <ZapOff className="mr-2 h-3.5 w-3.5" />
+                Deactivate
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
                 <Archive className="mr-2 h-3.5 w-3.5" />
                 Archive
@@ -401,13 +408,21 @@ function ScheduleOverview({
                             const name = studentNames[sid] || sid.slice(0, 6)
                             const firstName = name.split(" ")[0]
                             return (
-                              <div
-                                key={sid}
-                                className={cn("flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs leading-none", color.bg)}
-                              >
-                                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />
-                                <span className="min-w-0 truncate font-medium text-foreground">{firstName}</span>
-                              </div>
+                              <TooltipProvider key={sid} delayDuration={200}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={cn("flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs leading-none", color.bg)}
+                                    >
+                                      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />
+                                      <span className="min-w-0 truncate font-medium text-foreground">{firstName}</span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" sideOffset={4} showArrow={false} className="bg-background text-foreground border border-border/50 rounded-lg shadow-xl px-2.5 py-1.5 text-xs">
+                                    {name}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )
                           })}
                         </div>

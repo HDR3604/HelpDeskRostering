@@ -46,7 +46,7 @@ function ScheduleListPage() {
     )
   }
 
-  function handleSetActive() {
+  function handleSetActive(_notify: boolean) {
     if (!activateTarget) return
     setSchedules((prev) =>
       prev.map((s) => ({
@@ -79,6 +79,16 @@ function ScheduleListPage() {
     )
   }
 
+  function handleDeactivate(schedule: ScheduleResponse) {
+    setSchedules((prev) =>
+      prev.map((s) =>
+        s.schedule_id === schedule.schedule_id
+          ? { ...s, is_active: false }
+          : s,
+      ),
+    )
+  }
+
   function handleUnarchive(schedule: ScheduleResponse) {
     setSchedules((prev) =>
       prev.map((s) =>
@@ -106,6 +116,7 @@ function ScheduleListPage() {
         onDownload={handleDownload}
         onArchive={handleArchive}
         onUnarchive={handleUnarchive}
+        onDeactivate={handleDeactivate}
       />
 
       {createDialogOpen && (

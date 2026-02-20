@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import {
   flexRender,
   getCoreRowModel,
@@ -7,6 +7,7 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnDef,
+  type ColumnFiltersState,
   type SortingState,
 } from "@tanstack/react-table"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
@@ -30,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number
   onRowClick?: (row: TData) => void
   emptyMessage?: string
+  toolbarSlot?: ReactNode
+  columnFilters?: ColumnFiltersState
 }
 
 export function DataTable<TData, TValue>({
@@ -41,6 +44,8 @@ export function DataTable<TData, TValue>({
   pageSize = 5,
   onRowClick,
   emptyMessage = "No results.",
+  toolbarSlot,
+  columnFilters = [],
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilter, setColumnFilter] = useState("")
@@ -59,6 +64,7 @@ export function DataTable<TData, TValue>({
     globalFilterFn: "includesString",
     state: {
       sorting,
+      columnFilters,
       ...(useGlobalFilter
         ? { globalFilter: globalFilterValue }
         : {}),
@@ -86,17 +92,20 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="w-full">
-      {showSearch && (
-        <div className="pb-3">
-          <div className="relative w-48">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={searchPlaceholder}
-              value={searchValue}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="h-8 pl-8 text-xs"
-            />
-          </div>
+      {(showSearch || toolbarSlot) && (
+        <div className="flex items-center gap-2 pb-3">
+          {toolbarSlot}
+          {showSearch && (
+            <div className="relative w-48">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder={searchPlaceholder}
+                value={searchValue}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="h-8 pl-8 text-xs"
+              />
+            </div>
+          )}
         </div>
       )}
 
