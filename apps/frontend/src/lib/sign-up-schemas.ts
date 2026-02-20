@@ -47,15 +47,33 @@ export const courseSchema = z.object({
 
 export const step2Schema = z.object({
     degreeProgramme: z.string().min(1, 'Degree programme is required'),
-    courses: z.array(courseSchema).min(1, 'At least one course is required'),
+    courses: z
+        .array(courseSchema)
+        .min(1, 'At least one course is required')
+        .superRefine((courses, ctx) => {
+            const codes = courses.map((c) => c.courseCode.trim().toUpperCase())
+            const seen = new Set<string>()
+            codes.forEach((code, i) => {
+                if (code && seen.has(code)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Duplicate course code: ${code}`,
+                        path: [i, 'courseCode'],
+                    })
+                }
+                seen.add(code)
+            })
+        }),
     overallGpa: z
-        .number({ invalid_type_error: 'GPA must be a number' })
-        .min(0, 'GPA cannot be negative')
-        .max(4.3, 'GPA cannot exceed 4.3'),
+        .number({ required_error: 'Overall GPA is required', invalid_type_error: 'Overall GPA is required' })
+        .min(0.01, 'Overall GPA is required')
+        .max(4.3, 'GPA cannot exceed 4.3')
+        .refine((v) => !isNaN(v), { message: 'Overall GPA is required' }),
     degreeGpa: z
-        .number({ invalid_type_error: 'GPA must be a number' })
-        .min(0, 'GPA cannot be negative')
-        .max(4.3, 'GPA cannot exceed 4.3'),
+        .number({ required_error: 'Degree GPA is required', invalid_type_error: 'Degree GPA is required' })
+        .min(0.01, 'Degree GPA is required')
+        .max(4.3, 'GPA cannot exceed 4.3')
+        .refine((v) => !isNaN(v), { message: 'Degree GPA is required' }),
     currentYear: z.string().min(1, 'Current year is required'),
 })
 

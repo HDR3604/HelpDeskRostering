@@ -122,7 +122,7 @@ export function Step2TranscriptVerify({
                                         {...field}
                                         onChange={(e) =>
                                             field.onChange(
-                                                e.target.value === '' ? '' : parseFloat(e.target.value)
+                                                e.target.value === '' ? NaN : parseFloat(e.target.value)
                                             )
                                         }
                                     />
@@ -148,7 +148,7 @@ export function Step2TranscriptVerify({
                                         {...field}
                                         onChange={(e) =>
                                             field.onChange(
-                                                e.target.value === '' ? '' : parseFloat(e.target.value)
+                                                e.target.value === '' ? NaN : parseFloat(e.target.value)
                                             )
                                         }
                                     />
