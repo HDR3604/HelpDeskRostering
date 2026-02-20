@@ -26,7 +26,7 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-md transition-all duration-200 ease-in-out min-h-[2.5rem] sm:min-h-[3rem]",
+        "rounded-md transition-all duration-200 ease-in-out min-h-[3rem] lg:min-h-[3rem]",
         isOver && !isFull && "bg-primary/[0.06] ring-1 ring-inset ring-primary/20",
         isOver && isFull && "bg-destructive/[0.06] ring-1 ring-inset ring-destructive/20",
         !isOver && availability === "available" && "bg-emerald-500/[0.06] ring-1 ring-inset ring-emerald-500/20",
@@ -34,7 +34,7 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
       )}
     >
       {count > 0 ? (
-        <div className="flex flex-col gap-0 sm:gap-0.5 px-0.5 sm:px-1 py-0.5 sm:py-1">
+        <div className="flex flex-col gap-0 lg:gap-0.5 px-0.5 lg:px-1 py-0.5 lg:py-1">
           {assignedStudentIds.map((sid) => (
             <StudentChip
               key={sid}
@@ -48,7 +48,7 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
           ))}
           <span
             className={cn(
-              "self-end text-[8px] sm:text-[9px] tabular-nums font-medium px-0.5 sm:px-1",
+              "self-end text-[8px] lg:text-[9px] tabular-nums font-medium px-0.5 lg:px-1",
               isUnder && "text-amber-500",
               !isUnder && !isFull && "text-muted-foreground/40",
               isFull && "text-muted-foreground/40",

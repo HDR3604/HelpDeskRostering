@@ -40,7 +40,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
         {...listeners}
         {...attributes}
         className={cn(
-          "group flex items-center gap-1 sm:gap-1.5 rounded px-1.5 sm:px-2 py-1 sm:py-1 text-[11px] sm:text-xs leading-none cursor-grab select-none",
+          "group flex items-center gap-1 lg:gap-1.5 rounded px-1.5 lg:px-2 py-1.5 lg:py-1 text-[11px] lg:text-xs leading-none cursor-grab select-none touch-manipulation",
           "hover:bg-accent/50 transition-colors",
           isDragging && "opacity-30",
         )}
@@ -52,7 +52,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => dispatch({ type: "UNASSIGN_STUDENT", shiftId, studentId })}
-            className="ml-auto shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
+            className="ml-auto shrink-0 rounded p-1 opacity-100 lg:opacity-0 transition-opacity lg:group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10"
           >
             <X className="h-2.5 w-2.5 text-muted-foreground" />
           </button>
@@ -73,7 +73,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
       onMouseEnter={() => onHoverStudent?.(studentId)}
       onMouseLeave={() => onHoverStudent?.(null)}
       className={cn(
-        "group flex items-center gap-2 rounded-md px-2.5 py-1.5 cursor-grab select-none transition-colors",
+        "group flex items-center gap-2 rounded-md px-2.5 py-2 cursor-grab select-none transition-colors touch-manipulation",
         "hover:bg-accent/50",
         isDragging && "opacity-30",
       )}

@@ -24,6 +24,8 @@ interface StudentPoolProps {
   studentHours: Record<string, number>
   dispatch: React.Dispatch<EditorAction>
   onHoverStudent?: (id: string | null) => void
+  mobileSheetOpen?: boolean
+  onMobileSheetOpenChange?: (open: boolean) => void
 }
 
 /** Inner pool content shared between desktop sidebar and mobile sheet */
@@ -109,9 +111,8 @@ function PoolContent({
   )
 }
 
-export function StudentPool({ students, assignedStudentIds, studentColorIndex, studentHours, dispatch, onHoverStudent }: StudentPoolProps) {
+export function StudentPool({ students, assignedStudentIds, studentColorIndex, studentHours, dispatch, onHoverStudent, mobileSheetOpen = false, onMobileSheetOpenChange }: StudentPoolProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const [sheetOpen, setSheetOpen] = useState(false)
   const { setNodeRef, isOver } = useDroppable({ id: "pool" })
 
   const assignedCount = assignedStudentIds.size
@@ -120,12 +121,12 @@ export function StudentPool({ students, assignedStudentIds, studentColorIndex, s
   return (
     <>
       {/* Mobile: floating button + bottom sheet */}
-      <div className="sm:hidden">
+      <div className="lg:hidden">
         <Button
           variant="outline"
           size="icon"
-          className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg"
-          onClick={() => setSheetOpen(true)}
+          className="fixed bottom-4 right-4 z-40 h-12 w-12 rounded-full shadow-lg bg-background"
+          onClick={() => onMobileSheetOpenChange?.(true)}
         >
           <Users className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
@@ -133,8 +134,8 @@ export function StudentPool({ students, assignedStudentIds, studentColorIndex, s
           </span>
         </Button>
 
-        <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent side="bottom" className="h-[70dvh] p-0" showCloseButton={false}>
+        <Sheet open={mobileSheetOpen} onOpenChange={onMobileSheetOpenChange}>
+          <SheetContent side="bottom" className="h-[50dvh] p-0" showCloseButton={false}>
             <SheetHeader className="border-b px-4 py-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -143,7 +144,7 @@ export function StudentPool({ students, assignedStudentIds, studentColorIndex, s
                     {assignedCount}/{allStudentCount} assigned
                   </SheetDescription>
                 </div>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSheetOpen(false)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onMobileSheetOpenChange?.(false)}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
@@ -163,7 +164,7 @@ export function StudentPool({ students, assignedStudentIds, studentColorIndex, s
       </div>
 
       {/* Desktop: sidebar */}
-      <div className="hidden sm:block sticky top-6 self-start">
+      <div className="hidden lg:block sticky top-6 self-start">
         {collapsed ? (
           <div
             ref={setNodeRef}

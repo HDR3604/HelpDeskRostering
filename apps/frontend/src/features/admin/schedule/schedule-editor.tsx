@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import { toast } from "sonner"
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core"
+import { DndContext, DragOverlay, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter } from "@dnd-kit/core"
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core"
 import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
@@ -103,6 +103,9 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     return { totalAssignments, totalStudents: assignedIds.size, totalHours }
   }, [state.assignmentsByShift, studentHours])
 
+  // Mobile student pool sheet
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+
   // Availability highlighting (hover + drag)
   const [highlightedStudentId, setHighlightedStudentId] = useState<string | null>(null)
 
@@ -120,7 +123,10 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
 
   // DnD
   const [activeId, setActiveId] = useState<string | null>(null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  )
 
   const activeDragData = useMemo(() => {
     if (!activeId) return null
@@ -135,6 +141,7 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     isDraggingRef.current = true
+    setMobileSheetOpen(false)
     const id = String(event.active.id)
     setActiveId(id)
     const parsed = parseDragId(id)
@@ -183,7 +190,7 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
   )
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3 lg:gap-5 -mx-3 lg:mx-0">
       <ScheduleEditorToolbar
         scheduleTitle={scheduleTitle}
         scheduleStatus={scheduleStatus}
@@ -200,8 +207,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
       />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex items-start gap-0 sm:gap-3">
-          <div className="flex-1 min-w-0 overflow-x-auto sm:overflow-x-hidden rounded-lg sm:rounded-xl border bg-card">
+        <div className="flex items-start gap-0 lg:gap-3">
+          <div className="flex-1 min-w-0 overflow-auto h-[calc(100dvh-6rem)] lg:h-auto rounded-none lg:rounded-xl border-y lg:border bg-card">
             <ScheduleGrid
               shiftTemplates={shiftTemplates}
               assignmentsByShift={state.assignmentsByShift}
@@ -220,6 +227,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
             studentHours={studentHours}
             dispatch={dispatch}
             onHoverStudent={handleHoverStudent}
+            mobileSheetOpen={mobileSheetOpen}
+            onMobileSheetOpenChange={setMobileSheetOpen}
           />
         </div>
 

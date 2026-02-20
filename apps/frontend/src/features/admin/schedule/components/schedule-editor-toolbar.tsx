@@ -68,10 +68,10 @@ export function ScheduleEditorToolbar({
   }
 
   return (
-    <div className="shrink-0 pb-2">
+    <div className="shrink-0 pb-2 px-3 lg:px-0">
       {/* Title row */}
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+        <div className="flex items-start gap-2 lg:gap-3 min-w-0">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0 h-8 w-8 mt-0.5">
@@ -85,7 +85,7 @@ export function ScheduleEditorToolbar({
               <button
                 type="button"
                 onClick={onRename}
-                className="text-xl sm:text-2xl font-bold tracking-tight truncate hover:underline decoration-muted-foreground/40 underline-offset-4 cursor-pointer text-left"
+                className="text-xl lg:text-2xl font-bold tracking-tight truncate hover:underline decoration-muted-foreground/40 underline-offset-4 cursor-pointer text-left"
                 title="Click to rename"
               >
                 {scheduleTitle}
@@ -100,7 +100,7 @@ export function ScheduleEditorToolbar({
               )}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground truncate">
-              <span className="hidden sm:inline">Drag and drop students to assign shifts · </span>
+              <span className="hidden lg:inline">Drag and drop students to assign shifts · </span>
               {dateRange}
             </p>
           </div>
@@ -109,7 +109,7 @@ export function ScheduleEditorToolbar({
         {/* Stats + Save */}
         <div className="flex items-center gap-3 shrink-0">
           {/* Stats pills — hidden on mobile */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden lg:flex items-center gap-2">
             <StatPill icon={Users} value={totalStudents} label="students" />
             <StatPill icon={CalendarDays} value={totalAssignments} label="slots" />
             <StatPill icon={Clock} value={`${totalHours}h`} label="total" />

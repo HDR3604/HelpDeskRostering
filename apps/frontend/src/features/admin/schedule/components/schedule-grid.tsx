@@ -41,7 +41,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
 
   return (
     <div
-      className="grid grid-cols-[2.5rem_repeat(5,1fr)] sm:grid-cols-[4.5rem_repeat(5,1fr)] h-fit select-none"
+      className="grid grid-cols-[2.5rem_repeat(5,minmax(4.5rem,1fr))] lg:grid-cols-[4.5rem_repeat(5,1fr)] min-h-full min-w-[25rem] select-none"
       style={{ gridTemplateRows: `auto repeat(${timeSlots.length}, auto)` }}
     >
       {/* Day header row */}
@@ -50,7 +50,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
         <div
           key={day}
           className={cn(
-            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-2.5 sm:py-3.5",
+            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-2.5 lg:py-3.5",
             idx > 0 && "border-l border-border/60",
             idx === today && "bg-foreground/[0.03]",
           )}
@@ -63,8 +63,8 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
                 : "text-muted-foreground",
             )}
           >
-            <span className="sm:hidden">{WEEKDAYS_LETTER[idx]}</span>
-            <span className="hidden sm:inline">{day}</span>
+            <span className="lg:hidden">{WEEKDAYS_LETTER[idx]}</span>
+            <span className="hidden lg:inline">{day}</span>
           </span>
         </div>
       ))}
@@ -73,10 +73,10 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
       {timeSlots.map((slot) => (
         <Fragment key={slot.start}>
           {/* Time gutter */}
-          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-1.5 sm:pr-3 pt-2">
-            <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
-              <span className="sm:hidden">{formatHourShort(slot.start)}</span>
-              <span className="hidden sm:inline">{formatHour(slot.start)}</span>
+          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-1.5 lg:pr-3 pt-2">
+            <span className="text-[10px] lg:text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
+              <span className="lg:hidden">{formatHourShort(slot.start)}</span>
+              <span className="hidden lg:inline">{formatHour(slot.start)}</span>
             </span>
           </div>
 
@@ -90,7 +90,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
               <div
                 key={`c-${slot.start}-${dayIdx}`}
                 className={cn(
-                  "border-b border-border/60 p-0.5 sm:p-1 transition-colors duration-200",
+                  "border-b border-border/60 p-0.5 lg:p-1 transition-colors duration-200",
                   dayIdx > 0 && "border-l border-border/60",
                   dayIdx === today && "bg-foreground/[0.03]",
                 )}
