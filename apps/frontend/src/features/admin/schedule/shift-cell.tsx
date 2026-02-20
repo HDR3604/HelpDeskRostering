@@ -31,10 +31,10 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
       )}
     >
       {/* Staffing indicator */}
-      <div className="flex items-center justify-end px-1 pt-0.5 pb-0.5">
+      <div className="flex items-center justify-end px-0.5 sm:px-1 pt-0.5 pb-0.5">
         <span
           className={cn(
-            "text-[9px] tabular-nums font-medium",
+            "text-[8px] sm:text-[9px] tabular-nums font-medium",
             count === 0 && "text-muted-foreground/40",
             count > 0 && isUnder && "text-amber-500",
             count > 0 && !isUnder && "text-emerald-500",
@@ -46,7 +46,7 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
       </div>
 
       {count > 0 ? (
-        <div className="flex flex-col gap-1 px-0.5 pb-1">
+        <div className="flex flex-col gap-0.5 sm:gap-1 px-0.5 pb-0.5 sm:pb-1">
           {assignedStudentIds.map((sid) => (
             <StudentChip
               key={sid}

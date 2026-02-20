@@ -36,7 +36,7 @@ function ScheduleEditorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl" style={{ height: "calc(100dvh - 3.5rem - 3rem)" }}>
+    <div className="mx-auto max-w-7xl">
       <ScheduleEditor
         key={scheduleId}
         schedule={schedule}

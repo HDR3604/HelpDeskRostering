@@ -55,21 +55,21 @@ export function ScheduleEditorToolbar({
   }
 
   return (
-    <div className="shrink-0 pb-4">
-      {/* Page title row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
+    <div className="shrink-0 pb-2">
+      {/* Title row */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-2 sm:gap-3 min-w-0">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0 h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0 h-8 w-8 mt-0.5">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Back to schedules</TooltipContent>
           </Tooltip>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight truncate">{scheduleTitle}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{scheduleTitle}</h1>
               {hasChanges ? (
                 <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 text-xs px-2 py-0.5 shrink-0">
                   Unsaved
@@ -80,13 +80,17 @@ export function ScheduleEditorToolbar({
                 </Badge>
               )}
             </div>
-            <p className="mt-1 text-muted-foreground">Drag and drop students to assign shifts · {dateRange}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground truncate">
+              <span className="hidden sm:inline">Drag and drop students to assign shifts · </span>
+              {dateRange}
+            </p>
           </div>
         </div>
 
         {/* Stats + Save */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center gap-1.5">
+          {/* Stats pills — hidden on mobile */}
+          <div className="hidden md:flex items-center gap-1.5">
             <div className="flex items-center gap-1.5 rounded-md bg-muted/50 px-2.5 py-1">
               <Users className="h-3 w-3 text-muted-foreground" />
               <span className="text-xs font-medium tabular-nums">{totalStudents}</span>

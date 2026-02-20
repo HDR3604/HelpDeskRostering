@@ -57,7 +57,11 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [state.isDirty, state.isSaving, wrappedSave])
 
-  const dateRange = schedule.effective_from + (schedule.effective_to ? ` — ${schedule.effective_to}` : " onwards")
+  const formatDate = (iso: string) => {
+    const d = new Date(iso + "T00:00:00")
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+  const dateRange = formatDate(schedule.effective_from) + (schedule.effective_to ? ` — ${formatDate(schedule.effective_to)}` : " onwards")
 
   const studentHours = useMemo(() => {
     const hours: Record<string, number> = {}
@@ -144,7 +148,7 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
   )
 
   return (
-    <div className="flex flex-col gap-3 flex-1 min-h-0">
+    <div className="flex flex-col gap-5">
       <ScheduleEditorToolbar
         scheduleTitle={schedule.title}
         dateRange={dateRange}
@@ -159,8 +163,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
       />
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex min-h-0 flex-1 gap-3">
-          <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden rounded-xl border bg-card">
+        <div className="flex items-start gap-0 sm:gap-3">
+          <div className="flex-1 min-w-0 overflow-x-auto sm:overflow-x-hidden rounded-lg sm:rounded-xl border bg-card">
             <ScheduleGrid
               shiftTemplates={shiftTemplates}
               assignmentsByShift={state.assignmentsByShift}

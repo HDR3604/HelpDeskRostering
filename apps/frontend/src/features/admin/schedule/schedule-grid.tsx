@@ -12,14 +12,21 @@ interface ScheduleGridProps {
   dispatch: React.Dispatch<EditorAction>
 }
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
+const DAYS_LETTER = ["M", "T", "W", "T", "F"] as const
 
 function formatHour(t: string) {
   const hour = parseInt(t.split(":")[0], 10)
   if (hour === 0) return "12 AM"
   if (hour === 12) return "12 PM"
   return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
+}
+
+function formatHourShort(t: string) {
+  const hour = parseInt(t.split(":")[0], 10)
+  if (hour === 0) return "12a"
+  if (hour === 12) return "12p"
+  return hour < 12 ? `${hour}a` : `${hour - 12}p`
 }
 
 export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames, studentColorIndex, dispatch }: ScheduleGridProps) {
@@ -47,28 +54,29 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
 
   return (
     <div
-      className="grid grid-cols-[4.5rem_repeat(5,1fr)] h-fit select-none"
+      className="grid grid-cols-[2.5rem_repeat(5,1fr)] sm:grid-cols-[4.5rem_repeat(5,1fr)] h-fit select-none"
       style={{ gridTemplateRows: `auto repeat(${timeSlots.length}, auto)` }}
     >
       {/* Day header row */}
       <div className="sticky top-0 left-0 z-30 border-b border-border/60 bg-card" />
-      {DAYS.map((day, idx) => (
+      {DAYS_SHORT.map((day, idx) => (
         <div
           key={day}
           className={cn(
-            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-3.5",
+            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-2.5 sm:py-3.5",
             idx > 0 && "border-l border-border/60",
           )}
         >
           <span
             className={cn(
-              "text-xs font-semibold uppercase tracking-wide",
+              "text-xs font-semibold tracking-wide",
               idx === today
                 ? "text-foreground"
                 : "text-muted-foreground",
             )}
           >
-            {DAYS_SHORT[idx]}
+            <span className="sm:hidden">{DAYS_LETTER[idx]}</span>
+            <span className="hidden sm:inline">{day}</span>
           </span>
         </div>
       ))}
@@ -77,20 +85,21 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
       {timeSlots.map((slot) => (
         <Fragment key={slot.start}>
           {/* Time gutter */}
-          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-3 pt-2">
-            <span className="text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
-              {formatHour(slot.start)}
+          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-1.5 sm:pr-3 pt-2">
+            <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
+              <span className="sm:hidden">{formatHourShort(slot.start)}</span>
+              <span className="hidden sm:inline">{formatHour(slot.start)}</span>
             </span>
           </div>
 
           {/* Day cells */}
-          {DAYS.map((_, dayIdx) => {
+          {DAYS_SHORT.map((_, dayIdx) => {
             const shift = shiftLookup.get(`${slot.start}-${slot.end}-${dayIdx}`)
             return (
               <div
                 key={`c-${slot.start}-${dayIdx}`}
                 className={cn(
-                  "border-b border-border/60 p-1.5",
+                  "border-b border-border/60 p-0.5 sm:p-1.5",
                   dayIdx > 0 && "border-l border-border/60",
                   dayIdx === today && "bg-primary/[0.02]",
                 )}

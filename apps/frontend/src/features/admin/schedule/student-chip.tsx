@@ -39,7 +39,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
         {...listeners}
         {...attributes}
         className={cn(
-          "group flex items-center gap-1.5 rounded-md px-2 py-1 text-xs leading-none cursor-grab select-none",
+          "group flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs leading-none cursor-grab select-none",
           color.bg,
           isDragging && "opacity-30",
         )}
