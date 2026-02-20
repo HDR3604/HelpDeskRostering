@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useUser } from "@/hooks/use-user"
-import { BankingDetailsForm } from "@/features/student/banking-details-form"
+import { BankingDetailsForm } from "@/features/student/components/banking-details-form"
 
 export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,

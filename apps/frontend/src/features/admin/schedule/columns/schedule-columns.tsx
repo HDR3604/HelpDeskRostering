@@ -9,16 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, Pencil, Type, Download, Archive, ArchiveRestore, Zap } from "lucide-react"
+import { formatDateRange } from "@/lib/format"
 import type { ScheduleResponse } from "@/types/schedule"
-
-function formatDateShort(date: string): string {
-  const d = new Date(date + "T00:00:00")
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
-
-function formatDateRange(from: string, to: string | null): string {
-  return formatDateShort(from) + (to ? ` — ${formatDateShort(to)}` : " onwards")
-}
 
 interface ScheduleColumnCallbacks {
   onOpen: (id: string) => void

@@ -45,10 +45,11 @@ import {
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
 import type { Student } from "@/types/student"
-import type { ScheduleResponse } from "@/types/schedule"
+import { toDateString, addDays } from "@/lib/format"
+import type { ScheduleResponse, GenerationStatusUpdate } from "@/types/schedule"
 import type { SchedulerConfig } from "@/types/scheduler-config"
 import { getApplicationStatus } from "@/types/student"
-import { useGenerationStatus } from "./use-generation-status"
+import { useGenerationStatus } from "../use-generation-status"
 
 const createScheduleSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
@@ -59,19 +60,6 @@ const createScheduleSchema = z.object({
 })
 
 type CreateScheduleValues = z.infer<typeof createScheduleSchema>
-
-function toDateString(d: Date): string {
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + "T00:00:00")
-  d.setDate(d.getDate() + days)
-  return toDateString(d)
-}
 
 interface CreateScheduleDialogProps {
   open: boolean
@@ -368,7 +356,7 @@ export function CreateScheduleDialog({ open, onOpenChange, students, configs, on
 // --- Generation status view ---
 
 interface GeneratingViewProps {
-  status: import("@/types/schedule").GenerationStatusUpdate | null
+  status: GenerationStatusUpdate | null
   onOpenSchedule: () => void
   onTryAgain: () => void
   onClose: () => void

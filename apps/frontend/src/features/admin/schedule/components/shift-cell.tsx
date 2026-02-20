@@ -1,7 +1,7 @@
 import { useDroppable } from "@dnd-kit/core"
 import { cn } from "@/lib/utils"
 import type { ShiftTemplate } from "@/types/shift-template"
-import type { EditorAction } from "./types"
+import type { EditorAction } from "../types"
 import { StudentChip } from "./student-chip"
 
 interface ShiftCellProps {

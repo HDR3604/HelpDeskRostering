@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import type { ScheduleResponse, GenerationStatusUpdate, Assignment } from "@/types/schedule"
 import type { Student } from "@/types/student"
 import { MOCK_SHIFT_TEMPLATES } from "@/lib/mock-data"
@@ -22,7 +22,6 @@ export function useGenerationStatus(
 ): { status: GenerationStatusUpdate | null; schedule: ScheduleResponse | null } {
   const [status, setStatus] = useState<GenerationStatusUpdate | null>(null)
   const [schedule, setSchedule] = useState<ScheduleResponse | null>(null)
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([])
 
   useEffect(() => {
     if (!generationId || !formValues) {
@@ -32,7 +31,6 @@ export function useGenerationStatus(
     }
 
     const timers: ReturnType<typeof setTimeout>[] = []
-    timersRef.current = timers
 
     const willFail = Math.random() < MOCK_FAIL_RATE
 

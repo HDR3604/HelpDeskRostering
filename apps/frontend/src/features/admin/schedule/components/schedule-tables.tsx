@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
-import { getScheduleColumns } from "./columns/schedule-columns"
+import { getScheduleColumns } from "../columns/schedule-columns"
 import type { ScheduleResponse } from "@/types/schedule"
 
 interface ScheduleTablesProps {

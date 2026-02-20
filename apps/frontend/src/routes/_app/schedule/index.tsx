@@ -4,13 +4,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import type { ScheduleResponse } from "@/types/schedule"
 import { MOCK_SCHEDULES, MOCK_STUDENTS, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS, MOCK_HOURS_TREND, MOCK_SCHEDULER_CONFIGS } from "@/lib/mock-data"
 import { ScheduleListView } from "@/features/admin/schedule/schedule-list-view"
-import { ScheduleListSkeleton } from "@/features/admin/schedule/schedule-list-skeleton"
-import { RenameScheduleDialog } from "@/features/admin/schedule/rename-schedule-dialog"
-import { ActivateScheduleDialog } from "@/features/admin/schedule/activate-schedule-dialog"
-import { NotifyStudentsDialog } from "@/features/admin/schedule/notify-students-dialog"
+import { ScheduleListSkeleton } from "@/features/admin/skeletons/schedule-list-skeleton"
+import { RenameScheduleDialog } from "@/features/admin/schedule/components/rename-schedule-dialog"
+import { ActivateScheduleDialog } from "@/features/admin/schedule/components/activate-schedule-dialog"
+import { NotifyStudentsDialog } from "@/features/admin/schedule/components/notify-students-dialog"
 
 const CreateScheduleDialog = lazy(() =>
-  import("@/features/admin/schedule/create-schedule-dialog").then((m) => ({ default: m.CreateScheduleDialog })),
+  import("@/features/admin/schedule/components/create-schedule-dialog").then((m) => ({ default: m.CreateScheduleDialog })),
 )
 
 export const Route = createFileRoute("/_app/schedule/")({

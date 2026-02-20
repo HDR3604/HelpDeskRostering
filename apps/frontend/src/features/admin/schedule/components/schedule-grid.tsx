@@ -1,8 +1,10 @@
 import { useMemo, Fragment } from "react"
 import { cn } from "@/lib/utils"
+import { WEEKDAYS_SHORT, WEEKDAYS_LETTER, getTodayWeekdayIndex } from "@/lib/constants"
+import { formatHour, formatHourShort } from "@/lib/format"
 import type { ShiftTemplate } from "@/types/shift-template"
-import type { EditorAction } from "./types"
-import { isStudentAvailableForShift } from "./types"
+import type { EditorAction } from "../types"
+import { isStudentAvailableForShift } from "../types"
 import { ShiftCell } from "./shift-cell"
 
 interface ScheduleGridProps {
@@ -15,26 +17,8 @@ interface ScheduleGridProps {
   studentAvailabilityMap: Record<string, Record<number, number[]>>
 }
 
-const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
-const DAYS_LETTER = ["M", "T", "W", "T", "F"] as const
-
-function formatHour(t: string) {
-  const hour = parseInt(t.split(":")[0], 10)
-  if (hour === 0) return "12 AM"
-  if (hour === 12) return "12 PM"
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
-}
-
-function formatHourShort(t: string) {
-  const hour = parseInt(t.split(":")[0], 10)
-  if (hour === 0) return "12a"
-  if (hour === 12) return "12p"
-  return hour < 12 ? `${hour}a` : `${hour - 12}p`
-}
-
 export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames, studentColorIndex, dispatch, highlightedStudentId, studentAvailabilityMap }: ScheduleGridProps) {
-  const jsDay = new Date().getDay()
-  const today = jsDay === 0 ? 6 : jsDay - 1
+  const today = getTodayWeekdayIndex()
 
   const timeSlots = useMemo(() => {
     const slots = new Map<string, { start: string; end: string }>()
@@ -62,7 +46,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
     >
       {/* Day header row */}
       <div className="sticky top-0 left-0 z-30 border-b border-border/60 bg-card" />
-      {DAYS_SHORT.map((day, idx) => (
+      {WEEKDAYS_SHORT.map((day, idx) => (
         <div
           key={day}
           className={cn(
@@ -79,7 +63,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
                 : "text-muted-foreground",
             )}
           >
-            <span className="sm:hidden">{DAYS_LETTER[idx]}</span>
+            <span className="sm:hidden">{WEEKDAYS_LETTER[idx]}</span>
             <span className="hidden sm:inline">{day}</span>
           </span>
         </div>
@@ -97,7 +81,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
           </div>
 
           {/* Day cells */}
-          {DAYS_SHORT.map((_, dayIdx) => {
+          {WEEKDAYS_SHORT.map((_, dayIdx) => {
             const shift = shiftLookup.get(`${slot.start}-${slot.end}-${dayIdx}`)
             const highlightedAvailability = highlightedStudentId && shift
               ? (isStudentAvailableForShift(studentAvailabilityMap[highlightedStudentId], shift) ? "available" as const : "unavailable" as const)

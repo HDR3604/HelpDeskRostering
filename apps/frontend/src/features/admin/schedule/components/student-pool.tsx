@@ -14,7 +14,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import type { Student } from "@/types/student"
-import type { EditorAction } from "./types"
+import type { EditorAction } from "../types"
 import { StudentChip } from "./student-chip"
 
 interface StudentPoolProps {

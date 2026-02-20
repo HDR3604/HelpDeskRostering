@@ -9,6 +9,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { WEEKDAYS_SHORT, APPLICATION_STATUS_STYLES } from "@/lib/constants"
 import { Clock, GraduationCap, Search } from "lucide-react"
 import type { Student } from "@/types/student"
 import { getApplicationStatus } from "@/types/student"
@@ -19,17 +20,10 @@ interface TranscriptDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 const HOURS = [8, 9, 10, 11, 12, 13, 14, 15]
 
-function formatHour(h: number) {
+function formatHourLabel(h: number) {
   return h <= 12 ? `${h}am` : `${h - 12}pm`
-}
-
-const statusStyle: Record<string, string> = {
-  accepted: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
-  rejected: "bg-red-500/15 text-red-500 hover:bg-red-500/15",
-  pending: "bg-amber-500/15 text-amber-500 hover:bg-amber-500/15",
 }
 
 function gradeColor(grade: string | null): string {
@@ -72,7 +66,7 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
                 <h3 className="text-base font-semibold leading-none">
                   {student.first_name} {student.last_name}
                 </h3>
-                <Badge className={cn("capitalize text-[10px]", statusStyle[status])}>
+                <Badge className={cn("capitalize text-[10px]", APPLICATION_STATUS_STYLES[status])}>
                   {status}
                 </Badge>
               </div>
@@ -117,13 +111,13 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
                       <th className="pr-1 text-right font-medium text-muted-foreground" />
                       {HOURS.map((h) => (
                         <th key={h} className="px-0.5 text-center font-medium text-muted-foreground">
-                          {formatHour(h)}
+                          {formatHourLabel(h)}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {DAYS.map((day, dayIdx) => (
+                    {WEEKDAYS_SHORT.map((day, dayIdx) => (
                       <tr key={day}>
                         <td className="pr-1.5 text-right font-medium text-muted-foreground">{day}</td>
                         {HOURS.map((h) => {

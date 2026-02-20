@@ -1,54 +1,27 @@
-import { lazy, Suspense, useState, useMemo, Fragment } from "react"
-import {
-  CalendarDays,
-  LoaderCircle,
-  Plus,
-  MoreHorizontal,
-  Pencil,
-  Download,
-  Type,
-  Archive,
-  ExternalLink,
-  ZapOff,
-  Bell,
-} from "lucide-react"
-import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Rectangle, XAxis, YAxis } from "recharts"
+import { lazy, Suspense, useMemo, Fragment } from "react"
+import { CalendarDays, LoaderCircle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { WEEKDAYS_SHORT, getTodayWeekdayIndex } from "@/lib/constants"
+import { formatHour } from "@/lib/format"
+import { STUDENT_COLORS } from "./types"
 
 const ScheduleTables = lazy(() =>
-  import("./schedule-tables").then((m) => ({ default: m.ScheduleTables })),
+  import("./components/schedule-tables").then((m) => ({ default: m.ScheduleTables })),
 )
 import { getScheduleColumns } from "./columns/schedule-columns"
+import { ActiveScheduleCard } from "./components/active-schedule-card"
+import { HoursWorkedChart } from "./charts/hours-worked-chart"
+import { AttendanceChart } from "./charts/attendance-chart"
+import { HoursTrendChart } from "./charts/hours-trend-chart"
 import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 
-function formatDateShort(date: string): string {
-  const d = new Date(date + "T00:00:00")
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-}
-
 function getScheduleStats(schedule: ScheduleResponse | null) {
   if (!schedule) {
-    return { totalStudents: 0, totalAssignments: 0, hoursPerDay: [0, 0, 0, 0, 0], avgHoursPerStudent: 0, peakDay: 0 }
+    return { totalStudents: 0, totalAssignments: 0, hoursPerDay: [0, 0, 0, 0, 0], avgHoursPerStudent: 0 }
   }
   const studentSet = new Set(schedule.assignments.map((a) => a.assistant_id))
   const totalStudents = studentSet.size
@@ -57,9 +30,8 @@ function getScheduleStats(schedule: ScheduleResponse | null) {
   for (const a of schedule.assignments) {
     if (a.day_of_week >= 0 && a.day_of_week < 5) hoursPerDay[a.day_of_week]++
   }
-  const peakDay = hoursPerDay.indexOf(Math.max(...hoursPerDay))
   const avgHoursPerStudent = totalStudents > 0 ? totalAssignments / totalStudents : 0
-  return { totalStudents, totalAssignments, hoursPerDay, avgHoursPerStudent, peakDay }
+  return { totalStudents, totalAssignments, hoursPerDay, avgHoursPerStudent }
 }
 
 interface ScheduleListViewProps {
@@ -189,120 +161,7 @@ export function ScheduleListView({
   )
 }
 
-// --- Active schedule card (compact header) ---
-
-function ActiveScheduleCard({
-  schedule,
-  stats,
-  onOpen,
-  onRename,
-  onDownload,
-  onArchive,
-  onDeactivate,
-  onNotify,
-}: {
-  schedule: ScheduleResponse
-  stats: ReturnType<typeof getScheduleStats>
-  onOpen: (id: string) => void
-  onRename: (s: ScheduleResponse) => void
-  onDownload: (s: ScheduleResponse) => void
-  onArchive: (s: ScheduleResponse) => void
-  onDeactivate: (s: ScheduleResponse) => void
-  onNotify: (s: ScheduleResponse) => void
-}) {
-  const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-  const peakDayLabel = DAYS[stats.peakDay] ?? "—"
-
-  return (
-    <Card
-      className="group cursor-pointer overflow-hidden border-l-2 border-l-emerald-500 transition-colors hover:bg-muted/50"
-      onClick={() => onOpen(schedule.schedule_id)}
-    >
-      <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-            <CalendarDays className="h-4 w-4 text-emerald-500" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="truncate font-semibold">{schedule.title}</span>
-              <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[11px]">Active</Badge>
-            </div>
-            <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                {formatDateShort(schedule.effective_from)}
-                {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
-              </span>
-              <span className="text-border">·</span>
-              <span><span className="tabular-nums">{stats.totalStudents}</span> students</span>
-              <span className="text-border">·</span>
-              <span><span className="tabular-nums">{stats.totalAssignments}</span> shifts</span>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onOpen(schedule.schedule_id) }}>
-                <Pencil className="mr-2 h-3.5 w-3.5" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onRename(schedule) }}>
-                <Type className="mr-2 h-3.5 w-3.5" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
-                <Download className="mr-2 h-3.5 w-3.5" />
-                Download
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onNotify(schedule) }}>
-                <Bell className="mr-2 h-3.5 w-3.5" />
-                Notify
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeactivate(schedule) }}>
-                <ZapOff className="mr-2 h-3.5 w-3.5" />
-                Deactivate
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onArchive(schedule) }}>
-                <Archive className="mr-2 h-3.5 w-3.5" />
-                Archive
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-        </div>
-      </div>
-    </Card>
-  )
-}
-
 // --- Schedule overview (read-only, follows editor grid design) ---
-
-const OVERVIEW_COLORS = [
-  { bg: "bg-blue-100 dark:bg-blue-500/20", dot: "bg-blue-500" },
-  { bg: "bg-emerald-100 dark:bg-emerald-500/20", dot: "bg-emerald-500" },
-  { bg: "bg-violet-100 dark:bg-violet-500/20", dot: "bg-violet-500" },
-  { bg: "bg-rose-100 dark:bg-rose-500/20", dot: "bg-rose-500" },
-  { bg: "bg-amber-100 dark:bg-amber-500/20", dot: "bg-amber-500" },
-  { bg: "bg-teal-100 dark:bg-teal-500/20", dot: "bg-teal-500" },
-  { bg: "bg-pink-100 dark:bg-pink-500/20", dot: "bg-pink-500" },
-  { bg: "bg-sky-100 dark:bg-sky-500/20", dot: "bg-sky-500" },
-]
-
-const OVERVIEW_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-
-function formatHour(t: string) {
-  const hour = parseInt(t.split(":")[0], 10)
-  if (hour === 0) return "12 AM"
-  if (hour === 12) return "12 PM"
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
-}
 
 function ScheduleOverview({
   schedule,
@@ -313,8 +172,7 @@ function ScheduleOverview({
   shiftTemplates: ShiftTemplate[]
   studentNames: Record<string, string>
 }) {
-  const jsDay = new Date().getDay()
-  const today = jsDay === 0 ? 6 : jsDay - 1
+  const today = getTodayWeekdayIndex()
 
   const uniqueStudentIds = useMemo(
     () => Array.from(new Set(schedule.assignments.map((a) => a.assistant_id))),
@@ -322,7 +180,7 @@ function ScheduleOverview({
   )
 
   const studentColorIndex = useMemo(
-    () => Object.fromEntries(uniqueStudentIds.map((id, i) => [id, i % OVERVIEW_COLORS.length])),
+    () => Object.fromEntries(uniqueStudentIds.map((id, i) => [id, i % STUDENT_COLORS.length])),
     [uniqueStudentIds],
   )
 
@@ -372,7 +230,7 @@ function ScheduleOverview({
           >
             {/* Day header row */}
             <div className="border-b border-border" />
-            {OVERVIEW_DAYS.map((day, idx) => (
+            {WEEKDAYS_SHORT.map((day, idx) => (
               <div
                 key={day}
                 className={cn(
@@ -403,7 +261,7 @@ function ScheduleOverview({
                 </div>
 
                 {/* Day cells */}
-                {OVERVIEW_DAYS.map((_, dayIdx) => {
+                {WEEKDAYS_SHORT.map((_, dayIdx) => {
                   const shift = shiftLookup.get(`${slot.start}-${slot.end}-${dayIdx}`)
                   const students = shift ? (assignmentsByShift[shift.id] ?? []) : []
 
@@ -419,7 +277,7 @@ function ScheduleOverview({
                       {students.length > 0 ? (
                         <div className="flex flex-col gap-0.5 sm:gap-1">
                           {students.map((sid) => {
-                            const color = OVERVIEW_COLORS[studentColorIndex[sid] ?? 0]
+                            const color = STUDENT_COLORS[studentColorIndex[sid] ?? 0]
                             const name = studentNames[sid] || sid.slice(0, 6)
                             const firstName = name.split(" ")[0]
                             return (
@@ -457,7 +315,7 @@ function ScheduleOverview({
         {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t pt-3">
           {uniqueStudentIds.map((id) => {
-            const color = OVERVIEW_COLORS[studentColorIndex[id] ?? 0]
+            const color = STUDENT_COLORS[studentColorIndex[id] ?? 0]
             const name = studentNames[id] || id.slice(0, 8)
             return (
               <div key={id} className="flex items-center gap-1.5 text-xs">
@@ -471,146 +329,3 @@ function ScheduleOverview({
     </Card>
   )
 }
-
-// --- Time log charts ---
-
-const hoursWorkedConfig = {
-  hours: { label: "Hours" },
-} satisfies ChartConfig
-
-function HoursWorkedChart({ data }: { data: { name: string; hours: number; fill: string }[] }) {
-  const sorted = useMemo(() => [...data].sort((a, b) => b.hours - a.hours), [data])
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Hours Worked</CardTitle>
-        <CardDescription>Week of Feb 17 – 21</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={hoursWorkedConfig} className="h-[300px] w-full">
-          <BarChart
-            accessibilityLayer
-            data={sorted}
-            layout="vertical"
-            margin={{ left: 0 }}
-            barSize={20}
-          >
-            <CartesianGrid horizontal={false} />
-            <YAxis
-              dataKey="name"
-              type="category"
-              tickLine={false}
-              tickMargin={10}
-              axisLine={false}
-              width={110}
-            />
-            <XAxis dataKey="hours" type="number" hide />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-            <Bar dataKey="hours" radius={4}>
-              <LabelList dataKey="hours" position="right" className="fill-foreground text-xs" />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-const attendanceConfig = {
-  attended: { label: "Attended", color: "var(--color-primary)" },
-  missed: { label: "Missed", color: "var(--color-chart-1)" },
-} satisfies ChartConfig
-
-function AttendanceChart({ data }: { data: { name: string; missed: number; total: number; fill: string }[] }) {
-  const stacked = useMemo(
-    () => data
-      .map(({ fill: _, ...d }) => ({ ...d, attended: d.total - d.missed }))
-      .sort((a, b) => b.total - a.total),
-    [data],
-  )
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Shift Attendance</CardTitle>
-        <CardDescription>Week of Feb 17 – 21</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={attendanceConfig} className="h-[300px] w-full">
-          <BarChart
-            accessibilityLayer
-            data={stacked}
-            layout="vertical"
-            margin={{ left: 0 }}
-            barSize={20}
-          >
-            <CartesianGrid horizontal={false} />
-            <YAxis
-              dataKey="name"
-              type="category"
-              tickLine={false}
-              tickMargin={10}
-              axisLine={false}
-              width={110}
-            />
-            <XAxis type="number" hide />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            <ChartLegend content={<ChartLegendContent />} />
-            <Bar
-              dataKey="attended"
-              stackId="shifts"
-              fill="var(--color-attended)"
-              shape={(props: unknown) => {
-                const p = props as Record<string, unknown> & { payload?: { missed?: number } }
-                return <Rectangle {...p} radius={(p.payload?.missed ?? 0) > 0 ? [4, 0, 0, 4] : 4} />
-              }}
-            />
-            <Bar
-              dataKey="missed"
-              stackId="shifts"
-              fill="var(--color-missed)"
-              radius={[0, 4, 4, 0]}
-            />
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-// --- Semester trend chart ---
-
-const hoursTrendConfig = {
-  hours: { label: "Total Hours", color: "var(--color-primary)" },
-} satisfies ChartConfig
-
-function HoursTrendChart({ data }: { data: { week: string; hours: number }[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Semester Trend</CardTitle>
-        <CardDescription>Total hours worked per week this semester</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={hoursTrendConfig} className="h-[300px] w-full">
-          <LineChart accessibilityLayer data={data} margin={{ top: 16, right: 16 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="week" tickLine={false} axisLine={false} tickMargin={10} />
-            <YAxis tickLine={false} axisLine={false} tickMargin={10} width={40} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-            <Line
-              dataKey="hours"
-              type="monotone"
-              stroke="var(--color-hours)"
-              strokeWidth={2}
-              dot={{ r: 4, fill: "var(--color-hours)" }}
-              activeDot={{ r: 6 }}
-            />
-          </LineChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  )
-}
-

@@ -6,13 +6,14 @@ import type { ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
 import type { Student } from "@/types/student"
 import { buildStudentNameMap } from "@/lib/mock-data"
+import { formatDateMedium } from "@/lib/format"
 import { parseDragId } from "./types"
 import { useScheduleEditor } from "./use-schedule-editor"
-import { ScheduleEditorToolbar, type ScheduleStatus } from "./schedule-editor-toolbar"
-import { RenameScheduleDialog } from "./rename-schedule-dialog"
-import { ScheduleGrid } from "./schedule-grid"
-import { StudentPool } from "./student-pool"
-import { StudentChipOverlay } from "./student-chip"
+import { ScheduleEditorToolbar, type ScheduleStatus } from "./components/schedule-editor-toolbar"
+import { RenameScheduleDialog } from "./components/rename-schedule-dialog"
+import { ScheduleGrid } from "./components/schedule-grid"
+import { StudentPool } from "./components/student-pool"
+import { StudentChipOverlay } from "./components/student-chip"
 
 interface ScheduleEditorProps {
   schedule: ScheduleResponse
@@ -72,11 +73,7 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [state.isDirty, state.isSaving, wrappedSave])
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso + "T00:00:00")
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-  }
-  const dateRange = formatDate(schedule.effective_from) + (schedule.effective_to ? ` — ${formatDate(schedule.effective_to)}` : " onwards")
+  const dateRange = formatDateMedium(schedule.effective_from) + (schedule.effective_to ? ` — ${formatDateMedium(schedule.effective_to)}` : " onwards")
 
   const studentHours = useMemo(() => {
     const hours: Record<string, number> = {}

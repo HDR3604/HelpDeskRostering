@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RefreshCw, LoaderCircle, ArrowRight } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { DataTable } from "@/components/ui/data-table"
-import { getStudentColumns } from "./columns/student-columns"
+import { getStudentColumns } from "../columns/student-columns"
 import type { Student } from "@/types/student"
 import { getApplicationStatus, type ApplicationStatus } from "@/types/student"
 
@@ -43,12 +43,11 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync,
 
   const columns = useMemo(
     () => getStudentColumns({ onAccept, onReject, onViewTranscript }),
-    [onAccept, onReject],
+    [onAccept, onReject, onViewTranscript],
   )
 
   return (
-    <>
-      <Card>
+    <Card>
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
@@ -91,7 +90,6 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync,
             </Button>
           </div>
         </CardContent>
-      </Card>
-    </>
+    </Card>
   )
 }

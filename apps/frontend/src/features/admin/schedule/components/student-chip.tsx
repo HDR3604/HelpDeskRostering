@@ -2,8 +2,8 @@ import { useDraggable } from "@dnd-kit/core"
 import { CSS } from "@dnd-kit/utilities"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { buildDragId, STUDENT_COLORS } from "./types"
-import type { EditorAction } from "./types"
+import { buildDragId, STUDENT_COLORS } from "../types"
+import type { EditorAction } from "../types"
 
 interface StudentChipProps {
   studentId: string

@@ -8,12 +8,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ChevronDown, X } from "lucide-react"
-import { SummaryCards } from "./summary-cards"
-import { StudentApplicationsTable } from "./student-applications-table"
-import { TranscriptDialog } from "./transcript-dialog"
-import { MiniWeeklySchedule } from "./mini-weekly-schedule"
-import { HoursWorkedChart } from "./hours-worked-chart"
-import { MissedShiftsChart } from "./missed-shifts-chart"
+import { SummaryCards } from "./components/summary-cards"
+import { StudentApplicationsTable } from "./components/student-applications-table"
+import { TranscriptDialog } from "./components/transcript-dialog"
+import { MiniWeeklySchedule } from "./components/mini-weekly-schedule"
+import { HoursWorkedChart } from "./components/hours-worked-chart"
+import { MissedShiftsChart } from "./components/missed-shifts-chart"
 import { MOCK_STUDENTS, MOCK_ACTIVE_SCHEDULE, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS } from "@/lib/mock-data"
 import { getApplicationStatus } from "@/types/student"
 import type { Student } from "@/types/student"
@@ -44,11 +44,21 @@ export function AdminDashboard() {
     [selectedStudents],
   )
 
-  const pendingCount = students.filter((s) => getApplicationStatus(s) === "pending").length
-  const acceptedCount = students.filter((s) => getApplicationStatus(s) === "accepted").length
-  const scheduledThisWeekCount = new Set(
-    MOCK_ACTIVE_SCHEDULE.assignments.map((a) => a.assistant_id)
-  ).size
+  const { pendingCount, acceptedCount } = useMemo(() => {
+    let pending = 0
+    let accepted = 0
+    for (const s of students) {
+      const status = getApplicationStatus(s)
+      if (status === "pending") pending++
+      else if (status === "accepted") accepted++
+    }
+    return { pendingCount: pending, acceptedCount: accepted }
+  }, [students])
+
+  const scheduledThisWeekCount = useMemo(
+    () => new Set(MOCK_ACTIVE_SCHEDULE.assignments.map((a) => a.assistant_id)).size,
+    [],
+  )
 
   function scheduleCommit(studentId: number, action: "accept" | "reject") {
     const existing = pendingTimers.current.get(studentId)

@@ -3,9 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { WEEKDAYS_SHORT, getTodayWeekdayIndex } from "@/lib/constants"
+import { formatHour } from "@/lib/format"
 import { ChevronDown, ChevronUp, CalendarDays, Users, Layers } from "lucide-react"
 import type { Assignment, ScheduleResponse } from "@/types/schedule"
 import type { ShiftTemplate } from "@/types/shift-template"
+import { STUDENT_COLORS } from "../schedule/types"
 
 interface MiniWeeklyScheduleProps {
   schedule: ScheduleResponse | null
@@ -13,38 +16,7 @@ interface MiniWeeklyScheduleProps {
   studentNames: Record<string, string>
 }
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
-
 const MAX_VISIBLE_PER_DAY = 4
-
-// 8 distinct color sets — use explicit tailwind colors for reliable contrast in both modes
-const STUDENT_COLORS = [
-  "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-l-orange-500",
-  "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-l-amber-500",
-  "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-l-blue-500",
-  "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-l-emerald-500",
-  "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-l-violet-500",
-  "bg-pink-500/15 text-pink-600 dark:text-pink-400 border-l-pink-500",
-  "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-l-cyan-500",
-  "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-l-rose-500",
-]
-
-const LEGEND_DOTS = [
-  "bg-orange-500",
-  "bg-amber-500",
-  "bg-blue-500",
-  "bg-emerald-500",
-  "bg-violet-500",
-  "bg-pink-500",
-  "bg-cyan-500",
-  "bg-rose-500",
-]
-
-function formatTime12(t: string) {
-  const hour = parseInt(t.split(":")[0], 10)
-  if (hour === 12) return "12 PM"
-  return hour < 12 ? `${hour} AM` : `${hour - 12} PM`
-}
 
 export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: MiniWeeklyScheduleProps) {
   const [expanded, setExpanded] = useState(false)
@@ -75,8 +47,7 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
     byDay[Number(day)].sort((a, b) => a.start.localeCompare(b.start))
   }
 
-  const jsDay = new Date().getDay()
-  const today = jsDay === 0 ? 6 : jsDay - 1
+  const today = getTodayWeekdayIndex()
 
   const hasOverflow = Object.values(byDay).some((d) => d.length > MAX_VISIBLE_PER_DAY)
 
@@ -113,7 +84,7 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-5 gap-2">
-          {DAYS.map((day, idx) => {
+          {WEEKDAYS_SHORT.map((day, idx) => {
             const isToday = idx === today
             const dayAssignments = byDay[idx] || []
             const visible = expanded ? dayAssignments : dayAssignments.slice(0, MAX_VISIBLE_PER_DAY)
@@ -135,7 +106,7 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
                 {dayAssignments.length > 0 ? (
                   <div className="space-y-1">
                     {visible.map((a) => {
-                      const colorIdx = studentColorIndex[a.assistant_id]
+                      const color = STUDENT_COLORS[studentColorIndex[a.assistant_id]]
                       const name = studentNames[a.assistant_id] || a.assistant_id.slice(0, 6)
                       const initials = name
                         .split(" ")
@@ -145,10 +116,10 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
                       return (
                         <div
                           key={`${a.assistant_id}-${a.shift_id}`}
-                          title={`${name}\n${formatTime12(a.start)} – ${formatTime12(a.end)}`}
+                          title={`${name}\n${formatHour(a.start)} – ${formatHour(a.end)}`}
                           className={cn(
                             "rounded-md border-l-2 px-2 py-1.5 text-xs leading-tight",
-                            STUDENT_COLORS[colorIdx]
+                            color.chip
                           )}
                         >
                           <span className="font-semibold">{initials}</span>
@@ -192,11 +163,11 @@ export function MiniWeeklySchedule({ schedule, shiftTemplates, studentNames }: M
         {/* Legend */}
         <div className="flex flex-wrap gap-x-3 gap-y-1.5 border-t pt-3">
           {visibleLegend.map((id) => {
-            const colorIdx = studentColorIndex[id]
+            const color = STUDENT_COLORS[studentColorIndex[id]]
             const name = studentNames[id] || id.slice(0, 8)
             return (
               <div key={id} className="flex items-center gap-1.5 text-xs">
-                <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", LEGEND_DOTS[colorIdx])} />
+                <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", color.dot)} />
                 <span className="truncate max-w-[7rem]">{name}</span>
               </div>
             )

@@ -4,12 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { FileText, Check, X } from "lucide-react"
 import type { Student } from "@/types/student"
 import { getApplicationStatus, type ApplicationStatus } from "@/types/student"
-
-const statusStyle: Record<ApplicationStatus, string> = {
-  pending: "bg-amber-500/15 text-amber-500 hover:bg-amber-500/15",
-  accepted: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
-  rejected: "bg-red-500/15 text-red-500 hover:bg-red-500/15",
-}
+import { APPLICATION_STATUS_STYLES } from "@/lib/constants"
 
 const statusOrder: Record<ApplicationStatus, number> = {
   pending: 0,
@@ -91,7 +86,7 @@ export function getStudentColumns({ onAccept, onReject, onViewTranscript }: Stud
       cell: ({ row }) => {
         const status = getApplicationStatus(row.original)
         return (
-          <Badge className={`capitalize ${statusStyle[status]}`}>
+          <Badge className={`capitalize ${APPLICATION_STATUS_STYLES[status]}`}>
             {status}
           </Badge>
         )

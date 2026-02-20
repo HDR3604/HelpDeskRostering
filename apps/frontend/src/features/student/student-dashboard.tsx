@@ -1,11 +1,11 @@
 import { useUser } from "@/hooks/use-user"
 import { MOCK_ACTIVE_SCHEDULE, MOCK_SHIFT_TEMPLATES, MOCK_TIME_LOGS } from "@/lib/mock-data"
 import { getApplicationStatus } from "@/types/student"
-import { ApplicationStatusBanner } from "./application-status-banner"
-import { StudentSummaryCards } from "./student-summary-cards"
-import { NextShiftCard } from "./next-shift-card"
-import { WeekSummaryCard } from "./week-summary-card"
-import { StudentWeeklySchedule } from "./student-weekly-schedule"
+import { ApplicationStatusBanner } from "./components/application-status-banner"
+import { StudentSummaryCards } from "./components/student-summary-cards"
+import { NextShiftCard } from "./components/next-shift-card"
+import { WeekSummaryCard } from "./components/week-summary-card"
+import { StudentWeeklySchedule } from "./components/student-weekly-schedule"
 
 export function StudentDashboard() {
   const { currentStudent, currentStudentId } = useUser()

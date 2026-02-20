@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import type { ScheduleResponse } from "@/types/schedule"
 import { MOCK_SCHEDULES, MOCK_SHIFT_TEMPLATES, MOCK_STUDENTS } from "@/lib/mock-data"
 import { ScheduleEditor } from "@/features/admin/schedule/schedule-editor"
-import { ScheduleEditorSkeleton } from "@/features/admin/schedule/schedule-editor-skeleton"
+import { ScheduleEditorSkeleton } from "@/features/admin/skeletons/schedule-editor-skeleton"
 
 export const Route = createFileRoute("/_app/schedule/$scheduleId")({
   component: ScheduleEditorPage,
