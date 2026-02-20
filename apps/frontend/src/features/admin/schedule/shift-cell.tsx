@@ -10,9 +10,10 @@ interface ShiftCellProps {
   studentNames: Record<string, string>
   studentColorIndex: Record<string, number>
   dispatch: React.Dispatch<EditorAction>
+  availability: "available" | "unavailable" | null
 }
 
-export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColorIndex, dispatch }: ShiftCellProps) {
+export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColorIndex, dispatch, availability }: ShiftCellProps) {
   const { setNodeRef, isOver } = useDroppable({ id: `shift::${shift.id}` })
 
   const count = assignedStudentIds.length
@@ -25,28 +26,15 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
     <div
       ref={setNodeRef}
       className={cn(
-        "rounded-md transition-colors",
+        "rounded-md transition-all duration-200 ease-in-out min-h-[2.5rem] sm:min-h-[3rem]",
         isOver && !isFull && "bg-primary/[0.06] ring-1 ring-inset ring-primary/20",
         isOver && isFull && "bg-destructive/[0.06] ring-1 ring-inset ring-destructive/20",
+        !isOver && availability === "available" && "bg-emerald-500/[0.06] ring-1 ring-inset ring-emerald-500/20",
+        !isOver && availability === "unavailable" && "bg-destructive/[0.04] opacity-40",
       )}
     >
-      {/* Staffing indicator */}
-      <div className="flex items-center justify-end px-0.5 sm:px-1 pt-0.5 pb-0.5">
-        <span
-          className={cn(
-            "text-[8px] sm:text-[9px] tabular-nums font-medium",
-            count === 0 && "text-muted-foreground/40",
-            count > 0 && isUnder && "text-amber-500",
-            count > 0 && !isUnder && "text-emerald-500",
-            isFull && "text-muted-foreground",
-          )}
-        >
-          {count}/{max ?? min}
-        </span>
-      </div>
-
       {count > 0 ? (
-        <div className="flex flex-col gap-0.5 sm:gap-1 px-0.5 pb-0.5 sm:pb-1">
+        <div className="flex flex-col gap-0 sm:gap-0.5 px-0.5 sm:px-1 py-0.5 sm:py-1">
           {assignedStudentIds.map((sid) => (
             <StudentChip
               key={sid}
@@ -58,10 +46,22 @@ export function ShiftCell({ shift, assignedStudentIds, studentNames, studentColo
               dispatch={dispatch}
             />
           ))}
+          <span
+            className={cn(
+              "self-end text-[8px] sm:text-[9px] tabular-nums font-medium px-0.5 sm:px-1",
+              isUnder && "text-amber-500",
+              !isUnder && !isFull && "text-muted-foreground/40",
+              isFull && "text-muted-foreground/40",
+            )}
+          >
+            {count}/{max ?? min}
+          </span>
         </div>
       ) : (
-        <div className="flex items-center justify-center pb-1">
-          <span className="text-[9px] text-muted-foreground/30">—</span>
+        <div className="flex items-center justify-center h-full py-3">
+          <span className="text-[9px] text-muted-foreground/20 tabular-nums">
+            0/{max ?? min}
+          </span>
         </div>
       )}
     </div>

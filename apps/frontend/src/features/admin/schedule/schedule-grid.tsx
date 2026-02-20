@@ -2,6 +2,7 @@ import { useMemo, Fragment } from "react"
 import { cn } from "@/lib/utils"
 import type { ShiftTemplate } from "@/types/shift-template"
 import type { EditorAction } from "./types"
+import { isStudentAvailableForShift } from "./types"
 import { ShiftCell } from "./shift-cell"
 
 interface ScheduleGridProps {
@@ -10,6 +11,8 @@ interface ScheduleGridProps {
   studentNames: Record<string, string>
   studentColorIndex: Record<string, number>
   dispatch: React.Dispatch<EditorAction>
+  highlightedStudentId: string | null
+  studentAvailabilityMap: Record<string, Record<number, number[]>>
 }
 
 const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
@@ -29,7 +32,7 @@ function formatHourShort(t: string) {
   return hour < 12 ? `${hour}a` : `${hour - 12}p`
 }
 
-export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames, studentColorIndex, dispatch }: ScheduleGridProps) {
+export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames, studentColorIndex, dispatch, highlightedStudentId, studentAvailabilityMap }: ScheduleGridProps) {
   const jsDay = new Date().getDay()
   const today = jsDay === 0 ? 6 : jsDay - 1
 
@@ -58,13 +61,14 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
       style={{ gridTemplateRows: `auto repeat(${timeSlots.length}, auto)` }}
     >
       {/* Day header row */}
-      <div className="sticky top-0 left-0 z-30 border-b border-border bg-card" />
+      <div className="sticky top-0 left-0 z-30 border-b border-border/60 bg-card" />
       {DAYS_SHORT.map((day, idx) => (
         <div
           key={day}
           className={cn(
-            "sticky top-0 z-20 flex items-center justify-center border-b border-border bg-card py-2.5 sm:py-3.5",
-            idx > 0 && "border-l border-border",
+            "sticky top-0 z-20 flex items-center justify-center border-b border-border/60 bg-card py-2.5 sm:py-3.5",
+            idx > 0 && "border-l border-border/60",
+            idx === today && "bg-foreground/[0.03]",
           )}
         >
           <span
@@ -85,7 +89,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
       {timeSlots.map((slot) => (
         <Fragment key={slot.start}>
           {/* Time gutter */}
-          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border bg-card pr-1.5 sm:pr-3 pt-2">
+          <div className="sticky left-0 z-10 flex items-start justify-end border-b border-r border-border/60 bg-card pr-1.5 sm:pr-3 pt-2">
             <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
               <span className="sm:hidden">{formatHourShort(slot.start)}</span>
               <span className="hidden sm:inline">{formatHour(slot.start)}</span>
@@ -95,13 +99,16 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
           {/* Day cells */}
           {DAYS_SHORT.map((_, dayIdx) => {
             const shift = shiftLookup.get(`${slot.start}-${slot.end}-${dayIdx}`)
+            const highlightedAvailability = highlightedStudentId && shift
+              ? (isStudentAvailableForShift(studentAvailabilityMap[highlightedStudentId], shift) ? "available" as const : "unavailable" as const)
+              : null
             return (
               <div
                 key={`c-${slot.start}-${dayIdx}`}
                 className={cn(
-                  "border-b border-border p-0.5 sm:p-1.5",
-                  dayIdx > 0 && "border-l border-border",
-                  dayIdx === today && "bg-primary/[0.04]",
+                  "border-b border-border/60 p-0.5 sm:p-1 transition-colors duration-200",
+                  dayIdx > 0 && "border-l border-border/60",
+                  dayIdx === today && "bg-foreground/[0.03]",
                 )}
               >
                 {shift && (
@@ -111,6 +118,7 @@ export function ScheduleGrid({ shiftTemplates, assignmentsByShift, studentNames,
                     studentNames={studentNames}
                     studentColorIndex={studentColorIndex}
                     dispatch={dispatch}
+                    availability={highlightedAvailability}
                   />
                 )}
               </div>

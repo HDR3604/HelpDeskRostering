@@ -15,9 +15,10 @@ interface StudentChipProps {
   maxHours?: number | null
   assigned?: boolean
   dispatch?: React.Dispatch<EditorAction>
+  onHoverStudent?: (id: string | null) => void
 }
 
-export function StudentChip({ studentId, name, colorIndex, context, shiftId, hours, maxHours, dispatch }: StudentChipProps) {
+export function StudentChip({ studentId, name, colorIndex, context, shiftId, hours, maxHours, dispatch, onHoverStudent }: StudentChipProps) {
   const dragId = buildDragId(
     context === "pool"
       ? { context: "pool", studentId }
@@ -39,13 +40,13 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
         {...listeners}
         {...attributes}
         className={cn(
-          "group flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs leading-none cursor-grab select-none",
-          color.bg,
+          "group flex items-center gap-1 sm:gap-1.5 rounded px-1.5 sm:px-2 py-1 sm:py-1 text-[11px] sm:text-xs leading-none cursor-grab select-none",
+          "hover:bg-accent/50 transition-colors",
           isDragging && "opacity-30",
         )}
       >
-        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />
-        <span className="min-w-0 truncate font-medium text-foreground">{firstName}</span>
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", color.dot)} />
+        <span className={cn("min-w-0 truncate font-medium", color.text)}>{firstName}</span>
         {dispatch && shiftId && (
           <button
             type="button"
@@ -69,6 +70,8 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
       style={style}
       {...listeners}
       {...attributes}
+      onMouseEnter={() => onHoverStudent?.(studentId)}
+      onMouseLeave={() => onHoverStudent?.(null)}
       className={cn(
         "group flex items-center gap-2 rounded-md px-2.5 py-1.5 cursor-grab select-none transition-colors",
         "hover:bg-accent/50",
@@ -95,12 +98,9 @@ export function StudentChipOverlay({ name, colorIndex }: { name: string; colorIn
   const firstName = name.split(" ")[0]
 
   return (
-    <div className={cn(
-      "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs leading-none shadow-lg ring-1 ring-black/5",
-      color.bg,
-    )}>
+    <div className="flex items-center gap-1.5 rounded-md bg-card px-2.5 py-1.5 text-xs leading-none shadow-lg ring-1 ring-border">
       <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", color.dot)} />
-      <span className="font-medium text-foreground">{firstName}</span>
+      <span className={cn("font-medium", color.text)}>{firstName}</span>
     </div>
   )
 }

@@ -91,6 +91,21 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     return { totalAssignments, totalStudents: assignedIds.size, totalHours }
   }, [state.assignmentsByShift, studentHours])
 
+  // Availability highlighting (hover + drag)
+  const [highlightedStudentId, setHighlightedStudentId] = useState<string | null>(null)
+
+  const studentAvailabilityMap = useMemo(
+    () => Object.fromEntries(students.map((s) => [String(s.student_id), s.availability])),
+    [students],
+  )
+
+  const isDraggingRef = useRef(false)
+
+  const handleHoverStudent = useCallback((id: string | null) => {
+    if (id === null && isDraggingRef.current) return
+    setHighlightedStudentId(id)
+  }, [])
+
   // DnD
   const [activeId, setActiveId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -107,7 +122,11 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
   }, [activeId, studentNames, studentColorIndex])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(String(event.active.id))
+    isDraggingRef.current = true
+    const id = String(event.active.id)
+    setActiveId(id)
+    const parsed = parseDragId(id)
+    if (parsed) setHighlightedStudentId(parsed.studentId)
   }, [])
 
   const dropSucceededRef = useRef(false)
@@ -116,10 +135,10 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
     (event: DragEndEvent) => {
       dropSucceededRef.current = false
       const { active, over } = event
-      if (!over) { setActiveId(null); return }
+      if (!over) { setActiveId(null); setHighlightedStudentId(null); isDraggingRef.current = false; return }
 
       const source = parseDragId(String(active.id))
-      if (!source) { setActiveId(null); return }
+      if (!source) { setActiveId(null); setHighlightedStudentId(null); isDraggingRef.current = false; return }
 
       const destId = String(over.id)
 
@@ -128,6 +147,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
           dispatch({ type: "UNASSIGN_STUDENT", shiftId: source.shiftId, studentId: source.studentId })
         }
         setActiveId(null)
+        setHighlightedStudentId(null)
+        isDraggingRef.current = false
         return
       }
 
@@ -143,6 +164,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
       }
 
       setActiveId(null)
+      setHighlightedStudentId(null)
+      isDraggingRef.current = false
     },
     [dispatch],
   )
@@ -171,6 +194,8 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
               studentNames={studentNames}
               studentColorIndex={studentColorIndex}
               dispatch={dispatch}
+              highlightedStudentId={highlightedStudentId}
+              studentAvailabilityMap={studentAvailabilityMap}
             />
           </div>
 
@@ -180,6 +205,7 @@ export function ScheduleEditor({ schedule, shiftTemplates, students, onSave, onB
             studentColorIndex={studentColorIndex}
             studentHours={studentHours}
             dispatch={dispatch}
+            onHoverStudent={handleHoverStudent}
           />
         </div>
 

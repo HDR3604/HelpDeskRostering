@@ -23,6 +23,7 @@ interface StudentPoolProps {
   studentColorIndex: Record<string, number>
   studentHours: Record<string, number>
   dispatch: React.Dispatch<EditorAction>
+  onHoverStudent?: (id: string | null) => void
 }
 
 /** Inner pool content shared between desktop sidebar and mobile sheet */
@@ -32,6 +33,7 @@ function PoolContent({
   studentColorIndex,
   studentHours,
   dispatch,
+  onHoverStudent,
   setNodeRef,
   isOver,
 }: StudentPoolProps & { setNodeRef: (el: HTMLElement | null) => void; isOver: boolean }) {
@@ -89,6 +91,7 @@ function PoolContent({
                   hours={studentHours[sid] ?? 0}
                   maxHours={student.max_weekly_hours}
                   dispatch={dispatch}
+                  onHoverStudent={onHoverStudent}
                 />
               )
             })
@@ -106,7 +109,7 @@ function PoolContent({
   )
 }
 
-export function StudentPool({ students, assignedStudentIds, studentColorIndex, studentHours, dispatch }: StudentPoolProps) {
+export function StudentPool({ students, assignedStudentIds, studentColorIndex, studentHours, dispatch, onHoverStudent }: StudentPoolProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const { setNodeRef, isOver } = useDroppable({ id: "pool" })
@@ -151,6 +154,7 @@ export function StudentPool({ students, assignedStudentIds, studentColorIndex, s
               studentColorIndex={studentColorIndex}
               studentHours={studentHours}
               dispatch={dispatch}
+              onHoverStudent={onHoverStudent}
               setNodeRef={setNodeRef}
               isOver={isOver}
             />
@@ -217,6 +221,7 @@ export function StudentPool({ students, assignedStudentIds, studentColorIndex, s
               studentColorIndex={studentColorIndex}
               studentHours={studentHours}
               dispatch={dispatch}
+              onHoverStudent={onHoverStudent}
               setNodeRef={() => {}}
               isOver={false}
             />

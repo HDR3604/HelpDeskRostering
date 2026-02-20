@@ -10,6 +10,7 @@ import {
   Archive,
   ExternalLink,
   ZapOff,
+  Bell,
 } from "lucide-react"
 import { Bar, BarChart, CartesianGrid, LabelList, Line, LineChart, Rectangle, XAxis, YAxis } from "recharts"
 import { Button } from "@/components/ui/button"
@@ -77,6 +78,7 @@ interface ScheduleListViewProps {
   onArchive: (schedule: ScheduleResponse) => void
   onUnarchive: (schedule: ScheduleResponse) => void
   onDeactivate: (schedule: ScheduleResponse) => void
+  onNotify: (schedule: ScheduleResponse) => void
 }
 
 export function ScheduleListView({
@@ -95,6 +97,7 @@ export function ScheduleListView({
   onArchive,
   onUnarchive,
   onDeactivate,
+  onNotify,
 }: ScheduleListViewProps) {
   const activeSchedule = schedules.find((s) => s.is_active) ?? null
   const pastSchedules = schedules.filter((s) => !s.is_active)
@@ -133,6 +136,7 @@ export function ScheduleListView({
               onDownload={onDownload}
               onArchive={onArchive}
               onDeactivate={onDeactivate}
+              onNotify={onNotify}
             />
             <ScheduleOverview
               schedule={activeSchedule}
@@ -195,6 +199,7 @@ function ActiveScheduleCard({
   onDownload,
   onArchive,
   onDeactivate,
+  onNotify,
 }: {
   schedule: ScheduleResponse
   stats: ReturnType<typeof getScheduleStats>
@@ -203,6 +208,7 @@ function ActiveScheduleCard({
   onDownload: (s: ScheduleResponse) => void
   onArchive: (s: ScheduleResponse) => void
   onDeactivate: (s: ScheduleResponse) => void
+  onNotify: (s: ScheduleResponse) => void
 }) {
   const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
   const peakDayLabel = DAYS[stats.peakDay] ?? "—"
@@ -213,20 +219,25 @@ function ActiveScheduleCard({
       onClick={() => onOpen(schedule.schedule_id)}
     >
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="truncate font-semibold">{schedule.title}</span>
-            <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[11px]">Active</Badge>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
+            <CalendarDays className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
-            <span>
-              {formatDateShort(schedule.effective_from)}
-              {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
-            </span>
-            <span className="text-border">·</span>
-            <span><span className="tabular-nums">{stats.totalStudents}</span> students</span>
-            <span className="text-border">·</span>
-            <span><span className="tabular-nums">{stats.totalAssignments}</span> shifts</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-semibold">{schedule.title}</span>
+              <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[11px]">Active</Badge>
+            </div>
+            <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                {formatDateShort(schedule.effective_from)}
+                {schedule.effective_to ? ` — ${formatDateShort(schedule.effective_to)}` : " onwards"}
+              </span>
+              <span className="text-border">·</span>
+              <span><span className="tabular-nums">{stats.totalStudents}</span> students</span>
+              <span className="text-border">·</span>
+              <span><span className="tabular-nums">{stats.totalAssignments}</span> shifts</span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -248,6 +259,10 @@ function ActiveScheduleCard({
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDownload(schedule) }}>
                 <Download className="mr-2 h-3.5 w-3.5" />
                 Download
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onNotify(schedule) }}>
+                <Bell className="mr-2 h-3.5 w-3.5" />
+                Notify
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeactivate(schedule) }}>

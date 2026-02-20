@@ -41,6 +41,24 @@ export function parseDragId(id: string): DragSource | null {
   return null
 }
 
+// --- Availability check ---
+
+/** Returns true if the student is available for every hour the shift covers. */
+export function isStudentAvailableForShift(
+  availability: Record<number, number[]> | undefined,
+  shift: { day_of_week: number; start_time: string; end_time: string },
+): boolean {
+  if (!availability) return false
+  const dayHours = availability[shift.day_of_week]
+  if (!dayHours) return false
+  const start = parseInt(shift.start_time.split(":")[0], 10)
+  const end = parseInt(shift.end_time.split(":")[0], 10)
+  for (let h = start; h < end; h++) {
+    if (!dayHours.includes(h)) return false
+  }
+  return true
+}
+
 // Student color palette — distinct hues, visible in both light and dark mode
 export const STUDENT_COLORS = [
   { bg: "bg-blue-100 dark:bg-blue-500/20", dot: "bg-blue-500", text: "text-blue-600 dark:text-blue-400" },

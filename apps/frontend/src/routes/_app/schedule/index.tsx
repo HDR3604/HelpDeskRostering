@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState } from "react"
+import { toast } from "sonner"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import type { ScheduleResponse } from "@/types/schedule"
 import { MOCK_SCHEDULES, MOCK_STUDENTS, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS, MOCK_HOURS_TREND, MOCK_SCHEDULER_CONFIGS } from "@/lib/mock-data"
@@ -6,6 +7,7 @@ import { ScheduleListView } from "@/features/admin/schedule/schedule-list-view"
 import { ScheduleListSkeleton } from "@/features/admin/schedule/schedule-list-skeleton"
 import { RenameScheduleDialog } from "@/features/admin/schedule/rename-schedule-dialog"
 import { ActivateScheduleDialog } from "@/features/admin/schedule/activate-schedule-dialog"
+import { NotifyStudentsDialog } from "@/features/admin/schedule/notify-students-dialog"
 
 const CreateScheduleDialog = lazy(() =>
   import("@/features/admin/schedule/create-schedule-dialog").then((m) => ({ default: m.CreateScheduleDialog })),
@@ -27,6 +29,9 @@ function ScheduleListPage() {
   // Activate
   const [activateTarget, setActivateTarget] = useState<ScheduleResponse | null>(null)
 
+  // Notify
+  const [notifyTarget, setNotifyTarget] = useState<ScheduleResponse | null>(null)
+
   function handleCreateSchedule(newSchedule: ScheduleResponse) {
     setSchedules((prev) => [newSchedule, ...prev])
     setCreateDialogOpen(false)
@@ -39,64 +44,97 @@ function ScheduleListPage() {
 
   function handleRename(newTitle: string) {
     if (!renameTarget) return
-    setSchedules((prev) =>
-      prev.map((s) =>
-        s.schedule_id === renameTarget.schedule_id ? { ...s, title: newTitle } : s,
-      ),
-    )
+    try {
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.schedule_id === renameTarget.schedule_id ? { ...s, title: newTitle } : s,
+        ),
+      )
+      toast.success("Schedule renamed", { description: `Renamed to "${newTitle}".` })
+    } catch {
+      toast.error("Failed to rename", { description: "Something went wrong. Please try again." })
+    }
   }
 
-  function handleSetActive(_notify: boolean) {
+  function handleSetActive(notify: boolean) {
     if (!activateTarget) return
-    setSchedules((prev) =>
-      prev.map((s) => ({
-        ...s,
-        is_active: s.schedule_id === activateTarget.schedule_id,
-        archived_at: s.schedule_id === activateTarget.schedule_id ? null : s.archived_at,
-      })),
-    )
-    setActivateTarget(null)
+    const title = activateTarget.title
+    try {
+      setSchedules((prev) =>
+        prev.map((s) => ({
+          ...s,
+          is_active: s.schedule_id === activateTarget.schedule_id,
+          archived_at: s.schedule_id === activateTarget.schedule_id ? null : s.archived_at,
+        })),
+      )
+      setActivateTarget(null)
+      toast.success("Schedule activated", {
+        description: `"${title}" is now active.${notify ? " Students have been notified." : ""}`,
+      })
+    } catch {
+      toast.error("Failed to activate", { description: "Something went wrong. Please try again." })
+    }
   }
 
   function handleDownload(schedule: ScheduleResponse) {
-    const data = JSON.stringify(schedule, null, 2)
-    const blob = new Blob([data], { type: "application/json" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${schedule.title.replace(/[^a-zA-Z0-9-_ ]/g, "")}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const data = JSON.stringify(schedule, null, 2)
+      const blob = new Blob([data], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${schedule.title.replace(/[^a-zA-Z0-9-_ ]/g, "")}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success("Schedule downloaded", { description: `"${schedule.title}" has been exported.` })
+    } catch {
+      toast.error("Failed to download", { description: "Something went wrong. Please try again." })
+    }
   }
 
   function handleArchive(schedule: ScheduleResponse) {
-    setSchedules((prev) =>
-      prev.map((s) =>
-        s.schedule_id === schedule.schedule_id
-          ? { ...s, archived_at: new Date().toISOString(), is_active: false }
-          : s,
-      ),
-    )
+    try {
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.schedule_id === schedule.schedule_id
+            ? { ...s, archived_at: new Date().toISOString(), is_active: false }
+            : s,
+        ),
+      )
+      toast.success("Schedule archived", { description: `"${schedule.title}" has been archived.` })
+    } catch {
+      toast.error("Failed to archive", { description: "Something went wrong. Please try again." })
+    }
   }
 
   function handleDeactivate(schedule: ScheduleResponse) {
-    setSchedules((prev) =>
-      prev.map((s) =>
-        s.schedule_id === schedule.schedule_id
-          ? { ...s, is_active: false }
-          : s,
-      ),
-    )
+    try {
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.schedule_id === schedule.schedule_id
+            ? { ...s, is_active: false }
+            : s,
+        ),
+      )
+      toast.success("Schedule deactivated", { description: `"${schedule.title}" is no longer active.` })
+    } catch {
+      toast.error("Failed to deactivate", { description: "Something went wrong. Please try again." })
+    }
   }
 
   function handleUnarchive(schedule: ScheduleResponse) {
-    setSchedules((prev) =>
-      prev.map((s) =>
-        s.schedule_id === schedule.schedule_id
-          ? { ...s, archived_at: null }
-          : s,
-      ),
-    )
+    try {
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.schedule_id === schedule.schedule_id
+            ? { ...s, archived_at: null }
+            : s,
+        ),
+      )
+      toast.success("Schedule unarchived", { description: `"${schedule.title}" has been restored.` })
+    } catch {
+      toast.error("Failed to unarchive", { description: "Something went wrong. Please try again." })
+    }
   }
 
   return (
@@ -117,6 +155,7 @@ function ScheduleListPage() {
         onArchive={handleArchive}
         onUnarchive={handleUnarchive}
         onDeactivate={handleDeactivate}
+        onNotify={setNotifyTarget}
       />
 
       {createDialogOpen && (
@@ -143,6 +182,23 @@ function ScheduleListPage() {
         onOpenChange={(open) => { if (!open) setActivateTarget(null) }}
         scheduleTitle={activateTarget?.title ?? ""}
         onConfirm={handleSetActive}
+      />
+
+      <NotifyStudentsDialog
+        open={notifyTarget !== null}
+        onOpenChange={(open) => { if (!open) setNotifyTarget(null) }}
+        scheduleTitle={notifyTarget?.title ?? ""}
+        onConfirm={() => {
+          const title = notifyTarget?.title
+          try {
+            setNotifyTarget(null)
+            toast.success("Notifications sent", {
+              description: `All students assigned to "${title}" have been notified.`,
+            })
+          } catch {
+            toast.error("Failed to notify", { description: "Something went wrong. Please try again." })
+          }
+        }}
       />
     </div>
   )
