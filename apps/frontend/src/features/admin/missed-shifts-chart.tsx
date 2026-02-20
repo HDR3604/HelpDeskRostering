@@ -23,11 +23,11 @@ interface MissedShiftsChartProps {
 const chartConfig = {
   attended: {
     label: "Attended",
-    color: "var(--primary)",
+    color: "var(--color-primary)",
   },
   missed: {
     label: "Missed",
-    color: "var(--color-orange-300)",
+    color: "var(--color-chart-1)",
   },
 } satisfies ChartConfig
 

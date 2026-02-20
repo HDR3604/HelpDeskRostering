@@ -76,7 +76,7 @@ export function NextShiftCard({ assignments, shiftTemplates }: NextShiftCardProp
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-lg font-semibold">{shiftName}</p>
-          <Badge variant="secondary">{duration} hrs</Badge>
+          <Badge className="bg-muted text-muted-foreground hover:bg-muted">{duration} hrs</Badge>
         </div>
         <div className="space-y-1.5 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">

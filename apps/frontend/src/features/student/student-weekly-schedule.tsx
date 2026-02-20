@@ -133,18 +133,18 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
             const dayAssignments = byDay[idx] || []
 
             return (
-              <div key={day} className="space-y-1.5">
+              <div key={day} className={cn("space-y-1.5 rounded-lg px-1.5 py-1.5", isToday && "bg-foreground/[0.03]")}>
                 <div
                   className={cn(
                     "flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium",
                     isToday
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/50 text-muted-foreground"
+                      ? "text-foreground"
+                      : "text-muted-foreground"
                   )}
                 >
                   {day}
                   {isToday && (
-                    <span className="text-[10px] font-normal opacity-80">Today</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">Today</span>
                   )}
                 </div>
 
@@ -155,10 +155,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                     return (
                       <div
                         key={a.shift_id}
-                        className={cn(
-                          "rounded-md border-l-[3px] border-l-primary bg-primary/5 px-2.5 py-2",
-                          isToday && "bg-primary/10"
-                        )}
+                        className="rounded-md border-l-[3px] border-l-primary bg-primary/10 dark:bg-primary/15 px-2.5 py-2"
                       >
                         <p className="text-xs font-semibold text-foreground">
                           {template?.name ?? "Shift"}
@@ -174,8 +171,8 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                     )
                   })
                 ) : (
-                  <div className="flex min-h-[4rem] items-center justify-center rounded-md border border-dashed border-border/40">
-                    <span className="text-[10px] text-muted-foreground/40">No shift</span>
+                  <div className="flex min-h-[4rem] items-center justify-center rounded-md bg-muted/50">
+                    <span className="text-[11px] text-muted-foreground">No shift</span>
                   </div>
                 )}
               </div>
@@ -195,18 +192,18 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                 key={day}
                 className={cn(
                   "rounded-lg border px-3 py-2.5",
-                  isToday ? "border-primary/30 bg-primary/5" : "border-border"
+                  isToday ? "border-foreground/10 bg-foreground/[0.03]" : "border-border"
                 )}
               >
                 <div className="flex items-center gap-2">
                   <span className={cn(
                     "text-sm font-semibold",
-                    isToday ? "text-primary" : "text-foreground"
+                    isToday ? "text-foreground" : "text-foreground"
                   )}>
                     {FULL_DAYS[idx]}
                   </span>
                   {isToday && (
-                    <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                    <span className="rounded-full bg-foreground/[0.06] px-2 py-0.5 text-[10px] font-medium text-foreground">
                       Today
                     </span>
                   )}
@@ -218,7 +215,7 @@ export function StudentWeeklySchedule({ assignments, shiftTemplates, schedule }:
                     return (
                       <div
                         key={a.shift_id}
-                        className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-1.5"
+                        className="flex items-center justify-between rounded-md bg-primary/10 dark:bg-primary/15 px-3 py-1.5"
                       >
                         <div>
                           <p className="text-xs font-semibold">{template?.name ?? "Shift"}</p>

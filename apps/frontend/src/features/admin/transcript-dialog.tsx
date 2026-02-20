@@ -86,8 +86,12 @@ export function TranscriptDialog({ student, open, onOpenChange }: TranscriptDial
                   {student.first_name} {student.last_name}
                 </h3>
                 <Badge
-                  variant={status === "accepted" ? "default" : status === "rejected" ? "destructive" : "outline"}
-                  className="capitalize"
+                  className={cn(
+                    "capitalize",
+                    status === "accepted" && "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
+                    status === "rejected" && "bg-red-500/15 text-red-500 hover:bg-red-500/15",
+                    status === "pending" && "bg-amber-500/15 text-amber-500 hover:bg-amber-500/15",
+                  )}
                 >
                   {status}
                 </Badge>

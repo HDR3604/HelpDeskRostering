@@ -17,27 +17,27 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 const MAX_VISIBLE_PER_DAY = 4
 
-// 8 distinct color sets to support larger rosters
+// 8 distinct color sets — use explicit tailwind colors for reliable contrast in both modes
 const STUDENT_COLORS = [
-  "bg-chart-1/15 text-chart-1 border-l-chart-1",
-  "bg-chart-2/15 text-chart-2 border-l-chart-2",
-  "bg-chart-3/15 text-chart-3 border-l-chart-3",
-  "bg-chart-4/15 text-chart-4 border-l-chart-4",
-  "bg-chart-5/15 text-chart-5 border-l-chart-5",
-  "bg-blue-500/15 text-blue-500 border-l-blue-500",
-  "bg-pink-500/15 text-pink-500 border-l-pink-500",
-  "bg-amber-500/15 text-amber-500 border-l-amber-500",
+  "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-l-orange-500",
+  "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-l-amber-500",
+  "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-l-blue-500",
+  "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-l-emerald-500",
+  "bg-violet-500/15 text-violet-600 dark:text-violet-400 border-l-violet-500",
+  "bg-pink-500/15 text-pink-600 dark:text-pink-400 border-l-pink-500",
+  "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-l-cyan-500",
+  "bg-rose-500/15 text-rose-600 dark:text-rose-400 border-l-rose-500",
 ]
 
 const LEGEND_DOTS = [
-  "bg-chart-1",
-  "bg-chart-2",
-  "bg-chart-3",
-  "bg-chart-4",
-  "bg-chart-5",
-  "bg-blue-500",
-  "bg-pink-500",
+  "bg-orange-500",
   "bg-amber-500",
+  "bg-blue-500",
+  "bg-emerald-500",
+  "bg-violet-500",
+  "bg-pink-500",
+  "bg-cyan-500",
+  "bg-rose-500",
 ]
 
 function formatTime12(t: string) {

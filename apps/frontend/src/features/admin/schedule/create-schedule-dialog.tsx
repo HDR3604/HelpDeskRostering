@@ -212,7 +212,7 @@ export function CreateScheduleDialog({ open, onOpenChange, students, onCreated }
                       {selectedIds.map((sid) => {
                         const student = students.find((s) => String(s.student_id) === sid)
                         return (
-                          <Badge key={sid} variant="secondary" className="text-xs">
+                          <Badge key={sid} className="bg-muted text-muted-foreground hover:bg-muted text-xs">
                             {student ? `${student.first_name} ${student.last_name}` : sid}
                           </Badge>
                         )

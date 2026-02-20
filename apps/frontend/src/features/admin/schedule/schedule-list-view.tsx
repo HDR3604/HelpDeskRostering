@@ -55,10 +55,10 @@ function getStatus(schedule: ScheduleResponse): ScheduleStatus {
   return "draft"
 }
 
-const statusVariant: Record<ScheduleStatus, "default" | "secondary" | "outline"> = {
-  active: "default",
-  draft: "outline",
-  archived: "secondary",
+const scheduleStatusStyle: Record<ScheduleStatus, string> = {
+  active: "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15",
+  draft: "bg-blue-500/15 text-blue-500 hover:bg-blue-500/15",
+  archived: "bg-muted text-muted-foreground hover:bg-muted",
 }
 
 function formatDateRange(from: string, to: string | null): string {
@@ -168,7 +168,7 @@ export function ScheduleListView({
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle>Drafts</CardTitle>
-              <Badge variant="secondary">{draftSchedules.length}</Badge>
+              <Badge className="bg-muted text-muted-foreground hover:bg-muted">{draftSchedules.length}</Badge>
             </div>
             <CardDescription>Schedules that haven't been activated yet.</CardDescription>
           </CardHeader>
@@ -517,8 +517,8 @@ function HoursWorkedChart({ data }: { data: { name: string; hours: number; fill:
 }
 
 const attendanceConfig = {
-  attended: { label: "Attended", color: "var(--primary)" },
-  missed: { label: "Missed", color: "var(--color-orange-300)" },
+  attended: { label: "Attended", color: "var(--color-primary)" },
+  missed: { label: "Missed", color: "var(--color-chart-1)" },
 } satisfies ChartConfig
 
 function AttendanceChart({ data }: { data: { name: string; missed: number; total: number; fill: string }[] }) {
@@ -581,7 +581,7 @@ function AttendanceChart({ data }: { data: { name: string; missed: number; total
 // --- Semester trend chart ---
 
 const hoursTrendConfig = {
-  hours: { label: "Total Hours", color: "var(--primary)" },
+  hours: { label: "Total Hours", color: "var(--color-primary)" },
 } satisfies ChartConfig
 
 function HoursTrendChart({ data }: { data: { week: string; hours: number }[] }) {
@@ -657,7 +657,7 @@ function ArchivedSection({
           <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
             <span>Archived Schedules</span>
-            <Badge variant="secondary" className="text-xs">{schedules.length}</Badge>
+            <Badge className="bg-muted text-muted-foreground hover:bg-muted text-xs">{schedules.length}</Badge>
           </button>
         </CollapsibleTrigger>
         {open && schedules.length > PAGE_SIZE && (
@@ -765,7 +765,7 @@ function ScheduleTable({
               <TableCell className="text-center">{uniqueStudents}</TableCell>
               <TableCell className="text-center">{schedule.assignments.length}</TableCell>
               <TableCell>
-                <Badge variant={statusVariant[status]} className="capitalize">
+                <Badge className={`capitalize ${scheduleStatusStyle[status]}`}>
                   {status}
                 </Badge>
               </TableCell>
