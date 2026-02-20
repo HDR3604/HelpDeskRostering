@@ -2,9 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import type { ScheduleResponse } from "@/types/schedule"
 import { MOCK_SCHEDULES, MOCK_SHIFT_TEMPLATES, MOCK_STUDENTS } from "@/lib/mock-data"
 import { ScheduleEditor } from "@/features/admin/schedule/schedule-editor"
+import { ScheduleEditorSkeleton } from "@/features/admin/schedule/schedule-editor-skeleton"
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export const Route = createFileRoute("/_app/schedule/$scheduleId")({
+  loader: () => sleep(1500), // TODO: remove — fake delay for testing skeletons
   component: ScheduleEditorPage,
+  pendingComponent: ScheduleEditorSkeleton,
 })
 
 function ScheduleEditorPage() {

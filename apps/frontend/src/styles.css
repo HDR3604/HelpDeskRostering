@@ -128,6 +128,12 @@ html {
   --sidebar-ring: oklch(0.408 0.123 38.172);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

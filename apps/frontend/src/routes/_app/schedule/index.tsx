@@ -3,12 +3,17 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import type { ScheduleResponse } from "@/types/schedule"
 import { MOCK_SCHEDULES, MOCK_STUDENTS, MOCK_SHIFT_TEMPLATES, STUDENT_NAME_MAP, MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS, MOCK_HOURS_TREND, MOCK_SCHEDULER_CONFIGS } from "@/lib/mock-data"
 import { ScheduleListView } from "@/features/admin/schedule/schedule-list-view"
+import { ScheduleListSkeleton } from "@/features/admin/schedule/schedule-list-skeleton"
 import { CreateScheduleDialog } from "@/features/admin/schedule/create-schedule-dialog"
 import { RenameScheduleDialog } from "@/features/admin/schedule/rename-schedule-dialog"
 import { ActivateScheduleDialog } from "@/features/admin/schedule/activate-schedule-dialog"
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 export const Route = createFileRoute("/_app/schedule/")({
+  loader: () => sleep(1500), // TODO: remove — fake delay for testing skeletons
   component: ScheduleListPage,
+  pendingComponent: ScheduleListSkeleton,
 })
 
 function ScheduleListPage() {

@@ -9,6 +9,7 @@ const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
   scrollRestoration: true,
+  defaultPendingMs: 0, // TODO: remove — show skeleton immediately for testing
 })
 
 // Register things for typesafety
