@@ -140,8 +140,8 @@ export function BankingDetailsForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-        <div className="w-full max-w-md space-y-6 sm:space-y-8">
+    <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
+        <div className="space-y-6 sm:space-y-8">
           {/* Logo + title */}
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -349,23 +349,23 @@ export function BankingDetailsForm() {
                 {step > 0 && (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     onClick={handleBack}
                   >
-                    <ArrowLeft className="mr-2 size-4" />
+                    <ArrowLeft className="size-4" />
                     Back
                   </Button>
                 )}
                 <div className="flex-1" />
                 {isLastStep ? (
                   <Button type="submit">
-                    <Check className="mr-2 size-4" />
+                    <Check className="size-4" />
                     Submit
                   </Button>
                 ) : (
                   <Button type="button" onClick={handleNext}>
                     Continue
-                    <ArrowRight className="ml-2 size-4" />
+                    <ArrowRight className="size-4" />
                   </Button>
                 )}
               </div>

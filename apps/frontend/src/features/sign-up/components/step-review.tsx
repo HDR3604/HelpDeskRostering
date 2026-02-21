@@ -8,31 +8,47 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { LogIn } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
+import { ArrowLeft, Loader2, Send } from 'lucide-react'
 import type { VerifyData, ContactData } from '@/features/sign-up/lib/sign-up-schemas'
 import { AvailabilitySummary } from './availability-summary'
 
-interface ViewApplicationProps {
+interface StepReviewProps {
     verify: VerifyData
     contact: ContactData
     availability: Record<string, number[]>
     transcriptName: string
+    onGoToStep: (step: number) => void
+    onBack: () => void
+    onSubmit: () => void
+    isSubmitting: boolean
 }
 
-export function ViewApplication({ verify, contact, availability, transcriptName }: ViewApplicationProps) {
+export function StepReview({
+    verify,
+    contact,
+    availability,
+    transcriptName,
+    onGoToStep,
+    onBack,
+    onSubmit,
+    isSubmitting,
+}: StepReviewProps) {
     return (
         <div className="space-y-8">
-            <div className="text-center space-y-1">
-                <h2 className="text-xl font-semibold">Your Submitted Application</h2>
-                <p className="text-muted-foreground text-sm">
-                    Below is a summary of the information you submitted.
-                </p>
-            </div>
-
-            {/* Personal Information */}
+            {/* Personal & Contact */}
             <section className="space-y-4">
-                <h3 className="font-semibold text-base">Personal Information</h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-base">Personal Information</h3>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onGoToStep(2)}
+                        className="text-primary text-xs"
+                    >
+                        Edit
+                    </Button>
+                </div>
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                     <div>
@@ -58,9 +74,20 @@ export function ViewApplication({ verify, contact, availability, transcriptName 
                 </div>
             </section>
 
-            {/* Academic Information */}
+            {/* Academic */}
             <section className="space-y-4">
-                <h3 className="font-semibold text-base">Academic Information</h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-base">Academic Information</h3>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onGoToStep(2)}
+                        className="text-primary text-xs"
+                    >
+                        Edit
+                    </Button>
+                </div>
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                     <div>
@@ -113,20 +140,43 @@ export function ViewApplication({ verify, contact, availability, transcriptName 
 
             {/* Availability */}
             <section className="space-y-4">
-                <h3 className="font-semibold text-base">Available Times</h3>
+                <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-base">Available Times</h3>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onGoToStep(4)}
+                        className="text-primary text-xs"
+                    >
+                        Edit
+                    </Button>
+                </div>
                 <Separator />
 
                 <AvailabilitySummary availability={availability} />
             </section>
 
-            {/* Return to Login */}
-            <div className="flex justify-center pt-4 pb-2">
-                <Link to="/">
-                    <Button size="lg" variant="outline">
-                        <LogIn className="size-4" />
-                        Return to Login
-                    </Button>
-                </Link>
+            {/* Navigation */}
+            <div className="flex items-center gap-3 pt-2">
+                <Button type="button" variant="outline" onClick={onBack}>
+                    <ArrowLeft className="size-4" />
+                    Back
+                </Button>
+                <div className="flex-1" />
+                <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Submitting…
+                        </>
+                    ) : (
+                        <>
+                            <Send className="size-4" />
+                            Submit Application
+                        </>
+                    )}
+                </Button>
             </div>
         </div>
     )
