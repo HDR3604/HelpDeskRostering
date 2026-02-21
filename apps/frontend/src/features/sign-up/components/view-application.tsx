@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table'
 import { LogIn } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
-import type { Step1Data, Step2Data, Step3Data } from '@/lib/sign-up-schemas'
+import type { Step1Data, Step2Data, Step3Data } from '@/features/sign-up/lib/sign-up-schemas'
 import { cn } from '@/lib/utils'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as const

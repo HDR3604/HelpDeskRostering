@@ -1,6 +1,6 @@
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { step2Schema, type Step2Data } from '@/lib/sign-up-schemas'
+import { step2Schema, type Step2Data } from '@/features/sign-up/lib/sign-up-schemas'
 import {
     Form,
     FormControl,

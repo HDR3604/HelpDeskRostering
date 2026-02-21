@@ -1,18 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { StepIndicator } from '@/components/sign-up/StepIndicator'
-import { Step1StudentInfo } from '@/components/sign-up/Step1StudentInfo'
-import { Step2TranscriptVerify } from '@/components/sign-up/Step2TranscriptVerify'
-import { Step3Availability } from '@/components/sign-up/Step3Availability'
-import { Step4Review } from '@/components/sign-up/Step4Review'
-import { SubmissionSuccess } from '@/components/sign-up/SubmissionSuccess'
-import { ViewApplication } from '@/components/sign-up/ViewApplication'
+import { StepIndicator } from '@/features/sign-up/components/step-indicator'
+import { Step1StudentInfo } from '@/features/sign-up/components/step1-student-info'
+import { Step2TranscriptVerify } from '@/features/sign-up/components/step2-transcript-verify'
+import { Step3Availability } from '@/features/sign-up/components/step3-availability'
+import { Step4Review } from '@/features/sign-up/components/step4-review'
+import { SubmissionSuccess } from '@/features/sign-up/components/submission-success'
+import { ViewApplication } from '@/features/sign-up/components/view-application'
 import { Card, CardContent } from '@/components/ui/card'
-import { simulateTranscriptExtraction } from '@/lib/mock-transcript'
-import type { Step1Data, Step2Data, Step3Data } from '@/lib/sign-up-schemas'
+import { simulateTranscriptExtraction } from '@/features/sign-up/lib/mock-transcript'
+import type { Step1Data, Step2Data, Step3Data } from '@/features/sign-up/lib/sign-up-schemas'
 import { toast } from 'sonner'
 
-export const Route = createFileRoute('/sign-up')({
+export const Route = createFileRoute('/_auth/sign-up')({
     component: SignUpPage,
 })
 

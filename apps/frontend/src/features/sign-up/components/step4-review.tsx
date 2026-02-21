@@ -9,7 +9,7 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { ArrowLeft, Loader2, Send } from 'lucide-react'
-import type { Step1Data, Step2Data, Step3Data } from '@/lib/sign-up-schemas'
+import type { Step1Data, Step2Data, Step3Data } from '@/features/sign-up/lib/sign-up-schemas'
 import { cn } from '@/lib/utils'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as const

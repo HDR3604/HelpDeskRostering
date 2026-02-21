@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { step1Schema, type Step1Data } from '@/lib/sign-up-schemas'
+import { step1Schema, type Step1Data } from '@/features/sign-up/lib/sign-up-schemas'
 import {
     Form,
     FormControl,
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { PhoneNumberInput } from './PhoneInput'
+import { PhoneNumberInput } from './phone-input'
 import { Upload, FileText, Loader2, ArrowRight } from 'lucide-react'
 import { useRef, useState } from 'react'
 
