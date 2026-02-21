@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Upload, FileText, X, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -11,7 +11,7 @@ interface StepTranscriptUploadProps {
 
 export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: StepTranscriptUploadProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const submitRef = useRef<HTMLButtonElement>(null)
+    const formRef = useRef<HTMLFormElement>(null)
     const [file, setFile] = useState<File | null>(defaultValue ?? null)
     const [error, setError] = useState('')
     const [isDragOver, setIsDragOver] = useState(false)
@@ -23,8 +23,12 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
         }
         setFile(f)
         setError('')
-        requestAnimationFrame(() => submitRef.current?.focus())
     }
+
+    // After file selection the file picker steals focus — restore it inside the form
+    useEffect(() => {
+        if (file) formRef.current?.focus()
+    }, [file])
 
     function handleDrop(e: React.DragEvent) {
         e.preventDefault()
@@ -51,13 +55,23 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
         onNext(file)
     }
 
+    function handleKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            handleSubmit()
+        }
+    }
+
     return (
         <form
-            className="space-y-6"
+            ref={formRef}
+            tabIndex={-1}
+            className="space-y-6 outline-none"
             onSubmit={(e) => {
                 e.preventDefault()
                 handleSubmit()
             }}
+            onKeyDown={handleKeyDown}
         >
             {file ? (
                 <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
@@ -90,7 +104,7 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
                     onClick={() => fileInputRef.current?.click()}
                     onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
+                            e.stopPropagation()
                             fileInputRef.current?.click()
                         }
                     }}
@@ -121,7 +135,7 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex justify-end">
-                <Button ref={submitRef} type="submit" disabled={isProcessing}>
+                <Button type="submit" disabled={isProcessing}>
                     {isProcessing ? (
                         <>
                             <Loader2 className="size-4 animate-spin" />

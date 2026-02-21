@@ -1,9 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { simulateTranscriptExtraction } from '@/features/sign-up/lib/mock-transcript'
+import {
+    mockSendVerificationEmail,
+    mockCheckVerificationStatus,
+} from '@/features/sign-up/lib/mock-verification'
 import type {
     VerifyData,
     ContactData,
@@ -11,10 +15,10 @@ import type {
 import { StepTranscriptUpload } from '@/features/sign-up/components/step-transcript-upload'
 import { StepVerifyDetails } from '@/features/sign-up/components/step-verify-details'
 import { StepContactInfo } from '@/features/sign-up/components/step-contact-info'
+import { StepEmailVerify } from '@/features/sign-up/components/step-email-verify'
 import { StepAvailability } from '@/features/sign-up/components/step-availability'
 import { StepReview } from '@/features/sign-up/components/step-review'
 import { SubmissionSuccess } from '@/features/sign-up/components/submission-success'
-import { ViewApplication } from '@/features/sign-up/components/view-application'
 
 export const Route = createFileRoute('/_auth/sign-up')({
     component: SignUpPage,
@@ -32,6 +36,10 @@ const STEPS = [
     {
         title: 'How can we reach you?',
         description: 'Your email and phone number for notifications.',
+    },
+    {
+        title: 'Verify your email',
+        description: 'Confirm your email address to continue.',
     },
     {
         title: 'When are you available?',
@@ -54,6 +62,8 @@ function SignUpPage() {
     const [transcript, setTranscript] = useState<File | null>(null)
     const [verifyData, setVerifyData] = useState<VerifyData | null>(null)
     const [contactData, setContactData] = useState<ContactData | null>(null)
+    const [isEmailVerified, setIsEmailVerified] = useState(false)
+    const [isSendingVerification, setIsSendingVerification] = useState(false)
     const [availability, setAvailability] = useState<Record<string, number[]> | null>(null)
 
     const currentStep = STEPS[step]
@@ -82,14 +92,45 @@ function SignUpPage() {
         setStep(2)
     }
 
-    function handleContactNext(data: ContactData) {
+    async function handleContactNext(data: ContactData) {
         setContactData(data)
+        setIsSendingVerification(true)
+        try {
+            await mockSendVerificationEmail(data.email)
+        } catch {
+            toast.error('Failed to send verification email. Please try again.')
+        } finally {
+            setIsSendingVerification(false)
+        }
         setStep(3)
     }
 
+    async function handleResendVerification() {
+        if (!contactData) return
+        setIsSendingVerification(true)
+        try {
+            await mockSendVerificationEmail(contactData.email)
+            toast.success('Verification email resent.')
+        } catch {
+            toast.error('Failed to resend. Please try again.')
+        } finally {
+            setIsSendingVerification(false)
+        }
+    }
+
+    // Poll for email verification while on the verify step
+    useEffect(() => {
+        if (step !== 3 || isEmailVerified || !contactData) return
+        const interval = setInterval(async () => {
+            const verified = await mockCheckVerificationStatus(contactData.email)
+            if (verified) setIsEmailVerified(true)
+        }, 2_000)
+        return () => clearInterval(interval)
+    }, [step, isEmailVerified, contactData])
+
     function handleAvailabilityNext(avail: Record<string, number[]>) {
         setAvailability(avail)
-        setStep(4)
+        setStep(5)
     }
 
     async function handleSubmit() {
@@ -117,7 +158,7 @@ function SignUpPage() {
                 availability,
             }
             console.log('Submission payload:', JSON.stringify(payload, null, 2))
-            setStep(5)
+            setStep(6)
         } catch {
             toast.error('Something went wrong. Please try again.')
         } finally {
@@ -197,39 +238,39 @@ function SignUpPage() {
                     />
                 )}
 
-                {step === 3 && (
-                    <StepAvailability
-                        defaultValues={availability ?? undefined}
-                        onNext={handleAvailabilityNext}
+                {step === 3 && contactData && (
+                    <StepEmailVerify
+                        email={contactData.email}
+                        isVerified={isEmailVerified}
+                        isSending={isSendingVerification}
+                        onResend={handleResendVerification}
                         onBack={() => setStep(2)}
+                        onNext={() => setStep(4)}
                     />
                 )}
 
-                {step === 4 && verifyData && contactData && availability && transcript && (
+                {step === 4 && (
+                    <StepAvailability
+                        defaultValues={availability ?? undefined}
+                        onNext={handleAvailabilityNext}
+                        onBack={() => setStep(3)}
+                    />
+                )}
+
+                {step === 5 && verifyData && contactData && availability && transcript && (
                     <StepReview
                         verify={verifyData}
                         contact={contactData}
                         availability={availability}
                         transcriptName={transcript.name}
                         onGoToStep={setStep}
-                        onBack={() => setStep(3)}
+                        onBack={() => setStep(4)}
                         onSubmit={handleSubmit}
                         isSubmitting={isSubmitting}
                     />
                 )}
 
-                {step === 5 && (
-                    <SubmissionSuccess onViewApplication={() => setStep(6)} />
-                )}
-
-                {step === 6 && verifyData && contactData && availability && transcript && (
-                    <ViewApplication
-                        verify={verifyData}
-                        contact={contactData}
-                        availability={availability}
-                        transcriptName={transcript.name}
-                    />
-                )}
+                {step === 6 && <SubmissionSuccess />}
             </div>
         </div>
     )
