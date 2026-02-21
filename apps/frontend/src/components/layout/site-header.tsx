@@ -128,7 +128,7 @@ export function SiteHeader() {
         <ThemeSwitcher />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className="rounded-full outline-none ring-ring focus-visible:ring-2">
+            <button type="button" className="rounded-full outline-none ring-ring focus-visible:ring-2 transition-opacity hover:opacity-75">
               <Avatar className="size-8">
                 <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
               </Avatar>

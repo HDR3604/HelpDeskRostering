@@ -11,6 +11,8 @@ import { useRouterState } from "@tanstack/react-router"
 
 export const Route = createRootRoute({
   component: RootComponent,
+  errorComponent: RouteError,
+  notFoundComponent: RouteNotFound,
 })
 
 function RootComponent() {

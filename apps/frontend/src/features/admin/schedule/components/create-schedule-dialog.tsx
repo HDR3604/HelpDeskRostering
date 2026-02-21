@@ -2,11 +2,10 @@ import { useState, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Check, CheckCircle2, ChevronsUpDown, Loader2, TriangleAlert, X, XCircle } from "lucide-react"
+import { CalendarDays, Check, CheckCircle2, ChevronsUpDown, Loader2, Sparkles, TriangleAlert, X, XCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -44,6 +43,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import type { Student } from "@/types/student"
 import { toDateString, addDays } from "@/lib/format"
 import type { ScheduleResponse, GenerationStatusUpdate } from "@/types/schedule"
@@ -92,8 +92,9 @@ export function CreateScheduleDialog({ open, onOpenChange, students, configs, on
   })
 
   const selectedIds = form.watch("studentIds")
-  const effectiveFrom = form.watch("effectiveFrom")
-  const effectiveTo = form.watch("effectiveTo")
+  const configId = form.watch("configId")
+
+  const selectedConfig = configs.find((c) => c.id === configId)
 
   const { status, schedule } = useGenerationStatus(generationId, students, formValues)
 
@@ -150,9 +151,23 @@ export function CreateScheduleDialog({ open, onOpenChange, students, configs, on
     onOpenChange(nextOpen)
   }
 
+  // Student picker trigger text
+  function getTriggerText() {
+    if (selectedIds.length === 0) return "Select students..."
+    if (selectedIds.length <= 3) {
+      return selectedIds
+        .map((sid) => {
+          const s = students.find((st) => String(st.student_id) === sid)
+          return s?.first_name ?? sid
+        })
+        .join(", ")
+    }
+    return `${selectedIds.length} students selected`
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg" showCloseButton={!isLocked} onInteractOutside={(e) => { if (isLocked) e.preventDefault() }} onEscapeKeyDown={(e) => { if (isLocked) e.preventDefault() }}>
+      <DialogContent className="sm:max-w-xl" showCloseButton={!isLocked} onInteractOutside={(e) => { if (isLocked) e.preventDefault() }} onEscapeKeyDown={(e) => { if (isLocked) e.preventDefault() }}>
         {generationId ? (
           <GeneratingView
             status={status}
@@ -170,179 +185,206 @@ export function CreateScheduleDialog({ open, onOpenChange, students, configs, on
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
-                  control={form.control}
-                  name="title"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Title</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Week 6 — Feb 24-28 Schedule" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-2">
-                    <Label htmlFor="effectiveFrom">Start Date</Label>
-                    <Input
-                      id="effectiveFrom"
-                      type="date"
-                      value={effectiveFrom}
-                      onChange={(e) => {
-                        form.setValue("effectiveFrom", e.target.value, { shouldValidate: true })
-                        if (e.target.value) {
-                          form.setValue("effectiveTo", addDays(e.target.value, 7), { shouldValidate: true })
-                        }
-                      }}
-                    />
-                    {form.formState.errors.effectiveFrom && (
-                      <p className="text-destructive text-sm">{form.formState.errors.effectiveFrom.message}</p>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="effectiveTo">End Date</Label>
-                    <Input
-                      id="effectiveTo"
-                      type="date"
-                      value={effectiveTo}
-                      onChange={(e) => {
-                        form.setValue("effectiveTo", e.target.value, { shouldValidate: true })
-                      }}
-                    />
-                    {form.formState.errors.effectiveTo && (
-                      <p className="text-destructive text-sm">{form.formState.errors.effectiveTo.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="configId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Scheduler Config</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    control={form.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
                         <FormControl>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a config..." />
-                          </SelectTrigger>
+                          <Input placeholder="e.g. Week 6 — Feb 24-28 Schedule" {...field} />
                         </FormControl>
-                        <SelectContent>
-                          {configs.map((config) => (
-                            <SelectItem key={config.id} value={config.id}>
-                              <span className="flex items-center gap-2">
-                                {config.name}
-                                {config.is_default && (
-                                  <Badge className="bg-muted text-muted-foreground hover:bg-muted text-[10px] px-1.5 py-0">
-                                    Default
-                                  </Badge>
-                                )}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={form.control}
+                      name="effectiveFrom"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Start Date</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                type="date"
+                                className="pl-9"
+                                value={field.value}
+                                onChange={(e) => {
+                                  field.onChange(e.target.value)
+                                  if (e.target.value) {
+                                    form.setValue("effectiveTo", addDays(e.target.value, 7), { shouldValidate: true })
+                                  }
+                                }}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="effectiveTo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>End Date</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                              <Input
+                                type="date"
+                                className="pl-9"
+                                value={field.value}
+                                onChange={(e) => field.onChange(e.target.value)}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                 <FormField
-                  control={form.control}
-                  name="studentIds"
-                  render={() => (
-                    <FormItem className="flex flex-col">
-                      <div className="flex items-center justify-between">
-                        <FormLabel>Students</FormLabel>
-                        {acceptedStudents.length > 0 && (
-                          <Button
-                            type="button"
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-xs"
-                            onClick={toggleAll}
-                          >
-                            {selectedIds.length === acceptedStudents.length ? "Deselect all" : "Select all"}
-                          </Button>
-                        )}
-                      </div>
-                      <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen}>
-                        <PopoverTrigger asChild>
+                    control={form.control}
+                    name="configId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Scheduler Config</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className={cn("w-full justify-between font-normal", selectedIds.length === 0 && "text-muted-foreground")}
-                            >
-                              {selectedIds.length === 0
-                                ? "Select students..."
-                                : `${selectedIds.length} student${selectedIds.length > 1 ? "s" : ""} selected`}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select a config..." />
+                            </SelectTrigger>
                           </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                          <Command>
-                            <CommandInput placeholder="Search students..." />
-                            <CommandList>
-                              <CommandEmpty>No students found.</CommandEmpty>
-                              <CommandGroup>
-                                {acceptedStudents.map((student) => {
-                                  const sid = String(student.student_id)
-                                  const isSelected = selectedIds.includes(sid)
-                                  return (
-                                    <CommandItem
-                                      key={sid}
-                                      value={`${student.first_name} ${student.last_name}`}
-                                      onSelect={() => toggleStudent(sid)}
-                                    >
-                                      <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
-                                      {student.first_name} {student.last_name}
-                                      <span className="ml-auto text-xs text-muted-foreground">{sid}</span>
-                                    </CommandItem>
-                                  )
-                                })}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                          <SelectContent>
+                            {configs.map((config) => (
+                              <SelectItem key={config.id} value={config.id}>
+                                <span className="flex items-center gap-2">
+                                  {config.name}
+                                  {config.is_default && (
+                                    <Badge className="bg-muted text-muted-foreground hover:bg-muted text-[10px] px-1.5 py-0">
+                                      Default
+                                    </Badge>
+                                  )}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedConfig && (
+                          <p className="text-xs text-muted-foreground">
+                            Targets {selectedConfig.baseline_hours_target}h/student
+                            {selectedConfig.solver_time_limit != null && ` · ${selectedConfig.solver_time_limit}s time limit`}
+                          </p>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                      {/* Selected tags */}
-                      {selectedIds.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {selectedIds.map((sid) => {
-                            const student = students.find((s) => String(s.student_id) === sid)
-                            return (
-                              <Badge
-                                key={sid}
-                                className="bg-muted text-muted-foreground hover:bg-muted text-xs gap-1 pr-1"
-                              >
-                                {student ? `${student.first_name} ${student.last_name}` : sid}
-                                <button
-                                  type="button"
-                                  className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
-                                  onClick={() => removeStudent(sid)}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            )
-                          })}
+                  <FormField
+                    control={form.control}
+                    name="studentIds"
+                    render={() => (
+                      <FormItem className="flex flex-col">
+                        <div className="flex items-center justify-between">
+                          <FormLabel>Students</FormLabel>
+                          {acceptedStudents.length > 0 && (
+                            <Button
+                              type="button"
+                              variant="link"
+                              size="sm"
+                              className="h-auto p-0 text-xs"
+                              onClick={toggleAll}
+                            >
+                              {selectedIds.length === acceptedStudents.length ? "Deselect all" : "Select all"}
+                            </Button>
+                          )}
                         </div>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <Popover open={studentPickerOpen} onOpenChange={setStudentPickerOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn("w-full justify-between font-normal", selectedIds.length === 0 && "text-muted-foreground")}
+                              >
+                                {getTriggerText()}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                              <CommandInput placeholder="Search students..." />
+                              <CommandList>
+                                <CommandEmpty>No students found.</CommandEmpty>
+                                <CommandGroup>
+                                  {acceptedStudents.map((student) => {
+                                    const sid = String(student.student_id)
+                                    const isSelected = selectedIds.includes(sid)
+                                    return (
+                                      <CommandItem
+                                        key={sid}
+                                        value={`${student.first_name} ${student.last_name}`}
+                                        onSelect={() => toggleStudent(sid)}
+                                      >
+                                        <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                        {student.first_name} {student.last_name}
+                                        <span className="ml-auto text-xs text-muted-foreground">{sid}</span>
+                                      </CommandItem>
+                                    )
+                                  })}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+
+                        {/* Selected tags */}
+                        {selectedIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1.5">
+                            {selectedIds.map((sid) => {
+                              const student = students.find((s) => String(s.student_id) === sid)
+                              const initial = student?.first_name?.[0] ?? "?"
+                              return (
+                                <Badge
+                                  key={sid}
+                                  className="rounded-full bg-muted text-muted-foreground hover:bg-muted text-xs gap-1.5 pl-1 pr-1"
+                                >
+                                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
+                                    {initial}
+                                  </span>
+                                  {student ? `${student.first_name} ${student.last_name}` : sid}
+                                  <button
+                                    type="button"
+                                    className="rounded-full p-0.5 hover:bg-foreground/10"
+                                    onClick={() => removeStudent(sid)}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              )
+                            })}
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit">Create</Button>
+                  <Button type="submit" variant="outline" className="gap-2">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Generate
+                  </Button>
                 </DialogFooter>
               </form>
             </Form>
@@ -354,6 +396,20 @@ export function CreateScheduleDialog({ open, onOpenChange, students, configs, on
 }
 
 // --- Generation status view ---
+
+const STEP_LABELS = [
+  "Analyzing availability...",
+  "Optimizing assignments...",
+  "Checking constraints...",
+  "Finalizing schedule...",
+]
+
+function getStepLabel(progress: number): string {
+  if (progress < 25) return STEP_LABELS[0]
+  if (progress < 55) return STEP_LABELS[1]
+  if (progress < 85) return STEP_LABELS[2]
+  return STEP_LABELS[3]
+}
 
 interface GeneratingViewProps {
   status: GenerationStatusUpdate | null
@@ -402,14 +458,14 @@ function GeneratingView({ status, onOpenSchedule, onTryAgain, onClose }: Generat
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex flex-col items-center gap-3 py-8">
+      <div className="flex flex-col items-center gap-4 py-8">
         {isActive && (
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
         {isCompleted && (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 animate-in zoom-in-50 duration-300">
             <CheckCircle2 className="h-6 w-6 text-emerald-500" />
           </div>
         )}
@@ -419,13 +475,18 @@ function GeneratingView({ status, onOpenSchedule, onTryAgain, onClose }: Generat
           </div>
         )}
 
+        {/* Progress bar */}
+        {isActive && (
+          <Progress value={status?.progress ?? 0} className="h-1.5 w-48" />
+        )}
+
         <div className="flex flex-col items-center gap-1">
           {isActive && (
             <>
               <span className="text-sm font-medium">
-                {status?.status === "pending" ? "Queued..." : "Generating schedule..."}
+                {status?.status === "pending" ? "Queued..." : getStepLabel(status?.progress ?? 0)}
               </span>
-              <span className="text-xs text-muted-foreground">Elapsed: {elapsed}s</span>
+              <span className="text-xs text-muted-foreground tabular-nums">Elapsed: {elapsed}s</span>
             </>
           )}
           {isCompleted && (
@@ -442,9 +503,12 @@ function GeneratingView({ status, onOpenSchedule, onTryAgain, onClose }: Generat
         </div>
 
         {isFailed && status?.error_message && (
-          <div className="flex w-full items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5">
-            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-            <p className="text-sm text-destructive">{status.error_message}</p>
+          <div className="flex w-full flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+            <div className="flex items-start gap-2">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <p className="text-sm text-destructive">{status.error_message}</p>
+            </div>
+            <p className="text-xs text-muted-foreground pl-6">Try adjusting students or constraints.</p>
           </div>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +32,9 @@ export function StudentApplicationsTable({ students, onAccept, onReject, onSync,
     setSyncing(true)
     try {
       await onSync()
+      toast.success("Applications synced")
+    } catch {
+      toast.error("Sync failed", { description: "Could not sync applications. Please try again." })
     } finally {
       setSyncing(false)
     }

@@ -49,11 +49,23 @@ export function useGenerationStatus(
 
     // After 800ms: running
     timers.push(setTimeout(() => {
-      setStatus((prev) => prev ? { ...prev, status: "running", started_at: new Date().toISOString() } : prev)
+      setStatus((prev) => prev ? { ...prev, status: "running", started_at: new Date().toISOString(), progress: 5 } : prev)
     }, 800))
 
     // Outcome after generation delay
     const finishDelay = 2500 + Math.random() * 1500 // 2.5–4s
+    const runDuration = finishDelay - 800 // time spent in "running" state
+
+    // Intermediate progress updates
+    timers.push(setTimeout(() => {
+      setStatus((prev) => prev && prev.status === "running" ? { ...prev, progress: 30 } : prev)
+    }, 800 + runDuration * 0.3))
+    timers.push(setTimeout(() => {
+      setStatus((prev) => prev && prev.status === "running" ? { ...prev, progress: 60 } : prev)
+    }, 800 + runDuration * 0.6))
+    timers.push(setTimeout(() => {
+      setStatus((prev) => prev && prev.status === "running" ? { ...prev, progress: 85 } : prev)
+    }, 800 + runDuration * 0.85))
 
     timers.push(setTimeout(() => {
       if (willFail) {
