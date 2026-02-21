@@ -4,7 +4,6 @@ import "errors"
 
 // Domain errors for user operations
 var (
-	ErrNotFound                  = errors.New("user not found")
 	ErrInvalidEmail              = errors.New("invalid email format")
 	ErrInvalidRole               = errors.New("invalid role")
 	ErrInvalidPasswordLength     = errors.New("Password must be at least 6 characters")
@@ -13,4 +12,7 @@ var (
 	ErrRoleUnchanged             = errors.New("new role must be different from current role")
 	ErrEmailAdmin                = errors.New("admin email must end with @uwi.edu")
 	ErrEmailStudent              = errors.New("student email must end with @my.uwi.edu")
+	ErrCreateUserFailed          = errors.New("failed to create user")
+	ErrEmailAlreadyExists        = errors.New("email already exists")
+	ErrUserNotFound              = errors.New("user not found")
 )
