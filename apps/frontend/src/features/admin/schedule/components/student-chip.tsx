@@ -1,5 +1,4 @@
 import { useDraggable } from "@dnd-kit/core"
-import { CSS } from "@dnd-kit/utilities"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { buildDragId, STUDENT_COLORS } from "../types"
@@ -25,9 +24,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
       : { context: "cell", shiftId: shiftId!, studentId },
   )
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: dragId })
-
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: dragId })
   const color = STUDENT_COLORS[colorIndex % STUDENT_COLORS.length]
   const firstName = name.split(" ")[0]
 
@@ -36,7 +33,7 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
     return (
       <div
         ref={setNodeRef}
-        style={style}
+
         {...listeners}
         {...attributes}
         className={cn(
@@ -67,7 +64,6 @@ export function StudentChip({ studentId, name, colorIndex, context, shiftId, hou
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
       onMouseEnter={() => onHoverStudent?.(studentId)}

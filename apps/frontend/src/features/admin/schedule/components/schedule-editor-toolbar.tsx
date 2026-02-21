@@ -68,7 +68,7 @@ export function ScheduleEditorToolbar({
   }
 
   return (
-    <div className="shrink-0 pb-2 px-3 lg:px-0">
+    <div className="shrink-0 space-y-[1.625rem] px-3 lg:px-0">
       {/* Title row */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-2 lg:gap-3 min-w-0">
@@ -94,9 +94,10 @@ export function ScheduleEditorToolbar({
                 {STATUS_BADGE[scheduleStatus].label}
               </Badge>
               {hasChanges && (
-                <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 hover:bg-amber-500/15 text-xs px-2 py-0.5 shrink-0">
-                  Unsaved
-                </Badge>
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                </span>
               )}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground truncate">
@@ -106,15 +107,8 @@ export function ScheduleEditorToolbar({
           </div>
         </div>
 
-        {/* Stats + Save */}
+        {/* Save */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Stats pills — hidden on mobile */}
-          <div className="hidden lg:flex items-center gap-2">
-            <StatPill icon={Users} value={totalStudents} label="students" />
-            <StatPill icon={CalendarDays} value={totalAssignments} label="slots" />
-            <StatPill icon={Clock} value={`${totalHours}h`} label="total" />
-          </div>
-
           {saveStatus && (
             <span
               className={cn(
@@ -132,19 +126,22 @@ export function ScheduleEditorToolbar({
           )}
 
           {hasChanges && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onSave} disabled={isSaving} className="h-8">
-                  {isSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Check className="mr-1.5 h-3.5 w-3.5" />}
-                  Save
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <kbd className="text-[10px]">⌘S</kbd>
-              </TooltipContent>
-            </Tooltip>
+            <Button variant="outline" size="sm" onClick={onSave} disabled={isSaving} className="h-8 gap-2 pl-3 pr-2.5">
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+              Save
+              <kbd className="pointer-events-none select-none rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground/60">
+                ⌘S
+              </kbd>
+            </Button>
           )}
         </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="hidden lg:flex items-center gap-2">
+        <StatPill icon={Users} value={totalStudents} label="students" />
+        <StatPill icon={CalendarDays} value={totalAssignments} label="slots" />
+        <StatPill icon={Clock} value={`${totalHours}h`} label="total" />
       </div>
 
       <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
