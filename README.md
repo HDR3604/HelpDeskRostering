@@ -120,6 +120,7 @@ Student applicants and employees.
 | `email_address` | varchar(255) | Unique email |
 | `first_name` | varchar(50) | |
 | `last_name` | varchar(100) | |
+| `phone_number` | varchar(20) | Optional phone number |
 | `transcript_metadata` | jsonb | Extracted transcript data (GPA, courses, current_level) |
 | `availability` | jsonb | Weekly availability `{day: [hours]}` |
 | `min_weekly_hours` | float | Scheduler: minimum hours target |
@@ -140,6 +141,7 @@ Admin accounts for system access.
 | `password` | varchar(255) | Hashed password |
 | `role` | auth.roles | `student` or `admin` |
 | `is_active` | boolean | Account enabled |
+| `email_verified_at` | timestamptz | Email verification timestamp (NULL = unverified) |
 | `created_at` | timestamptz | Auto-set |
 | `updated_at` | timestamptz | Auto-set |
 
@@ -168,6 +170,32 @@ Fortnightly payment records.
 | `processed_at` | timestamptz | Payment processed |
 | `created_at` | timestamptz | Auto-set |
 | `updated_at` | timestamptz | Auto-set |
+
+#### `auth.refresh_tokens`
+Opaque refresh tokens for session management.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → users (CASCADE) |
+| `token_hash` | varchar(64) | SHA-256 hex of opaque token |
+| `expires_at` | timestamptz | Token expiry |
+| `revoked_at` | timestamptz | When revoked |
+| `replaced_by` | uuid | FK → refresh_tokens (rotation chain) |
+| `created_at` | timestamptz | Auto-set |
+
+#### `auth.auth_tokens`
+General-purpose auth tokens (email verification, password reset, etc.).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `user_id` | uuid | FK → users (CASCADE) |
+| `type` | varchar(30) | Token type (e.g. `email_verification`) |
+| `token_hash` | varchar(64) | SHA-256 hex of token |
+| `expires_at` | timestamptz | Token expiry |
+| `used_at` | timestamptz | When consumed |
+| `created_at` | timestamptz | Auto-set |
 
 #### `schedule.time_logs`
 Clock in/out records with GPS location.
@@ -234,6 +262,8 @@ Optimizer configurations with penalty weights.
 | `max_extra_penalty` | float | Bottleneck fairness penalty |
 | `baseline_hours_target` | int | Target hours per assistant (default 6) |
 | `solver_time_limit` | int | Max solver time in seconds |
+| `solver_gap` | float | Optimality gap (NULL = default) |
+| `log_solver_output` | boolean | Log solver output |
 | `is_default` | boolean | Use as default config |
 | `created_at` | timestamptz | Auto-set |
 | `updated_at` | timestamptz | Auto-set |
@@ -263,6 +293,7 @@ Note: `created_at` uses `DEFAULT CURRENT_TIMESTAMP`, no trigger needed.
 |-------|:------------:|:------------:|
 | `auth.students` | ✓ | - |
 | `auth.users` | ✓ | - |
+| `auth.banking_details` | ✓ | - |
 | `auth.payments` | ✓ | - |
 | `schedule.schedules` | ✓ | ✓ |
 | `schedule.shift_templates` | ✓ | - |
@@ -277,6 +308,8 @@ Note: `created_at` uses `DEFAULT CURRENT_TIMESTAMP`, no trigger needed.
 | `auth.users` | Admin only | Admin only |
 | `auth.banking_details` | Admin: all, Student: own | Admin: all, Student: own |
 | `auth.payments` | Admin: all, Student: own | Internal only |
+| `auth.refresh_tokens` | Internal only | Internal only |
+| `auth.auth_tokens` | Internal only | Internal only |
 | `schedule.time_logs` | Admin only | Admin only |
 | `schedule.schedules` | Admin: all, Student: if assigned | Internal only |
 | `schedule.shift_templates` | Admin: all, Student: active only | Admin only |
