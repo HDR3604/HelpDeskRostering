@@ -1,350 +1,906 @@
 # Development Guide
 
-High-level architecture and development workflow for the HelpDesk Rostering monorepo. For app-specific implementation guides, see:
-
-- [Backend Development Guide](apps/backend/DEVELOPMENT.md)
-- [Frontend Development Guide](apps/frontend/DEVELOPMENT.md)
+This guide walks through the backend architecture and patterns for implementing new features.
 
 ## Table of Contents
 
-- [System Architecture](#system-architecture)
-- [Services](#services)
-  - [Frontend](#frontend)
-  - [Backend](#backend)
-  - [Scheduler](#scheduler)
-  - [Transcript Extraction](#transcript-extraction)
-  - [PostgreSQL](#postgresql)
-  - [Mailpit](#mailpit)
-- [Project Structure](#project-structure)
-- [Data Flow](#data-flow)
-  - [Schedule Generation](#schedule-generation)
-  - [Student Application](#student-application)
-- [Database Architecture](#database-architecture)
-  - [Schemas](#schemas)
-  - [Row-Level Security](#row-level-security)
-  - [Migrations](#migrations)
-- [Development Workflow](#development-workflow)
-  - [First-Time Setup](#first-time-setup)
-  - [Daily Development](#daily-development)
-  - [Database Reset](#database-reset)
-- [Environment Variables](#environment-variables)
+- [Architecture Overview](#architecture-overview)
+- [Core Infrastructure](#core-infrastructure)
+  - [Transaction Manager](#transaction-manager)
+  - [Auth Context](#auth-context)
+  - [Database Models (Go-Jet)](#database-models-go-jet)
+  - [Middleware](#middleware)
+  - [Email Service](#email-service)
+- [Example: Adding a "Courses" Domain](#example-adding-a-courses-domain)
+  - [Step 1: Aggregate](#step-1-aggregate)
+  - [Step 2: Domain Errors](#step-2-domain-errors)
+  - [Step 3: Repository Interface](#step-3-repository-interface)
+  - [Step 4: Infrastructure Repository](#step-4-infrastructure-repository)
+  - [Step 5: Service](#step-5-service)
+  - [Step 6: DTOs](#step-6-dtos)
+  - [Step 7: Handler](#step-7-handler)
+  - [Step 8: Wiring](#step-8-wiring)
+- [File Structure](#file-structure)
+- [Checklist](#checklist)
+- [Key Patterns](#key-patterns)
+  - [Handler Pattern](#handler-pattern)
+  - [DTO Conversion](#dto-conversion)
+  - [Error Handling](#error-handling)
+  - [Repository Pattern](#repository-pattern)
+  - [Transaction Usage](#transaction-usage)
+  - [Testing](#testing)
 
 ---
 
-## System Architecture
+## Architecture Overview
 
-```mermaid
-graph TB
-    FE["Frontend<br/>React SPA<br/>:5173"]
-    BE["Backend<br/>Go API<br/>:8080"]
-    DB["PostgreSQL<br/>(RLS)<br/>:5432"]
-    SC["Scheduler<br/>Python / PuLP<br/>:8000"]
-    TX["Transcripts<br/>Python / PDF<br/>:8001"]
-    MP["Mailpit<br/>Dev Email<br/>:8025 / :1025"]
-
-    FE -->|HTTP| BE
-    BE -->|SQL| DB
-    BE -->|HTTP| SC
-    BE -->|HTTP| TX
-    BE -->|SMTP| MP
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    HTTP Request                              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Middleware (JWT / Dev Auth)                      │
+│       Validates token, injects AuthContext                   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Handler (domain/<name>/handler/)                 │
+│       Decodes request, calls service, writes response        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Service (domain/<name>/service/)                 │
+│       Business logic, orchestrates transactions              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Repository (infrastructure/<name>/)             │
+│       Go-Jet queries, returns domain aggregates              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│              PostgreSQL (RLS enforced via TxManager)          │
+│       auth + schedule schemas, row-level security            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-All services run via Docker Compose (`docker-compose.local.yml`). The backend is the central service — it owns the database and orchestrates calls to the scheduler and transcript extraction services.
+Each domain follows **Domain-Driven Design** with this layered pattern:
+
+**Aggregate → Errors → Repository Interface → Infrastructure Repo → Service → Handler → DTOs**
+
+Current domains: `auth`, `schedule`, `user`.
 
 ---
 
-## Services
+## Core Infrastructure
 
-### Frontend
+### Transaction Manager
 
-| | |
-|---|---|
-| **Location** | `apps/frontend/` |
-| **Tech** | React 19, TypeScript, TanStack Router, Tailwind CSS 4, shadcn/ui |
-| **Port** | `5173` |
-| **Dev Guide** | [apps/frontend/DEVELOPMENT.md](apps/frontend/DEVELOPMENT.md) |
+All database access goes through the transaction manager (`infrastructure/database/tx_manager.go`). Two modes:
 
-Single-page application with file-based routing. Dual-role UI (admin and student views) controlled via `useUser()` context. Currently uses mock data — ready for backend API integration.
+| Method | Role | RLS | Use Case |
+|--------|------|-----|----------|
+| `InAuthTx` | `authenticated` | Enforced | Reads with user-scoped visibility |
+| `InSystemTx` | `internal` | Bypassed | Writes, registration, admin operations |
 
-### Backend
+```go
+// Read with RLS — user only sees rows they're allowed to
+err := s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+    result, err = s.repo.GetByID(ctx, tx, id)
+    return err
+})
 
-| | |
-|---|---|
-| **Location** | `apps/backend/` |
-| **Tech** | Go 1.24, Chi router, Go-Jet v2 ORM, zap logger |
-| **Port** | `8080` |
-| **Dev Guide** | [apps/backend/DEVELOPMENT.md](apps/backend/DEVELOPMENT.md) |
-
-REST API using Domain-Driven Design. Domains: `schedule`, `user`. Each domain follows the pattern: aggregate → errors → repository interface → infrastructure repo → service → handler → DTOs.
-
-Key architectural decisions:
-- **Transaction manager** with two modes: `InAuthTx` (RLS-enforced reads) and `InSystemTx` (bypasses RLS for writes)
-- **Go-Jet** for type-safe SQL (models generated from live database)
-- **Hot reload** via Air in Docker
-
-### Scheduler
-
-| | |
-|---|---|
-| **Location** | `apps/scheduler/` |
-| **Tech** | Python, FastAPI, PuLP (LP solver) |
-| **Port** | `8000` (internal only) |
-
-Linear programming optimizer that generates shift assignments. Takes assistants (with availability and course knowledge), shift templates (with staffing requirements), and a config (penalty weights) as input. Returns optimal assignments minimizing understaffing, course shortfalls, and hour imbalances.
-
-**API:** `POST /api/v1/generate` — accepts a schedule generation request, returns assignments.
-
-### Transcript Extraction
-
-| | |
-|---|---|
-| **Location** | `apps/transcripts/` |
-| **Tech** | Python, FastAPI, PDF parsing |
-| **Port** | `8001` (internal only) |
-
-Extracts structured academic data (GPA, courses, degree programme) from uploaded PDF transcripts. Called by the backend during student application processing.
-
-**API:** `POST /api/v1/extract` — accepts a PDF file, returns structured transcript metadata.
-
-### PostgreSQL
-
-| | |
-|---|---|
-| **Image** | `postgres:16-alpine` |
-| **Port** | `5432` |
-| **Credentials** | `helpdesk` / `helpdesk_local` / `helpdesk` |
-
-Two schemas (`auth`, `schedule`) with Row-Level Security. See [Database Architecture](#database-architecture) for details.
-
-### Mailpit
-
-| | |
-|---|---|
-| **Image** | `axllent/mailpit` |
-| **Web UI** | `8025` |
-| **SMTP** | `1025` |
-
-Local email capture for development. All emails sent by the backend (verification, notifications) are caught here instead of delivered.
-
----
-
-## Project Structure
-
-```
-├── apps/
-│   ├── backend/                # Go REST API (DDD)
-│   │   ├── cmd/server/         # Entry point
-│   │   ├── internal/
-│   │   │   ├── application/    # App config, routes, wiring
-│   │   │   ├── domain/         # Business logic (schedule, user)
-│   │   │   ├── infrastructure/ # Database, external services, models
-│   │   │   ├── middleware/     # JWT auth
-│   │   │   └── tests/          # Unit, integration, e2e, mocks
-│   │   └── DEVELOPMENT.md
-│   ├── frontend/               # React SPA
-│   │   ├── src/
-│   │   │   ├── routes/         # File-based routing (TanStack Router)
-│   │   │   ├── features/       # Feature modules (sign-up, admin, student)
-│   │   │   ├── components/     # Shared + shadcn/ui components
-│   │   │   ├── hooks/          # Custom React hooks
-│   │   │   ├── types/          # TypeScript interfaces
-│   │   │   └── lib/            # Utilities, constants, mock data
-│   │   └── DEVELOPMENT.md
-│   ├── scheduler/              # Python FastAPI — LP optimizer (PuLP)
-│   │   ├── app/
-│   │   │   ├── main.py         # FastAPI app
-│   │   │   ├── linear_scheduler.py  # PuLP solver
-│   │   │   └── models/         # Request/response DTOs
-│   │   └── tests/
-│   └── transcripts/            # Python FastAPI — PDF transcript parser
-│       ├── app/
-│       ├── main.py
-│       └── tests/
-├── migrations/                 # SQL migrations (golang-migrate)
-│   ├── 000001_initial_schema.{up,down}.sql
-│   ├── 000002_rls_grants_and_policies.{up,down}.sql
-│   ├── 000003_add_scheduler_tables.{up,down}.sql
-│   ├── 000004_refresh_tokens.{up,down}.sql
-│   ├── 000005_email_verification.{up,down}.sql
-│   └── 000006_auth_tokens.{up,down}.sql
-├── scripts/
-│   ├── seed_dev.sh             # Seed database with dev data
-│   └── visualize.sh            # CLI schedule/shift visualization
-├── docker-compose.local.yml    # Local dev services
-└── Taskfile.yml                # Task runner definitions
+// Write bypassing RLS
+err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+    return s.repo.Create(ctx, tx, entity)
+})
 ```
 
----
+**Important:** `InAuthTx` sets session variables (`app.current_user_id`, `app.current_role`, `app.current_student_id`) that PostgreSQL RLS policies use. `InSystemTx` does not set these, so the `set_created_by` trigger won't fire — you must explicitly insert `created_by`.
 
-## Data Flow
+### Auth Context
 
-### Schedule Generation
+The `AuthContext` struct carries the authenticated user's identity through the request lifecycle:
 
-```mermaid
-sequenceDiagram
-    participant Admin
-    participant Frontend
-    participant Backend
-    participant Scheduler
-
-    Admin->>Frontend: Click "Generate"
-    Frontend->>Backend: POST /api/v1/schedules/generate
-    Backend->>Backend: Create generation record (pending)
-    Backend->>Backend: Gather shift templates + availability
-    Backend->>Scheduler: POST /api/v1/generate
-    Scheduler->>Scheduler: Build LP model, solve
-    Scheduler-->>Backend: Assignments
-    Backend->>Backend: Create schedule, update generation (completed)
-    Backend-->>Frontend: Schedule response
+```go
+type AuthContext struct {
+    UserID    string  // app.current_user_id
+    StudentID *string // app.current_student_id (nil for admins)
+    Role      string  // "admin" or "student"
+}
 ```
 
-### Student Application
+**Injecting/extracting:**
 
-```mermaid
-sequenceDiagram
-    participant Student
-    participant Frontend
-    participant Backend
-    participant Transcripts
-    participant Mailpit
+```go
+// Middleware injects it
+ctx = database.WithAuthContext(r.Context(), authCtx)
 
-    Student->>Frontend: Upload transcript PDF
-    Frontend->>Backend: POST /api/v1/transcripts/extract
-    Backend->>Transcripts: Forward PDF
-    Transcripts-->>Backend: Structured metadata (GPA, courses)
-    Backend-->>Frontend: Extracted data
-
-    Student->>Frontend: Verify details, enter contact info
-    Frontend->>Backend: POST /api/v1/auth/register
-    Backend->>Backend: Create user + send verification email
-    Backend->>Mailpit: Verification email (Mailpit dev / Resend prod)
-    Backend-->>Frontend: Verification token sent
-
-    Student->>Frontend: Click verification link / enter code
-    Frontend->>Backend: POST /api/v1/auth/verify-email
-    Backend->>Backend: Mark email verified
-
-    Student->>Frontend: Set availability, review, submit
-    Frontend->>Backend: POST /api/v1/students
-    Backend->>Backend: Create student (status: pending)
-    Backend-->>Frontend: Application submitted
-
-    Note over Backend: Admin reviews and accepts/rejects
+// Handler/service extracts it
+ac, ok := database.AuthContextFromContext(ctx)
+if !ok {
+    writeError(w, http.StatusUnauthorized, "unauthorized")
+    return
+}
 ```
 
----
+### Database Models (Go-Jet)
 
-## Database Architecture
-
-### Schemas
-
-| Schema | Purpose | Tables |
-|--------|---------|--------|
-| `auth` | Users, students, authentication | `users`, `students`, `banking_details`, `payments`, `refresh_tokens`, `auth_tokens` |
-| `schedule` | Scheduling and time tracking | `schedules`, `schedule_generations`, `shift_templates`, `scheduler_configs`, `time_logs` |
-
-See [README.md](README.md#database-schema) for full table definitions.
-
-### Row-Level Security
-
-PostgreSQL RLS enforces data access at the database level. Two roles:
-
-| Role | Purpose | Usage |
-|------|---------|-------|
-| `authenticated` | User requests with RLS enforcement | `InAuthTx` — session vars set: `app.current_user_id`, `app.current_role`, `app.current_student_id` |
-| `internal` | System operations, full access | `InSystemTx` — bypasses all RLS policies |
-
-**Policy patterns:**
-- Admins see all rows, students see only their own
-- Write operations go through `internal` role (via `InSystemTx`)
-- Token tables (`refresh_tokens`, `auth_tokens`) are internal-only
-
-### Migrations
-
-Managed by [golang-migrate](https://github.com/golang-migrate/migrate). Each migration has an `up.sql` and `down.sql`.
+Type-safe SQL models are auto-generated from the live database schema:
 
 ```bash
-task migrate:create -- add_feature_name  # Create new migration
-task migrate:up                          # Apply all pending
-task migrate:down                        # Rollback last one
-task migrate:reset                       # Rollback all
-task generate:models                     # Regenerate Go-Jet models
+task generate:models   # Regenerates from current schema
 ```
 
-Migration files include: table DDL, indexes, triggers (`set_updated_at`, `set_created_by`), RLS policies, and grants.
+Models live in `infrastructure/models/helpdesk/{schema}/`. Each schema directory contains:
+- `model/` — Go structs matching table columns
+- `table/` — Table definitions for building queries
+- `enum/` — PostgreSQL enum types
+
+**Key conventions:**
+- UUID columns: use `postgres.UUID(parsedUUID)` not `postgres.String(id.String())`
+- Integer columns: use `postgres.Int32(val)`
+- Empty list on no rows: return `[]*Type{}` (not nil) when `qrm.ErrNoRows`
+
+### Middleware
+
+JWT authentication middleware (`internal/middleware/jwt_auth.go`):
+
+1. Extracts Bearer token from `Authorization` header
+2. Validates via `authService.ValidateAccessToken()`
+3. Builds `AuthContext` from token claims (UserID, Role, StudentID)
+4. Injects into request context
+
+In development, `devAuthMiddleware` bypasses JWT and injects a hardcoded admin context when `DEV_USER_ID` is set.
+
+**Route organization** (`application/routes.go`):
+
+```go
+r.Route("/api/v1", func(r chi.Router) {
+    // Public routes (no JWT)
+    authHdl.RegisterRoutes(r)
+
+    // Protected routes (JWT or dev middleware)
+    r.Group(func(r chi.Router) {
+        r.Use(authMiddleware.JWTAuth(authSvc))
+
+        authHdl.RegisterAuthenticatedRoutes(r)
+        scheduleHdl.RegisterRoutes(r)
+        // ... more handlers
+    })
+})
+```
+
+### Email Service
+
+Abstracted behind `EmailSenderInterface` with two implementations:
+
+| Environment | Implementation | Transport |
+|-------------|---------------|-----------|
+| Development | `MailpitEmailSenderService` | SMTP to localhost:1025 |
+| Production | `ResendEmailSenderService` | Resend.com API |
+
+Selection is automatic in `app.go` based on `ENVIRONMENT`.
 
 ---
 
-## Development Workflow
+## Example: Adding a "Courses" Domain
 
-### First-Time Setup
+This walkthrough adds a new domain for managing university courses.
 
-```bash
-# 1. Install global tools
+---
 
-# Task runner (pick one)
-brew install go-task/tap/go-task                  # macOS (Homebrew)
-sudo snap install task --classic                  # Linux (Snap)
-winget install Task.Task                          # Windows (WinGet)
-npm install -g @go-task/cli                       # Any OS (npm)
+### Step 1: Aggregate
 
-# Go tools
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
-go install github.com/go-jet/jet/v2/cmd/jet@latest
+Define the domain entity with validation in the factory constructor.
 
-# 2. Start all services (database, backend, frontend, scheduler, transcripts, mailpit)
-task start
+```go
+// internal/domain/course/aggregate/course_aggregate.go
+package aggregate
 
-# 3. Run migrations and generate models
-task migrate:up
-task generate:models
+import (
+    "fmt"
+    "time"
 
-# 4. Seed dev data
-task db:seed
-```
+    "github.com/google/uuid"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
+)
 
-### Daily Development
+type Course struct {
+    CourseID  uuid.UUID
+    Code      string
+    Title     string
+    Level     int
+    IsActive  bool
+    CreatedAt time.Time
+    UpdatedAt *time.Time
+}
 
-```bash
-task start                # Start all services (Docker Compose)
-task stop                 # Stop all services
-task logs                 # Tail service logs
+func NewCourse(code, title string, level int) (*Course, error) {
+    if code == "" {
+        return nil, fmt.Errorf("course code is required")
+    }
+    if title == "" {
+        return nil, fmt.Errorf("course title is required")
+    }
+    if level < 1 || level > 4 {
+        return nil, fmt.Errorf("course level must be between 1 and 4")
+    }
 
-# Testing
-task test                 # Run all tests (backend + scheduler + transcripts + frontend)
-task test:backend         # Backend only (Go)
-task test:scheduler       # Scheduler only (pytest)
-task test:transcript      # Transcript extraction only (pytest)
-task test:frontend        # Frontend only (pnpm)
+    return &Course{
+        CourseID: uuid.New(),
+        Code:     code,
+        Title:    title,
+        Level:    level,
+        IsActive: true,
+    }, nil
+}
 
-# Database
-task db:studio            # Open Drizzle Studio (database viewer)
-task db:reset             # Drop, recreate, migrate, seed
+func (c *Course) Deactivate() {
+    c.IsActive = false
+}
 
-# Visualization (CLI)
-task visualize:shifts                    # Show shift template grid
-task visualize:schedule -- <id>          # Show schedule assignments
-task visualize:availability -- <id>      # Show assistant availability
-```
+// ToModel converts to Go-Jet model for inserts
+func (c *Course) ToModel() *model.Courses {
+    return &model.Courses{
+        CourseID: c.CourseID,
+        Code:     c.Code,
+        Title:    c.Title,
+        Level:    int32(c.Level),
+        IsActive: c.IsActive,
+    }
+}
 
-### Database Reset
-
-Full reset: drops volumes, recreates database, runs migrations, restarts services, seeds data.
-
-```bash
-task db:reset
+// CourseFromModel converts from Go-Jet model
+func CourseFromModel(m *model.Courses) *Course {
+    return &Course{
+        CourseID:  m.CourseID,
+        Code:      m.Code,
+        Title:     m.Title,
+        Level:     int(m.Level),
+        IsActive:  m.IsActive,
+        CreatedAt: m.CreatedAt,
+        UpdatedAt: m.UpdatedAt,
+    }
+}
 ```
 
 ---
 
-## Environment Variables
+### Step 2: Domain Errors
 
-Create `.env.local` at the project root (used by Docker Compose):
+Define typed errors for domain-specific failure cases.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8080` | Backend server port |
-| `DATABASE_URL` | (set in compose) | PostgreSQL connection string |
-| `ENVIRONMENT` | `development` | `development` or `production` |
-| `DEV_USER_ID` | | UUID — enables dev auth middleware (bypasses JWT) |
-| `TRANSCRIPTS_SERVICE_URL` | `http://transcripts:8001` | Transcript extraction service URL |
+```go
+// internal/domain/course/errors/course_errors.go
+package errors
+
+import "errors"
+
+var (
+    ErrCourseNotFound     = errors.New("course not found")
+    ErrCourseCodeExists   = errors.New("course code already exists")
+    ErrInvalidCourseCode  = errors.New("invalid course code format")
+    ErrInvalidCourseLevel = errors.New("course level must be between 1 and 4")
+)
+```
+
+---
+
+### Step 3: Repository Interface
+
+Define the interface in the domain layer — implementations live in infrastructure.
+
+```go
+// internal/domain/course/repository/course_repository_interface.go
+package repository
+
+import (
+    "context"
+    "database/sql"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+)
+
+type CourseRepositoryInterface interface {
+    Create(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error)
+    GetByID(ctx context.Context, tx *sql.Tx, courseID string) (*aggregate.Course, error)
+    GetByCode(ctx context.Context, tx *sql.Tx, code string) (*aggregate.Course, error)
+    List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Course, error)
+    Update(ctx context.Context, tx *sql.Tx, course *aggregate.Course) error
+}
+```
+
+Note: Every method takes `*sql.Tx` — the transaction is managed by TxManager at the service layer.
+
+---
+
+### Step 4: Infrastructure Repository
+
+Implement the interface using Go-Jet queries.
+
+```go
+// internal/infrastructure/course/course_repository.go
+package course
+
+import (
+    "context"
+    "database/sql"
+    "errors"
+
+    "github.com/google/uuid"
+    "github.com/go-jet/jet/v2/postgres"
+    "github.com/go-jet/jet/v2/qrm"
+    "go.uber.org/zap"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/table"
+)
+
+type CourseRepository struct {
+    logger *zap.Logger
+}
+
+func NewCourseRepository(logger *zap.Logger) *CourseRepository {
+    return &CourseRepository{logger: logger}
+}
+
+func (r *CourseRepository) GetByID(ctx context.Context, tx *sql.Tx, courseID string) (*aggregate.Course, error) {
+    parsedID, err := uuid.Parse(courseID)
+    if err != nil {
+        return nil, courseErrors.ErrCourseNotFound
+    }
+
+    stmt := table.Courses.
+        SELECT(table.Courses.AllColumns).
+        WHERE(table.Courses.CourseID.EQ(postgres.UUID(parsedID)))
+
+    var dest model.Courses
+    err = stmt.QueryContext(ctx, tx, &dest)
+    if errors.Is(err, qrm.ErrNoRows) {
+        return nil, courseErrors.ErrCourseNotFound
+    }
+    if err != nil {
+        r.logger.Error("failed to get course", zap.Error(err))
+        return nil, err
+    }
+
+    return aggregate.CourseFromModel(&dest), nil
+}
+
+func (r *CourseRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Course, error) {
+    stmt := table.Courses.
+        SELECT(table.Courses.AllColumns).
+        ORDER_BY(table.Courses.Code.ASC())
+
+    var dest []model.Courses
+    err := stmt.QueryContext(ctx, tx, &dest)
+    if errors.Is(err, qrm.ErrNoRows) {
+        return []*aggregate.Course{}, nil // empty slice, not nil
+    }
+    if err != nil {
+        r.logger.Error("failed to list courses", zap.Error(err))
+        return nil, err
+    }
+
+    result := make([]*aggregate.Course, len(dest))
+    for i := range dest {
+        result[i] = aggregate.CourseFromModel(&dest[i])
+    }
+    return result, nil
+}
+
+// Create, GetByCode, Update follow the same patterns...
+```
+
+---
+
+### Step 5: Service
+
+Orchestrate business logic using the transaction manager and repository.
+
+```go
+// internal/domain/course/service/course_service.go
+package service
+
+import (
+    "context"
+    "database/sql"
+    "errors"
+
+    "go.uber.org/zap"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/repository"
+    "github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
+)
+
+type CourseServiceInterface interface {
+    Create(ctx context.Context, code, title string, level int) (*aggregate.Course, error)
+    GetByID(ctx context.Context, courseID string) (*aggregate.Course, error)
+    List(ctx context.Context) ([]*aggregate.Course, error)
+}
+
+type CourseService struct {
+    logger    *zap.Logger
+    txManager database.TxManagerInterface
+    repo      repository.CourseRepositoryInterface
+}
+
+func NewCourseService(
+    logger *zap.Logger,
+    txManager database.TxManagerInterface,
+    repo repository.CourseRepositoryInterface,
+) *CourseService {
+    return &CourseService{logger: logger, txManager: txManager, repo: repo}
+}
+
+func (s *CourseService) Create(ctx context.Context, code, title string, level int) (*aggregate.Course, error) {
+    course, err := aggregate.NewCourse(code, title, level)
+    if err != nil {
+        return nil, err
+    }
+
+    var created *aggregate.Course
+    err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+        // Check for duplicate code
+        existing, err := s.repo.GetByCode(ctx, tx, code)
+        if err != nil && !errors.Is(err, courseErrors.ErrCourseNotFound) {
+            return err
+        }
+        if existing != nil {
+            return courseErrors.ErrCourseCodeExists
+        }
+
+        created, err = s.repo.Create(ctx, tx, course)
+        return err
+    })
+    if err != nil {
+        return nil, err
+    }
+    return created, nil
+}
+
+func (s *CourseService) GetByID(ctx context.Context, courseID string) (*aggregate.Course, error) {
+    ac, ok := database.AuthContextFromContext(ctx)
+    if !ok {
+        return nil, errors.New("unauthorized")
+    }
+
+    var course *aggregate.Course
+    err := s.txManager.InAuthTx(ctx, ac, func(tx *sql.Tx) error {
+        var err error
+        course, err = s.repo.GetByID(ctx, tx, courseID)
+        return err
+    })
+    return course, err
+}
+
+func (s *CourseService) List(ctx context.Context) ([]*aggregate.Course, error) {
+    ac, ok := database.AuthContextFromContext(ctx)
+    if !ok {
+        return nil, errors.New("unauthorized")
+    }
+
+    var courses []*aggregate.Course
+    err := s.txManager.InAuthTx(ctx, ac, func(tx *sql.Tx) error {
+        var err error
+        courses, err = s.repo.List(ctx, tx)
+        return err
+    })
+    return courses, err
+}
+```
+
+---
+
+### Step 6: DTOs
+
+Define request/response types and conversion functions in a separate package.
+
+```go
+// internal/domain/course/handler/dtos/course_dtos.go
+package dtos
+
+import (
+    "time"
+
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
+)
+
+// --- Requests ---
+
+type CreateCourseRequest struct {
+    Code  string `json:"code"`
+    Title string `json:"title"`
+    Level int    `json:"level"`
+}
+
+// --- Responses ---
+
+type CourseResponse struct {
+    CourseID  string     `json:"course_id"`
+    Code      string     `json:"code"`
+    Title     string     `json:"title"`
+    Level     int        `json:"level"`
+    IsActive  bool       `json:"is_active"`
+    CreatedAt time.Time  `json:"created_at"`
+    UpdatedAt *time.Time `json:"updated_at"`
+}
+
+func CourseToResponse(c *aggregate.Course) CourseResponse {
+    return CourseResponse{
+        CourseID:  c.CourseID.String(),
+        Code:      c.Code,
+        Title:     c.Title,
+        Level:     c.Level,
+        IsActive:  c.IsActive,
+        CreatedAt: c.CreatedAt,
+        UpdatedAt: c.UpdatedAt,
+    }
+}
+
+func CoursesToResponse(courses []*aggregate.Course) []CourseResponse {
+    result := make([]CourseResponse, len(courses))
+    for i, c := range courses {
+        result[i] = CourseToResponse(c)
+    }
+    return result
+}
+```
+
+**DTOs are a separate Go package** (`package dtos`) imported by the handler. This prevents circular imports and keeps domain logic clean.
+
+---
+
+### Step 7: Handler
+
+HTTP handler that decodes requests, calls the service, and maps errors to status codes.
+
+```go
+// internal/domain/course/handler/course_handler.go
+package handler
+
+import (
+    "encoding/json"
+    "errors"
+    "net/http"
+
+    "github.com/go-chi/chi/v5"
+    "go.uber.org/zap"
+
+    courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/handler/dtos"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/service"
+)
+
+type CourseHandler struct {
+    logger  *zap.Logger
+    service service.CourseServiceInterface
+}
+
+func NewCourseHandler(logger *zap.Logger, service service.CourseServiceInterface) *CourseHandler {
+    return &CourseHandler{logger: logger, service: service}
+}
+
+func (h *CourseHandler) RegisterRoutes(r chi.Router) {
+    r.Route("/courses", func(r chi.Router) {
+        r.Get("/", h.List)
+        r.Post("/", h.Create)
+        r.Get("/{courseID}", h.GetByID)
+    })
+}
+
+func (h *CourseHandler) Create(w http.ResponseWriter, r *http.Request) {
+    var req dtos.CreateCourseRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        writeError(w, http.StatusBadRequest, "invalid request body")
+        return
+    }
+
+    course, err := h.service.Create(r.Context(), req.Code, req.Title, req.Level)
+    if err != nil {
+        h.handleServiceError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusCreated, dtos.CourseToResponse(course))
+}
+
+func (h *CourseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+    courseID := chi.URLParam(r, "courseID")
+
+    course, err := h.service.GetByID(r.Context(), courseID)
+    if err != nil {
+        h.handleServiceError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusOK, dtos.CourseToResponse(course))
+}
+
+func (h *CourseHandler) List(w http.ResponseWriter, r *http.Request) {
+    courses, err := h.service.List(r.Context())
+    if err != nil {
+        h.handleServiceError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusOK, dtos.CoursesToResponse(courses))
+}
+
+func (h *CourseHandler) handleServiceError(w http.ResponseWriter, err error) {
+    switch {
+    case errors.Is(err, courseErrors.ErrCourseNotFound):
+        writeError(w, http.StatusNotFound, err.Error())
+    case errors.Is(err, courseErrors.ErrCourseCodeExists):
+        writeError(w, http.StatusConflict, err.Error())
+    default:
+        h.logger.Error("unhandled error", zap.Error(err))
+        writeError(w, http.StatusInternalServerError, "internal server error")
+    }
+}
+
+func writeJSON(w http.ResponseWriter, status int, data any) {
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(status)
+    json.NewEncoder(w).Encode(data)
+}
+
+func writeError(w http.ResponseWriter, status int, message string) {
+    writeJSON(w, status, map[string]string{"error": message})
+}
+```
+
+---
+
+### Step 8: Wiring
+
+Register the new domain in `application/app.go` and `application/routes.go`.
+
+**In `app.go`** — instantiate repo → service → handler:
+
+```go
+// Repository
+courseRepo := courseInfra.NewCourseRepository(logger)
+
+// Service
+courseSvc := courseService.NewCourseService(logger, txManager, courseRepo)
+
+// Handler
+courseHdl := courseHandler.NewCourseHandler(logger, courseSvc)
+```
+
+**In `routes.go`** — add the handler parameter and register routes:
+
+```go
+func registerRoutes(
+    // ... existing params
+    courseHdl *courseHandler.CourseHandler,
+) {
+    r.Route("/api/v1", func(r chi.Router) {
+        r.Group(func(r chi.Router) {
+            r.Use(authMiddleware.JWTAuth(authSvc))
+            // ... existing routes
+            courseHdl.RegisterRoutes(r)
+        })
+    })
+}
+```
+
+---
+
+## File Structure
+
+```
+internal/
+├── application/               # App wiring
+│   ├── app.go                 # DB connect, DI, server lifecycle
+│   ├── config.go              # Environment config (PORT, JWT, email)
+│   └── routes.go              # Chi router setup, middleware, route registration
+├── domain/                    # Business logic (one dir per domain)
+│   ├── auth/
+│   │   ├── aggregate/         # AuthToken, RefreshToken entities
+│   │   ├── errors/            # ErrInvalidCredentials, ErrEmailAlreadyExists, etc.
+│   │   ├── handler/           # AuthHandler (register, login, refresh, verify)
+│   │   ├── repository/        # Token repository interfaces
+│   │   ├── service/           # AuthService (JWT, passwords, email verification)
+│   │   └── types/dtos/        # RegisterRequest, LoginRequest, AuthTokenResponse
+│   ├── schedule/
+│   │   ├── aggregate/         # Schedule, ShiftTemplate, SchedulerConfig, Generation
+│   │   ├── errors/            # Per-aggregate error files
+│   │   ├── handler/           # 4 handlers (schedule, generation, config, shift)
+│   │   ├── handler/dtos/      # Per-aggregate DTO files
+│   │   ├── repository/        # 4 repository interfaces
+│   │   └── service/           # 4 services
+│   └── user/
+│       ├── aggregate/         # User entity (role validation, email domain rules)
+│       ├── errors/            # ErrUserNotFound, ErrEmailAlreadyExists
+│       ├── repository/        # UserRepositoryInterface
+│       └── service/           # UserService
+├── infrastructure/            # External dependencies
+│   ├── database/
+│   │   ├── tx_manager.go      # InAuthTx / InSystemTx
+│   │   └── tx_manager_types.go # AuthContext struct
+│   ├── auth/                  # Auth token repository implementations
+│   ├── user/                  # User repository implementation
+│   ├── schedule/              # Schedule repository implementations
+│   ├── email/
+│   │   ├── interfaces/        # EmailSenderInterface
+│   │   ├── service/           # MailpitEmailSenderService, ResendEmailSenderService
+│   │   ├── templates/         # Email template rendering
+│   │   └── types/             # Email DTOs and config types
+│   ├── scheduler/
+│   │   └── service/           # HTTP client to scheduler microservice
+│   ├── transcripts/
+│   │   ├── interfaces/        # TranscriptsInterface
+│   │   └── service/           # HTTP client to transcripts microservice
+│   └── models/                # Auto-generated Go-Jet models (do not edit)
+│       └── helpdesk/
+│           ├── auth/          # model/, table/, enum/
+│           └── schedule/      # model/, table/
+├── middleware/
+│   └── jwt_auth.go            # JWT validation + AuthContext injection
+└── tests/
+    ├── mocks/                 # Function-based mocks for all interfaces
+    ├── unit/                  # Unit tests (domain logic, handlers)
+    │   ├── domains/auth/
+    │   ├── domains/schedule/
+    │   ├── domains/user/
+    │   └── infrastructure/
+    ├── integration/           # Integration tests (real PostgreSQL via testcontainers)
+    │   ├── auth/
+    │   ├── schedule/
+    │   ├── user/
+    │   ├── database/
+    │   └── email/
+    ├── e2e/                   # End-to-end auth flow tests
+    │   └── auth/
+    └── utils/                 # TestDB helper (testcontainers setup, migrations)
+```
+
+---
+
+## Checklist
+
+When implementing a new domain:
+
+- [ ] **Migration**: Create table DDL, triggers (`set_updated_at`, `set_created_by`), RLS policies, grants
+- [ ] **Generate models**: `task migrate:up && task generate:models`
+- [ ] **Aggregate**: Entity struct with `NewX()` factory, validation, `ToModel()` / `FromModel()`
+- [ ] **Errors**: Domain-specific error variables (`ErrXNotFound`, etc.)
+- [ ] **Repository interface**: Define in `domain/<name>/repository/`
+- [ ] **Infrastructure repo**: Implement in `infrastructure/<name>/` using Go-Jet
+- [ ] **Service**: Business logic with `TxManager` orchestration
+- [ ] **DTOs**: Request/response structs in `handler/dtos/` (separate package)
+- [ ] **Handler**: HTTP handler with route registration and error mapping
+- [ ] **Wiring**: Add repo → service → handler chain in `app.go`, register in `routes.go`
+- [ ] **Mock**: Add function-based mock in `tests/mocks/`
+- [ ] **Tests**: Unit tests for aggregate + handler, integration tests for repository + service
+
+---
+
+## Key Patterns
+
+### Handler Pattern
+
+Every handler follows the same structure:
+
+1. Decode JSON request body
+2. Extract URL params (`chi.URLParam`)
+3. Call service method
+4. Handle errors via `handleServiceError()` (maps domain errors → HTTP status)
+5. Write JSON response via `writeJSON()`
+
+```go
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+    id := chi.URLParam(r, "id")
+
+    result, err := h.service.GetByID(r.Context(), id)
+    if err != nil {
+        h.handleServiceError(w, err)
+        return
+    }
+
+    writeJSON(w, http.StatusOK, dtos.ToResponse(result))
+}
+```
+
+### DTO Conversion
+
+DTOs live in `handler/dtos/` as `package dtos` — a separate Go package from the handler.
+
+- `ToResponse(aggregate) → response` for single items
+- `ToResponses([]aggregate) → []response` for lists
+- Request structs use `json:"snake_case"` tags
+- Dates formatted as `"2006-01-02"` strings in responses (avoids timezone issues)
+- JSONB fields use `json.RawMessage`
+
+### Error Handling
+
+Services return domain errors. Handlers map them to HTTP status codes:
+
+```go
+func (h *Handler) handleServiceError(w http.ResponseWriter, err error) {
+    switch {
+    case errors.Is(err, domainErrors.ErrNotFound):
+        writeError(w, http.StatusNotFound, err.Error())
+    case errors.Is(err, domainErrors.ErrAlreadyExists):
+        writeError(w, http.StatusConflict, err.Error())
+    case errors.Is(err, domainErrors.ErrInvalidInput):
+        writeError(w, http.StatusBadRequest, err.Error())
+    default:
+        h.logger.Error("unhandled error", zap.Error(err))
+        writeError(w, http.StatusInternalServerError, "internal server error")
+    }
+}
+```
+
+**Never expose internal errors to clients** — unmatched errors always return a generic 500.
+
+### Repository Pattern
+
+- Domain defines the interface (`domain/<name>/repository/`)
+- Infrastructure implements it (`infrastructure/<name>/`)
+- Every method takes `context.Context` and `*sql.Tx` (transaction from TxManager)
+- Returns domain aggregates, never raw database models
+- On `qrm.ErrNoRows` → return domain's `ErrNotFound`
+- On empty list → return `[]*Type{}` (empty slice), not nil
+
+### Transaction Usage
+
+| Operation | Method | Why |
+|-----------|--------|-----|
+| Read (user-scoped) | `InAuthTx` | RLS ensures user only sees their own data |
+| Read (admin list) | `InAuthTx` | RLS allows admin to see all rows |
+| Create / Update / Delete | `InSystemTx` | Bypasses RLS, needs explicit `created_by` |
+| Registration (no user yet) | `InSystemTx` | No authenticated user context available |
+
+### Testing
+
+**Integration tests** use testcontainers-go with real PostgreSQL:
+
+```go
+type CourseRepoTestSuite struct {
+    suite.Suite
+    testDB    *utils.TestDB
+    txManager database.TxManagerInterface
+    repo      repository.CourseRepositoryInterface
+    ctx       context.Context
+}
+
+func (s *CourseRepoTestSuite) SetupSuite() {
+    s.testDB = utils.NewTestDB(s.T())
+    s.txManager = database.NewTxManager(s.testDB.DB, s.testDB.Logger)
+    s.repo = courseInfra.NewCourseRepository(s.testDB.Logger)
+}
+```
+
+**Function-based mocks** (in `tests/mocks/`):
+
+```go
+type MockCourseRepository struct {
+    CreateFn  func(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error)
+    GetByIDFn func(ctx context.Context, tx *sql.Tx, courseID string) (*aggregate.Course, error)
+    ListFn    func(ctx context.Context, tx *sql.Tx) ([]*aggregate.Course, error)
+}
+
+func (m *MockCourseRepository) Create(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error) {
+    return m.CreateFn(ctx, tx, course)
+}
+```
+
+**Test tips:**
+- Seed `auth.users` first for FK constraints
+- Compare dates with `.Format("2006-01-02")` to avoid timezone mismatches
+- Use `json.RawMessage('{}')` for jsonb fields in test fixtures
+- Use `DELETE FROM` (not `TRUNCATE`) in teardown — `internal` role lacks `TRUNCATE` on FK tables

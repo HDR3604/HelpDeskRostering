@@ -77,6 +77,8 @@ task db:reset
 | Document | Description |
 |----------|-------------|
 | [DEVELOPMENT.md](DEVELOPMENT.md) | System architecture, data flows, database schema, dev workflow |
+| [apps/backend/README.md](apps/backend/README.md) | Backend API reference, tech stack, project structure |
+| [apps/backend/DEVELOPMENT.md](apps/backend/DEVELOPMENT.md) | Backend DDD patterns, transaction manager, adding domains |
 | [apps/frontend/DEVELOPMENT.md](apps/frontend/DEVELOPMENT.md) | Frontend patterns, routing, forms, adding features |
 | [apps/scheduler/README.md](apps/scheduler/README.md) | Scheduler API, request/response format, config tuning |
 | [apps/transcripts/README.md](apps/transcripts/README.md) | Transcript extraction API, response format, how parsing works |
