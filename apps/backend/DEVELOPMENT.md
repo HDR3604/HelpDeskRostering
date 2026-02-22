@@ -23,6 +23,7 @@ This guide walks through implementing a new domain feature using Domain-Driven D
   - [Shared Mocks](#shared-mocks)
   - [Unit Tests](#unit-tests)
   - [Integration Tests](#integration-tests)
+  - [End-to-End Tests](#end-to-end-tests)
   - [Running Tests](#running-tests)
 
 ---
@@ -88,7 +89,13 @@ err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 Auth context is propagated via `context.Context` and extracted in the service layer:
 
 ```go
-// Set by middleware (or test setup)
+type AuthContext struct {
+    UserID    string  // app.current_user_id
+    StudentID *string // app.current_student_id (nil for admin users)
+    Role      string  // app.current_role ("admin" or "student")
+}
+
+// Set by JWT middleware (or test setup)
 ctx = database.WithAuthContext(ctx, database.AuthContext{
     UserID: "user-uuid",
     Role:   "admin",
@@ -113,7 +120,7 @@ task migrate:create -- add_courses
 ### Up Migration
 
 ```sql
--- migrations/000004_add_courses.up.sql
+-- migrations/00000N_add_courses.up.sql
 
 CREATE TABLE "schedule"."courses" (
     "course_id" uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -155,7 +162,7 @@ GRANT ALL ON "schedule"."courses" TO internal;
 ### Down Migration
 
 ```sql
--- migrations/000004_add_courses.down.sql
+-- migrations/00000N_add_courses.down.sql
 
 DROP POLICY IF EXISTS courses_select ON "schedule"."courses";
 DROP POLICY IF EXISTS internal_bypass_courses ON "schedule"."courses";
@@ -179,7 +186,7 @@ task generate:models
 Define domain errors in a separate package so they can be imported without circular dependencies.
 
 ```go
-// apps/apps/backend/internal/domain/course/errors/course_errors.go
+// apps/backend/internal/domain/course/errors/course_errors.go
 package errors
 
 import "errors"
@@ -199,7 +206,7 @@ var (
 The aggregate contains the domain entity, business rules, and model conversion helpers.
 
 ```go
-// apps/apps/backend/internal/domain/course/aggregate/course_aggregate.go
+// apps/backend/internal/domain/course/aggregate/course_aggregate.go
 package aggregate
 
 import (
@@ -283,7 +290,7 @@ func CourseFromModel(m model.Courses) Course {
 Define the repository interface in the domain layer. Every method takes a `*sql.Tx` — the service layer manages transactions.
 
 ```go
-// apps/apps/backend/internal/domain/course/repository/course_repository_interface.go
+// apps/backend/internal/domain/course/repository/course_repository_interface.go
 package repository
 
 import (
@@ -309,7 +316,7 @@ type CourseRepositoryInterface interface {
 Implement using Go-Jet generated models. Use `postgres.UUID()` for UUID column comparisons (not `postgres.String()`).
 
 ```go
-// apps/apps/backend/internal/infrastructure/course/course_repository.go
+// apps/backend/internal/infrastructure/course/course_repository.go
 package course
 
 import (
@@ -412,7 +419,7 @@ func (r *CourseRepository) Update(ctx context.Context, tx *sql.Tx, course *aggre
 The service validates auth context, orchestrates transactions, and applies business logic. Use `InAuthTx` for reads, `InSystemTx` for writes.
 
 ```go
-// apps/apps/backend/internal/domain/course/service/course_service.go
+// apps/backend/internal/domain/course/service/course_service.go
 package service
 
 import (
@@ -541,13 +548,15 @@ func (s *CourseService) Deactivate(ctx context.Context, id uuid.UUID) error {
 
 ## Step 7: Handler (HTTP Interface)
 
-The handler parses HTTP requests, calls the service, and returns JSON responses. DTOs live in a separate file. Routes are registered via `RegisterRoutes(r chi.Router)`.
+The handler parses HTTP requests, calls the service, and returns JSON responses. DTOs live in a **separate `dtos` package** under `handler/dtos/`. Routes are registered via `RegisterRoutes(r chi.Router)`.
 
-### DTOs
+### DTOs (separate package)
+
+DTOs are in `handler/dtos/` as `package dtos`. The handler imports and uses exported conversion functions like `dtos.CourseToResponse()`.
 
 ```go
-// apps/apps/backend/internal/domain/course/handler/course_dtos.go
-package handler
+// apps/backend/internal/domain/course/handler/dtos/course_dtos.go
+package dtos
 
 import (
     "time"
@@ -572,7 +581,7 @@ type CourseResponse struct {
     UpdatedAt  *time.Time `json:"updated_at"`
 }
 
-func courseToResponse(c *aggregate.Course) CourseResponse {
+func CourseToResponse(c *aggregate.Course) CourseResponse {
     return CourseResponse{
         CourseID:   c.CourseID.String(),
         Code:       c.Code,
@@ -584,21 +593,31 @@ func courseToResponse(c *aggregate.Course) CourseResponse {
         UpdatedAt:  c.UpdatedAt,
     }
 }
+
+func CoursesToResponse(courses []*aggregate.Course) []CourseResponse {
+    resp := make([]CourseResponse, len(courses))
+    for i, c := range courses {
+        resp[i] = CourseToResponse(c)
+    }
+    return resp
+}
 ```
 
 ### Handler
 
 ```go
-// apps/apps/backend/internal/domain/course/handler/course_handler.go
+// apps/backend/internal/domain/course/handler/course_handler.go
 package handler
 
 import (
     "encoding/json"
     "errors"
+    "log"
     "net/http"
 
     "github.com/HDR3604/HelpDeskApp/internal/domain/course/aggregate"
     courseErrors "github.com/HDR3604/HelpDeskApp/internal/domain/course/errors"
+    "github.com/HDR3604/HelpDeskApp/internal/domain/course/handler/dtos"
     "github.com/HDR3604/HelpDeskApp/internal/domain/course/service"
     "github.com/go-chi/chi/v5"
     "github.com/google/uuid"
@@ -624,7 +643,7 @@ func (h *CourseHandler) RegisterRoutes(r chi.Router) {
 }
 
 func (h *CourseHandler) Create(w http.ResponseWriter, r *http.Request) {
-    var req CreateCourseRequest
+    var req dtos.CreateCourseRequest
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError(w, http.StatusBadRequest, "invalid request body")
         return
@@ -642,7 +661,7 @@ func (h *CourseHandler) Create(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    writeJSON(w, http.StatusCreated, courseToResponse(created))
+    writeJSON(w, http.StatusCreated, dtos.CourseToResponse(created))
 }
 
 func (h *CourseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -658,7 +677,7 @@ func (h *CourseHandler) GetByID(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    writeJSON(w, http.StatusOK, courseToResponse(course))
+    writeJSON(w, http.StatusOK, dtos.CourseToResponse(course))
 }
 
 func (h *CourseHandler) handleServiceError(w http.ResponseWriter, err error) {
@@ -679,7 +698,9 @@ func (h *CourseHandler) handleServiceError(w http.ResponseWriter, err error) {
 func writeJSON(w http.ResponseWriter, status int, data any) {
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(status)
-    json.NewEncoder(w).Encode(data)
+    if err := json.NewEncoder(w).Encode(data); err != nil {
+        log.Printf("failed to encode JSON response: %v", err)
+    }
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
@@ -693,19 +714,36 @@ func writeError(w http.ResponseWriter, status int, message string) {
 
 ### Register in `routes.go`
 
-Handlers register their own routes via `RegisterRoutes`. Mount them under the `/api/v1` group:
+Routes are split into **public** (no auth) and **protected** (JWT middleware) groups:
 
 ```go
-// apps/apps/backend/internal/application/routes.go
-func registerRoutes(r *chi.Mux, scheduleHdl *scheduleHandler.ScheduleHandler, courseHdl *courseHandler.CourseHandler) {
+// apps/backend/internal/application/routes.go
+func registerRoutes(
+    r *chi.Mux,
+    cfg Config,
+    authHdl *authHandler.AuthHandler,
+    authSvc authService.AuthServiceInterface,
+    courseHdl *courseHandler.CourseHandler,
+) {
     r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusOK)
         fmt.Fprintln(w, "OK")
     })
 
     r.Route("/api/v1", func(r chi.Router) {
-        scheduleHdl.RegisterRoutes(r)
-        courseHdl.RegisterRoutes(r)
+        // Public routes (no JWT middleware)
+        authHdl.RegisterRoutes(r)
+
+        // Protected routes (JWT middleware)
+        r.Group(func(r chi.Router) {
+            if cfg.Environment != "production" && cfg.DevUserID != "" {
+                r.Use(devAuthMiddleware(cfg.DevUserID))
+            } else {
+                r.Use(authMiddleware.JWTAuth(authSvc))
+            }
+
+            courseHdl.RegisterRoutes(r)
+        })
     })
 }
 ```
@@ -720,7 +758,7 @@ courseRepository := courseRepo.NewCourseRepository(logger)
 courseSvc := courseService.NewCourseService(logger, courseRepository, txManager)
 courseHdl := courseHandler.NewCourseHandler(logger, courseSvc)
 
-registerRoutes(r, scheduleHdl, courseHdl)
+registerRoutes(r, cfg, authHdl, authSvc, courseHdl)
 ```
 
 ---
@@ -730,45 +768,62 @@ registerRoutes(r, scheduleHdl, courseHdl)
 ```
 apps/backend/internal/
 ├── application/
-│   ├── app.go              # App setup, wiring, server
+│   ├── app.go              # App setup, dependency injection, server
 │   ├── config.go           # Environment config loading
-│   └── routes.go           # Route registration
+│   └── routes.go           # Route registration (public + protected groups)
+├── middleware/
+│   └── jwt_auth.go         # JWT validation, sets AuthContext
 ├── domain/
-│   └── course/
-│       ├── aggregate/
-│       │   └── course_aggregate.go    # Entity + business rules + model mapping
-│       ├── errors/
-│       │   └── course_errors.go       # Domain errors
-│       ├── handler/
-│       │   ├── course_handler.go      # HTTP handler + route registration
-│       │   └── course_dtos.go         # Request/response DTOs + conversion
-│       ├── repository/
-│       │   └── course_repository_interface.go  # Repository interface
-│       └── service/
-│           └── course_service.go      # Service interface + implementation
+│   ├── auth/
+│   │   ├── aggregate/      # AuthToken, RefreshToken entities
+│   │   ├── errors/         # Auth-specific errors
+│   │   ├── handler/        # AuthHandler (public + authenticated routes)
+│   │   ├── types/dtos/     # Request/response DTOs
+│   │   ├── repository/     # AuthToken, RefreshToken repository interfaces
+│   │   └── service/        # AuthService (login, register, tokens, etc.)
+│   ├── schedule/
+│   │   ├── aggregate/      # Schedule, ScheduleGeneration, ShiftTemplate, SchedulerConfig
+│   │   ├── errors/         # Domain errors
+│   │   ├── handler/
+│   │   │   ├── dtos/       # DTOs (separate package: `package dtos`)
+│   │   │   ├── schedule_handler.go
+│   │   │   ├── schedule_generation_handler.go
+│   │   │   ├── shift_template_handler.go
+│   │   │   └── scheduler_config_handler.go
+│   │   ├── repository/     # Four repository interfaces
+│   │   └── service/        # Four service implementations
+│   └── user/
+│       ├── aggregate/      # User entity
+│       ├── errors/         # User errors
+│       ├── repository/     # UserRepository interface
+│       └── service/        # UserService
 ├── infrastructure/
 │   ├── database/
-│   │   ├── tx_manager.go             # InAuthTx / InSystemTx
-│   │   └── tx_manager_types.go       # AuthContext, context helpers
-│   ├── course/
-│   │   └── course_repository.go      # Go-Jet repository implementation
-│   └── models/                       # Generated by Go-Jet (do not edit)
+│   │   ├── tx_manager.go          # InAuthTx / InSystemTx
+│   │   └── tx_manager_types.go    # AuthContext, context helpers
+│   ├── auth/                      # AuthToken, RefreshToken repository impls
+│   ├── schedule/                  # Schedule, Generation, ShiftTemplate, Config repo impls
+│   ├── user/                      # UserRepository impl
+│   ├── email/                     # EmailSender interfaces + Mailpit/Resend impls
+│   ├── scheduler/                 # External scheduler service integration
+│   ├── transcripts/               # External transcripts service integration
+│   └── models/                    # Generated by Go-Jet (do not edit)
+│       └── helpdesk/
+│           ├── auth/              # Auth schema models
+│           └── schedule/          # Schedule schema models
 └── tests/
-    ├── mocks/
-    │   ├── mock_tx_manager.go         # StubTxManager (executes fn with nil tx)
-    │   ├── mock_course_repository.go  # Function-based mock
-    │   └── mock_course_service.go     # Function-based mock
-    ├── integration/
-    │   └── course/
-    │       └── course_repository_test.go
+    ├── mocks/                     # Function-based mocks (16 files)
+    │   ├── mock_tx_manager.go     # StubTxManager (executes fn with nil tx)
+    │   ├── mock_*_repository.go   # Repository mocks
+    │   ├── mock_*_service.go      # Service mocks
+    │   └── mock_email_sender.go   # Email sender mock
+    ├── integration/               # Repository tests with testcontainers
     ├── unit/
-    │   └── domains/
-    │       └── course/
-    │           ├── course_test.go              # Aggregate unit tests
-    │           ├── course_service_test.go       # Service unit tests
-    │           └── course_handler_test.go       # Handler unit tests
+    │   ├── domains/               # Service, handler, aggregate tests
+    │   └── infrastructure/        # Email, scheduler, transcripts tests
+    ├── e2e/                       # End-to-end auth flow tests
     └── utils/
-        └── test_db.go                 # Testcontainers PostgreSQL setup
+        └── test_db.go             # Testcontainers PostgreSQL setup
 ```
 
 ---
@@ -784,9 +839,10 @@ When implementing a new domain:
 - [ ] **Repository Interface**: Define in `domain/<name>/repository/`
 - [ ] **Repository Impl**: Implement with Go-Jet in `infrastructure/<name>/` (use `postgres.UUID()` for UUID comparisons)
 - [ ] **Service**: Business logic with auth + tx management in `domain/<name>/service/`
-- [ ] **Handler + DTOs**: HTTP interface in `domain/<name>/handler/`
-- [ ] **Routes**: Wire up in `application/routes.go` and `application/app.go`
-- [ ] **Mocks**: Add function-based mocks in `tests/mocks/`
+- [ ] **DTOs**: Request/response types in `domain/<name>/handler/dtos/` (separate `package dtos`)
+- [ ] **Handler**: HTTP interface in `domain/<name>/handler/`, imports from `handler/dtos`
+- [ ] **Routes**: Wire up in `application/routes.go` (public or protected group) and `application/app.go`
+- [ ] **Mocks**: Add function-based mocks with `var _ Interface = (*Mock)(nil)` in `tests/mocks/`
 - [ ] **Unit Tests**: Aggregate, service (with mock repo), handler (with mock service + Chi router)
 - [ ] **Integration Tests**: Repository tests with testcontainers
 
@@ -796,11 +852,13 @@ When implementing a new domain:
 
 ### Shared Mocks
 
-Mocks live in `tests/mocks/` and use a function-based pattern. Each mock field can be set per test case:
+Mocks live in `tests/mocks/` and use a function-based pattern. Each mock field can be set per test case. All mocks include a compile-time interface assertion:
 
 ```go
-// apps/apps/backend/internal/tests/mocks/mock_course_repository.go
+// apps/backend/internal/tests/mocks/mock_course_repository.go
 package mocks
+
+var _ repository.CourseRepositoryInterface = (*MockCourseRepository)(nil)
 
 type MockCourseRepository struct {
     CreateFn  func(ctx context.Context, tx *sql.Tx, course *aggregate.Course) (*aggregate.Course, error)
@@ -818,6 +876,8 @@ func (m *MockCourseRepository) Create(ctx context.Context, tx *sql.Tx, course *a
 The `StubTxManager` executes transaction functions directly with a `nil` tx (since the repository is also mocked in unit tests):
 
 ```go
+var _ database.TxManagerInterface = (*StubTxManager)(nil)
+
 type StubTxManager struct{}
 
 func (s *StubTxManager) InAuthTx(_ context.Context, _ database.AuthContext, fn func(tx *sql.Tx) error) error {
@@ -905,12 +965,21 @@ func (s *CourseRepositoryTestSuite) TearDownTest() {
 }
 ```
 
+### End-to-End Tests
+
+E2E tests verify full auth flows (register → verify email → login → refresh → logout) using a real database and HTTP server:
+
+```
+tests/e2e/
+└── auth_flow_test.go
+```
+
 ### Running Tests
 
 ```bash
 # From apps/backend/:
 
-# All tests (unit + integration)
+# All tests (unit + integration + e2e)
 go test ./... -count=1
 
 # Unit tests only
@@ -918,6 +987,9 @@ go test ./internal/tests/unit/... -count=1
 
 # Integration tests only (requires Docker)
 go test ./internal/tests/integration/... -v -count=1
+
+# E2E tests only (requires Docker)
+go test ./internal/tests/e2e/... -v -count=1
 
 # Specific domain
 go test ./internal/tests/unit/domains/schedule/... -v

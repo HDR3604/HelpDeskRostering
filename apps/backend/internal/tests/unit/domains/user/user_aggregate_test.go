@@ -36,13 +36,13 @@ func TestNewUser_Success(t *testing.T) {
 		{
 			name:     "create admin user",
 			email:    "admin@uwi.edu",
-			password: "SecurePassword123",
+			password: "SecureP@ss123",
 			role:     Role_Admin,
 		},
 		{
 			name:     "create student user",
 			email:    "student@my.uwi.edu",
-			password: "StudentPassword789",
+			password: "StudentP@ss789",
 			role:     Role_Student,
 		},
 	}
@@ -94,7 +94,7 @@ func TestNewUser_InvalidEmail(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u, err := aggregate.NewUser(tt.email, "ValidPassword123", aggregate.Role_Student)
+			u, err := aggregate.NewUser(tt.email, "ValidP@ss123!", aggregate.Role_Student)
 
 			if err != errors.ErrInvalidEmail {
 				t.Errorf("NewUser() error = %v, want %v", err, errors.ErrInvalidEmail)
@@ -120,7 +120,7 @@ func TestNewUser_InvalidRole(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			u, err := aggregate.NewUser("valid@my.uwi.edu", "ValidPassword123", aggregate.Role(tt.role))
+			u, err := aggregate.NewUser("valid@my.uwi.edu", "ValidP@ss123!", aggregate.Role(tt.role))
 
 			if err != errors.ErrInvalidRole {
 				t.Errorf("NewUser() error = %v, want %v", err, errors.ErrInvalidRole)
@@ -137,30 +137,23 @@ func TestNewUser_InvalidPassword(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
+		wantErr  error
 	}{
-		{"empty password", ""},
-		{"short password", "F1234"},
-		{"minimal password", "P12345"},
+		{"empty password", "", errors.ErrInvalidPasswordLength},
+		{"too short", "P@ss1!", errors.ErrInvalidPasswordLength},
+		{"seven chars", "P@ssw0r", errors.ErrInvalidPasswordLength},
+		{"no uppercase", "p@ssw0rd", errors.ErrInvalidPasswordComplexity},
+		{"no lowercase", "P@SSW0RD", errors.ErrInvalidPasswordComplexity},
+		{"no digit", "P@ssword", errors.ErrInvalidPasswordComplexity},
+		{"no special char", "Passw0rd", errors.ErrInvalidPasswordComplexity},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.password == "P12345" {
-				// Minimal valid password should succeed
-				u, err := aggregate.NewUser("valid@my.uwi.edu", tt.password, aggregate.Role_Student)
-				if err != nil {
-					t.Errorf("NewUser() error = %v, want nil for 6-char password", err)
-				}
-				if u == nil {
-					t.Error("NewUser() returned nil for valid 6-char password")
-				}
-				return
-			}
-
 			u, err := aggregate.NewUser("valid@my.uwi.edu", tt.password, aggregate.Role_Student)
 
-			if err == nil {
-				t.Errorf("NewUser() error = nil, want error for password %q", tt.password)
+			if err != tt.wantErr {
+				t.Errorf("NewUser(%q) error = %v, want %v", tt.password, err, tt.wantErr)
 			}
 			if u != nil {
 				t.Error("NewUser() returned non-nil user for invalid password")
@@ -169,9 +162,20 @@ func TestNewUser_InvalidPassword(t *testing.T) {
 	}
 }
 
+// TestNewUser_MinimalValidPassword tests the minimum valid password (8 chars)
+func TestNewUser_MinimalValidPassword(t *testing.T) {
+	u, err := aggregate.NewUser("valid@my.uwi.edu", "P@ssw0rd", aggregate.Role_Student)
+	if err != nil {
+		t.Errorf("NewUser() error = %v, want nil for minimal valid password", err)
+	}
+	if u == nil {
+		t.Error("NewUser() returned nil for valid minimal password")
+	}
+}
+
 // TestActivate_Success tests activating an inactive user
 func TestActivate_Success(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -189,7 +193,7 @@ func TestActivate_Success(t *testing.T) {
 
 // TestActivate_AlreadyActive tests activating an already active user
 func TestActivate_AlreadyActive(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -203,7 +207,7 @@ func TestActivate_AlreadyActive(t *testing.T) {
 
 // TestDeactivate_Success tests deactivating an active user
 func TestDeactivate_Success(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -220,7 +224,7 @@ func TestDeactivate_Success(t *testing.T) {
 
 // TestDeactivate_AlreadyInactive tests deactivating an already inactive user
 func TestDeactivate_AlreadyInactive(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -235,7 +239,7 @@ func TestDeactivate_AlreadyInactive(t *testing.T) {
 
 // TestUpdateEmail_Success tests updating email with valid new email
 func TestUpdateEmail_Success(t *testing.T) {
-	u, err := aggregate.NewUser("old@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("old@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -253,7 +257,7 @@ func TestUpdateEmail_Success(t *testing.T) {
 
 // TestUpdateEmail_InvalidEmail tests updating to invalid email
 func TestUpdateEmail_InvalidEmail(t *testing.T) {
-	u, err := aggregate.NewUser("old@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("old@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -270,7 +274,7 @@ func TestUpdateEmail_InvalidEmail(t *testing.T) {
 
 // TestUpdateEmail_SameEmail tests updating to same email
 func TestUpdateEmail_SameEmail(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -284,7 +288,7 @@ func TestUpdateEmail_SameEmail(t *testing.T) {
 
 // TestUpdateRole_Success tests updating role with valid new role
 func TestUpdateRole_Success(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -302,7 +306,7 @@ func TestUpdateRole_Success(t *testing.T) {
 
 // TestUpdateRole_InvalidRole tests updating to invalid role
 func TestUpdateRole_InvalidRole(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}
@@ -319,7 +323,7 @@ func TestUpdateRole_InvalidRole(t *testing.T) {
 
 // TestUpdateRole_SameRole tests updating to same role
 func TestUpdateRole_SameRole(t *testing.T) {
-	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidPassword123", aggregate.Role_Student)
+	u, err := aggregate.NewUser("test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
 	if err != nil {
 		t.Fatalf("NewUser() error = %v", err)
 	}

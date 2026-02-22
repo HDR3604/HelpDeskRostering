@@ -124,6 +124,11 @@ tasks:
     cmds:
       - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down -all
 
+  migrate:force:
+    desc: "Force set migration version (usage: task migrate:force -- <version>)"
+    cmds:
+      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" force {{.CLI_ARGS}}
+
   migrate:create:
     desc: "Create a new migration (usage: task migrate:create -- name)"
     cmds:

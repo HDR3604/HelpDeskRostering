@@ -4,6 +4,7 @@
         "helpdesk",
         "mailpit",
         "testcontainers",
+        "timestampz",
         "VITE"
     ],
     "python.defaultInterpreterPath": "${workspaceFolder}/apps/scheduler/.venv/bin/python"

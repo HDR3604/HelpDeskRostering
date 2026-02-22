@@ -30,13 +30,14 @@ const (
 var RoleValues = []Role{Role_Admin, Role_Student}
 
 type User struct {
-	ID        uuid.UUID  `json:"id"`
-	Email     string     `json:"email"`
-	Password  string     `json:"password"`
-	Role      Role       `json:"role"`
-	IsActive  bool       `json:"is_active"`
-	CreatedAt *time.Time `json:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at"`
+	ID              uuid.UUID  `json:"id"`
+	Email           string     `json:"email"`
+	Password        string     `json:"password"`
+	Role            Role       `json:"role"`
+	IsActive        bool       `json:"is_active"`
+	CreatedAt       *time.Time `json:"created_at"`
+	UpdatedAt       *time.Time `json:"updated_at"`
+	EmailVerifiedAt *time.Time `json:"email_verified_at"`
 }
 
 // NewUser creates a new User with validation
@@ -57,7 +58,7 @@ func NewUser(email, password string, role Role) (*User, error) {
 	}
 
 	// Validate password
-	if err := validatePassword(password); err != nil {
+	if err := ValidatePassword(password); err != nil {
 		return nil, err
 	}
 
@@ -70,13 +71,15 @@ func NewUser(email, password string, role Role) (*User, error) {
 	}, nil
 }
 
-func validatePassword(password string) error {
-	if len(password) < 6 {
+func ValidatePassword(password string) error {
+	if len(password) < 8 {
 		return errors.ErrInvalidPasswordLength
 	}
-	hasLetter := regexp.MustCompile(`[A-Za-z]`).MatchString(password)
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
 	hasDigit := regexp.MustCompile(`\d`).MatchString(password)
-	if !hasLetter || !hasDigit {
+	hasSpecial := regexp.MustCompile(`[^A-Za-z0-9]`).MatchString(password)
+	if !hasUpper || !hasLower || !hasDigit || !hasSpecial {
 		return errors.ErrInvalidPasswordComplexity
 	}
 	return nil
@@ -181,11 +184,12 @@ func ValidateRoleAgainstEmail(role Role, email string) error {
 // ToModel converts the User aggregate to the database model
 func (u *User) ToModel() *model.Users {
 	return &model.Users{
-		UserID:       u.ID,
-		EmailAddress: u.Email,
-		Password:     u.Password,
-		Role:         model.Roles(u.Role),
-		IsActive:     u.IsActive,
+		UserID:          u.ID,
+		EmailAddress:    u.Email,
+		Password:        u.Password,
+		Role:            model.Roles(u.Role),
+		IsActive:        u.IsActive,
+		EmailVerifiedAt: u.EmailVerifiedAt,
 	}
 }
 
@@ -196,12 +200,13 @@ func UserFromModel(m *model.Users) *User {
 		createdAt = &m.CreatedAt
 	}
 	return &User{
-		ID:        m.UserID,
-		Email:     m.EmailAddress,
-		Password:  m.Password,
-		Role:      Role(m.Role),
-		IsActive:  m.IsActive,
-		CreatedAt: createdAt,
-		UpdatedAt: m.UpdatedAt,
+		ID:              m.UserID,
+		Email:           m.EmailAddress,
+		Password:        m.Password,
+		Role:            Role(m.Role),
+		IsActive:        m.IsActive,
+		CreatedAt:       createdAt,
+		UpdatedAt:       m.UpdatedAt,
+		EmailVerifiedAt: m.EmailVerifiedAt,
 	}
 }

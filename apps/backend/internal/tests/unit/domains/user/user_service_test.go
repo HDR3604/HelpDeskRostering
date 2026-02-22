@@ -57,16 +57,16 @@ func (s *UserServiceTestSuite) newStudentUser() *aggregate.User {
 // --- HashPassword ---
 
 func (s *UserServiceTestSuite) TestHashPassword_Success() {
-	hash, err := s.service.HashPassword("password1")
+	hash, err := s.service.HashPassword("P@ssword1")
 
 	s.Require().NoError(err)
 	s.NotEmpty(hash)
-	s.NotEqual("password1", hash)
+	s.NotEqual("P@ssword1", hash)
 }
 
 func (s *UserServiceTestSuite) TestHashPassword_ProducesDifferentHashesSameInput() {
-	hash1, err1 := s.service.HashPassword("password1")
-	hash2, err2 := s.service.HashPassword("password1")
+	hash1, err1 := s.service.HashPassword("P@ssword1")
+	hash2, err2 := s.service.HashPassword("P@ssword1")
 
 	s.Require().NoError(err1)
 	s.Require().NoError(err2)
@@ -83,7 +83,7 @@ func (s *UserServiceTestSuite) TestCreate_Success_Admin() {
 		return user, nil
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "password1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -100,7 +100,7 @@ func (s *UserServiceTestSuite) TestCreate_Success_Student() {
 		return user, nil
 	}
 
-	result, err := s.service.Create(s.ctx, "student@my.uwi.edu", "password1", aggregate.Role_Student)
+	result, err := s.service.Create(s.ctx, "student@my.uwi.edu", "P@ssword1", aggregate.Role_Student)
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -114,7 +114,7 @@ func (s *UserServiceTestSuite) TestCreate_EmailAlreadyExists() {
 		return existing, nil
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "password1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.ErrorIs(err, userErrors.ErrEmailAlreadyExists)
 	s.Nil(result)
@@ -125,7 +125,7 @@ func (s *UserServiceTestSuite) TestCreate_GetByEmailRepositoryError() {
 		return nil, errors.New("db connection error")
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "password1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
@@ -181,7 +181,7 @@ func (s *UserServiceTestSuite) TestCreate_RepositoryCreateFails() {
 		return nil, errors.New("db write error")
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "password1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)

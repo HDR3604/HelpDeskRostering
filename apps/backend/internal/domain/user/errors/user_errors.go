@@ -6,8 +6,8 @@ import "errors"
 var (
 	ErrInvalidEmail              = errors.New("invalid email format")
 	ErrInvalidRole               = errors.New("invalid role")
-	ErrInvalidPasswordLength     = errors.New("Password must be at least 6 characters")
-	ErrInvalidPasswordComplexity = errors.New("Password must contain at least one letter and one number")
+	ErrInvalidPasswordLength     = errors.New("password must be at least 8 characters")
+	ErrInvalidPasswordComplexity = errors.New("password must contain at least one uppercase letter, one lowercase letter, one digit, and one special character")
 	ErrEmailUnchanged            = errors.New("new email must be different from current email")
 	ErrRoleUnchanged             = errors.New("new role must be different from current role")
 	ErrEmailAdmin                = errors.New("admin email must end with @uwi.edu")
