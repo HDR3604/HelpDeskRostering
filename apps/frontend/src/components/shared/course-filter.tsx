@@ -102,7 +102,7 @@ export function CourseFilter({ courses, scrollHeight = "h-48" }: CourseFilterPro
                   <TableCell className="text-sm">{course.name}</TableCell>
                   <TableCell>
                     {course.grade ? (
-                      <Badge variant="secondary">{course.grade}</Badge>
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted">{course.grade}</Badge>
                     ) : (
                       <span className="text-xs text-muted-foreground">In Progress</span>
                     )}

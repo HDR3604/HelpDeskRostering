@@ -9,6 +9,7 @@ const router = createRouter({
   routeTree,
   defaultPreload: 'intent',
   scrollRestoration: true,
+  defaultPendingMs: 200,
 })
 
 // Register things for typesafety

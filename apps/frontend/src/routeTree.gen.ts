@@ -9,180 +9,257 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as ShowcaseRouteImport } from './routes/showcase'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ScheduleRouteImport } from './routes/schedule'
-import { Route as ApplicationsRouteImport } from './routes/applications'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
+import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
+import { Route as AppApplicationsRouteImport } from './routes/_app/applications'
+import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/index'
+import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedule/$scheduleId'
 
-const SignUpRoute = SignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
+const AuthRoute = AuthRouteImport.update({
+  id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ShowcaseRoute = ShowcaseRouteImport.update({
-  id: '/showcase',
-  path: '/showcase',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ScheduleRoute = ScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApplicationsRoute = ApplicationsRouteImport.update({
-  id: '/applications',
-  path: '/applications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthSignUpRoute = AuthSignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScheduleRoute = AppScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppApplicationsRoute = AppApplicationsRouteImport.update({
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScheduleIndexRoute = AppScheduleIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppScheduleRoute,
+} as any)
+const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
+  id: '/$scheduleId',
+  path: '/$scheduleId',
+  getParentRoute: () => AppScheduleRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/applications': typeof ApplicationsRoute
-  '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
-  '/showcase': typeof ShowcaseRoute
-  '/sign-up': typeof SignUpRoute
+  '/': typeof AppIndexRoute
+  '/applications': typeof AppApplicationsRoute
+  '/schedule': typeof AppScheduleRouteWithChildren
+  '/settings': typeof AppSettingsRoute
+  '/onboarding': typeof AuthOnboardingRoute
+  '/sign-up': typeof AuthSignUpRoute
+  '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/schedule/': typeof AppScheduleIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/applications': typeof ApplicationsRoute
-  '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
-  '/showcase': typeof ShowcaseRoute
-  '/sign-up': typeof SignUpRoute
+  '/': typeof AppIndexRoute
+  '/applications': typeof AppApplicationsRoute
+  '/settings': typeof AppSettingsRoute
+  '/onboarding': typeof AuthOnboardingRoute
+  '/sign-up': typeof AuthSignUpRoute
+  '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/schedule': typeof AppScheduleIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/about': typeof AboutRoute
-  '/applications': typeof ApplicationsRoute
-  '/schedule': typeof ScheduleRoute
-  '/settings': typeof SettingsRoute
-  '/showcase': typeof ShowcaseRoute
-  '/sign-up': typeof SignUpRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_auth': typeof AuthRouteWithChildren
+  '/_app/applications': typeof AppApplicationsRoute
+  '/_app/schedule': typeof AppScheduleRouteWithChildren
+  '/_app/settings': typeof AppSettingsRoute
+  '/_auth/onboarding': typeof AuthOnboardingRoute
+  '/_auth/sign-up': typeof AuthSignUpRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/_app/schedule/': typeof AppScheduleIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/about'
     | '/applications'
     | '/schedule'
     | '/settings'
-    | '/showcase'
+    | '/onboarding'
     | '/sign-up'
+    | '/schedule/$scheduleId'
+    | '/schedule/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/about'
     | '/applications'
-    | '/schedule'
     | '/settings'
-    | '/showcase'
+    | '/onboarding'
     | '/sign-up'
+    | '/schedule/$scheduleId'
+    | '/schedule'
   id:
     | '__root__'
-    | '/'
-    | '/about'
-    | '/applications'
-    | '/schedule'
-    | '/settings'
-    | '/showcase'
-    | '/sign-up'
+    | '/_app'
+    | '/_auth'
+    | '/_app/applications'
+    | '/_app/schedule'
+    | '/_app/settings'
+    | '/_auth/onboarding'
+    | '/_auth/sign-up'
+    | '/_app/'
+    | '/_app/schedule/$scheduleId'
+    | '/_app/schedule/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
-  ApplicationsRoute: typeof ApplicationsRoute
-  ScheduleRoute: typeof ScheduleRoute
-  SettingsRoute: typeof SettingsRoute
-  ShowcaseRoute: typeof ShowcaseRoute
-  SignUpRoute: typeof SignUpRoute
+  AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpRouteImport
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/showcase': {
-      id: '/showcase'
-      path: '/showcase'
-      fullPath: '/showcase'
-      preLoaderRoute: typeof ShowcaseRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/schedule': {
-      id: '/schedule'
-      path: '/schedule'
-      fullPath: '/schedule'
-      preLoaderRoute: typeof ScheduleRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/applications': {
-      id: '/applications'
-      path: '/applications'
-      fullPath: '/applications'
-      preLoaderRoute: typeof ApplicationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_auth/sign-up': {
+      id: '/_auth/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof AuthSignUpRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/onboarding': {
+      id: '/_auth/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthOnboardingRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/schedule': {
+      id: '/_app/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AppScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/applications': {
+      id: '/_app/applications'
+      path: '/applications'
+      fullPath: '/applications'
+      preLoaderRoute: typeof AppApplicationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/schedule/': {
+      id: '/_app/schedule/'
+      path: '/'
+      fullPath: '/schedule/'
+      preLoaderRoute: typeof AppScheduleIndexRouteImport
+      parentRoute: typeof AppScheduleRoute
+    }
+    '/_app/schedule/$scheduleId': {
+      id: '/_app/schedule/$scheduleId'
+      path: '/$scheduleId'
+      fullPath: '/schedule/$scheduleId'
+      preLoaderRoute: typeof AppScheduleScheduleIdRouteImport
+      parentRoute: typeof AppScheduleRoute
     }
   }
 }
 
+interface AppScheduleRouteChildren {
+  AppScheduleScheduleIdRoute: typeof AppScheduleScheduleIdRoute
+  AppScheduleIndexRoute: typeof AppScheduleIndexRoute
+}
+
+const AppScheduleRouteChildren: AppScheduleRouteChildren = {
+  AppScheduleScheduleIdRoute: AppScheduleScheduleIdRoute,
+  AppScheduleIndexRoute: AppScheduleIndexRoute,
+}
+
+const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
+  AppScheduleRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppApplicationsRoute: typeof AppApplicationsRoute
+  AppScheduleRoute: typeof AppScheduleRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppApplicationsRoute: AppApplicationsRoute,
+  AppScheduleRoute: AppScheduleRouteWithChildren,
+  AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
+interface AuthRouteChildren {
+  AuthOnboardingRoute: typeof AuthOnboardingRoute
+  AuthSignUpRoute: typeof AuthSignUpRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthOnboardingRoute: AuthOnboardingRoute,
+  AuthSignUpRoute: AuthSignUpRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
-  ApplicationsRoute: ApplicationsRoute,
-  ScheduleRoute: ScheduleRoute,
-  SettingsRoute: SettingsRoute,
-  ShowcaseRoute: ShowcaseRoute,
-  SignUpRoute: SignUpRoute,
+  AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
