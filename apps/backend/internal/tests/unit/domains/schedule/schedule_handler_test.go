@@ -13,7 +13,10 @@ import (
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	userAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
+	"github.com/HDR3604/HelpDeskApp/internal/middleware"
 	"github.com/HDR3604/HelpDeskApp/internal/tests/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -36,17 +39,39 @@ func (s *ScheduleHandlerTestSuite) SetupTest() {
 	hdl := handler.NewScheduleHandler(zap.NewNop(), s.mockSvc)
 	s.router = chi.NewRouter()
 	s.router.Route("/api/v1", func(r chi.Router) {
+		// Admin-only routes (behind permission middleware)
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Permission([]userAggregate.Role{userAggregate.Role_Admin}))
+			hdl.RegisterAdminRoutes(r)
+		})
+
+		// Authenticated routes (any role)
 		hdl.RegisterRoutes(r)
 	})
 }
 
+// adminContext returns an AuthContext with admin role for injecting into test requests.
+func adminContext() *database.AuthContext {
+	return &database.AuthContext{
+		UserID: "22222222-2222-2222-2222-222222222222",
+		Role:   string(userAggregate.Role_Admin),
+	}
+}
+
 func (s *ScheduleHandlerTestSuite) doRequest(method, path string, body string) *httptest.ResponseRecorder {
+	return s.doRequestAs(method, path, body, adminContext())
+}
+
+func (s *ScheduleHandlerTestSuite) doRequestAs(method, path string, body string, ac *database.AuthContext) *httptest.ResponseRecorder {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 	} else {
 		req = httptest.NewRequest(method, path, nil)
+	}
+	if ac != nil {
+		req = req.WithContext(database.WithAuthContext(req.Context(), *ac))
 	}
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
@@ -114,16 +139,12 @@ func (s *ScheduleHandlerTestSuite) TestCreate_EmptyTitle() {
 }
 
 func (s *ScheduleHandlerTestSuite) TestCreate_Unauthorized() {
-	s.mockSvc.CreateFn = func(_ context.Context, _ *aggregate.Schedule) (*aggregate.Schedule, error) {
-		return nil, scheduleErrors.ErrMissingAuthContext
-	}
-
-	rr := s.doRequest("POST", "/api/v1/schedules", `{
+	rr := s.doRequestAs("POST", "/api/v1/schedules", `{
 		"title": "Test",
 		"effective_from": "2025-09-01"
-	}`)
+	}`, nil)
 
-	s.Equal(http.StatusUnauthorized, rr.Code)
+	s.Equal(http.StatusForbidden, rr.Code)
 }
 
 // --- GetByID ---
@@ -380,18 +401,14 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Infeasible() {
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Unauthorized() {
-	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
-		return nil, scheduleErrors.ErrMissingAuthContext
-	}
-
-	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+	rr := s.doRequestAs("POST", "/api/v1/schedules/generate", `{
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
 		"assistants": []
-	}`)
+	}`, nil)
 
-	s.Equal(http.StatusUnauthorized, rr.Code)
+	s.Equal(http.StatusForbidden, rr.Code)
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_NoActiveShiftTemplates() {

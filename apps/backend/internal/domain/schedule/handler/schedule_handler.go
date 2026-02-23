@@ -30,22 +30,18 @@ func NewScheduleHandler(logger *zap.Logger, service service.ScheduleServiceInter
 }
 
 func (h *ScheduleHandler) RegisterRoutes(r chi.Router) {
-	r.Route("/schedules", func(r chi.Router) {
-		r.Get("/{id}", h.GetByID)
-	})
+	r.Get("/schedules/{id}", h.GetByID)
 }
 
 func (h *ScheduleHandler) RegisterAdminRoutes(r chi.Router) {
-	r.Route("/schedules", func(r chi.Router) {
-		r.Post("/", h.Create)
-		r.Post("/generate", h.GenerateSchedule)
-		r.Get("/", h.List)
-		r.Get("/archived", h.ListArchived)
-		r.Patch("/{id}/archive", h.Archive)
-		r.Patch("/{id}/unarchive", h.Unarchive)
-		r.Patch("/{id}/activate", h.Activate)
-		r.Patch("/{id}/deactivate", h.Deactivate)
-	})
+	r.Post("/schedules", h.Create)
+	r.Post("/schedules/generate", h.GenerateSchedule)
+	r.Get("/schedules", h.List)
+	r.Get("/schedules/archived", h.ListArchived)
+	r.Patch("/schedules/{id}/archive", h.Archive)
+	r.Patch("/schedules/{id}/unarchive", h.Unarchive)
+	r.Patch("/schedules/{id}/activate", h.Activate)
+	r.Patch("/schedules/{id}/deactivate", h.Deactivate)
 }
 
 func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
