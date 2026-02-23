@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 )
 
-func Permission(roles []string) func(http.Handler) http.Handler {
+func Permission(roles []aggregate.Role) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -17,7 +18,7 @@ func Permission(roles []string) func(http.Handler) http.Handler {
 				return
 			}
 
-			if !slices.Contains(roles, authContext.Role) {
+			if !slices.Contains(roles, aggregate.Role(authContext.Role)) {
 				writeHeader(w, "access not allowed", http.StatusForbidden)
 				return
 			}

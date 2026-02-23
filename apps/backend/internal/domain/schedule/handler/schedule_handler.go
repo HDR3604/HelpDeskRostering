@@ -31,11 +31,16 @@ func NewScheduleHandler(logger *zap.Logger, service service.ScheduleServiceInter
 
 func (h *ScheduleHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/schedules", func(r chi.Router) {
+		r.Get("/{id}", h.GetByID)
+	})
+}
+
+func (h *ScheduleHandler) RegisterAdminRoutes(r chi.Router) {
+	r.Route("/schedules", func(r chi.Router) {
 		r.Post("/", h.Create)
 		r.Post("/generate", h.GenerateSchedule)
 		r.Get("/", h.List)
 		r.Get("/archived", h.ListArchived)
-		r.Get("/{id}", h.GetByID)
 		r.Patch("/{id}/archive", h.Archive)
 		r.Patch("/{id}/unarchive", h.Unarchive)
 		r.Patch("/{id}/activate", h.Activate)
