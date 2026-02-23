@@ -16,7 +16,7 @@ func WithAuthContext(ctx context.Context, ac AuthContext) context.Context {
 	return context.WithValue(ctx, authContextKey, ac)
 }
 
-func AuthContextFromContext(ctx context.Context) (AuthContext, bool) {
+func GetAuthContextFromContext(ctx context.Context) (AuthContext, bool) {
 	ac, ok := ctx.Value(authContextKey).(AuthContext)
 	return ac, ok
 }

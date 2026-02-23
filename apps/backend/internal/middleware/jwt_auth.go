@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"encoding/json"
-	"log"
 	"net/http"
 	"strings"
 
@@ -15,19 +13,19 @@ func JWTAuth(authService service.AuthServiceInterface) func(http.Handler) http.H
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
 			if authHeader == "" {
-				writeUnauthorized(w, "missing authorization header")
+				writeHeader(w, "missing authorization header", http.StatusUnauthorized)
 				return
 			}
 
 			parts := strings.SplitN(authHeader, " ", 2)
 			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-				writeUnauthorized(w, "invalid authorization header format")
+				writeHeader(w, "invalid authorization header format", http.StatusUnauthorized)
 				return
 			}
 
 			claims, err := authService.ValidateAccessToken(parts[1])
 			if err != nil {
-				writeUnauthorized(w, "invalid or expired token")
+				writeHeader(w, "invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
@@ -40,13 +38,5 @@ func JWTAuth(authService service.AuthServiceInterface) func(http.Handler) http.H
 			ctx := database.WithAuthContext(r.Context(), ac)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
-	}
-}
-
-func writeUnauthorized(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusUnauthorized)
-	if err := json.NewEncoder(w).Encode(map[string]string{"error": message}); err != nil {
-		log.Printf("failed to encode JSON response: %v", err)
 	}
 }
