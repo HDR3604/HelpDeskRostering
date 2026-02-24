@@ -34,10 +34,11 @@ import (
 )
 
 type App struct {
-	config Config
-	db     *sql.DB
-	logger *zap.Logger
-	server *http.Server
+	config  Config
+	db      *sql.DB
+	logger  *zap.Logger
+	server  *http.Server
+	authSvc authService.AuthServiceInterface
 }
 
 func NewApp(cfg Config) (*App, error) {
@@ -144,9 +145,10 @@ func NewApp(cfg Config) (*App, error) {
 	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
 
 	app := &App{
-		config: cfg,
-		db:     db,
-		logger: logger,
+		config:  cfg,
+		db:      db,
+		logger:  logger,
+		authSvc: authSvc,
 		server: &http.Server{
 			Addr:         ":" + cfg.Port,
 			Handler:      r,
@@ -162,6 +164,9 @@ func NewApp(cfg Config) (*App, error) {
 func (a *App) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// Start background token cleanup
+	go a.runTokenCleanup(ctx)
 
 	// Start server in a goroutine
 	errCh := make(chan error, 1)
@@ -191,6 +196,29 @@ func (a *App) Run() error {
 
 	a.logger.Info("server stopped")
 	return nil
+}
+
+const tokenCleanupInterval = 24 * time.Hour
+
+func (a *App) runTokenCleanup(ctx context.Context) {
+	// Run once on startup
+	if err := a.authSvc.CleanupStaleTokens(ctx); err != nil {
+		a.logger.Error("initial token cleanup failed", zap.Error(err))
+	}
+
+	ticker := time.NewTicker(tokenCleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := a.authSvc.CleanupStaleTokens(ctx); err != nil {
+				a.logger.Error("token cleanup failed", zap.Error(err))
+			}
+		}
+	}
 }
 
 func devAuthMiddleware(userID string) func(http.Handler) http.Handler {

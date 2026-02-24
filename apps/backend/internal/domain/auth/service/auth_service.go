@@ -44,6 +44,7 @@ type AuthServiceInterface interface {
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, rawToken, newPassword string) error
 	ValidateAccessToken(tokenString string) (*Claims, error)
+	CleanupStaleTokens(ctx context.Context) error
 }
 
 type AuthService struct {
@@ -557,6 +558,33 @@ func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword s
 
 		// Revoke all refresh tokens (force re-login on all devices)
 		return s.refreshTokenRepo.RevokeAllByUserID(ctx, tx, user.ID)
+	})
+}
+
+const revokedTokenRetention = 7 * 24 * time.Hour // keep revoked tokens for 7 days
+
+func (s *AuthService) CleanupStaleTokens(ctx context.Context) error {
+	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		now := time.Now()
+
+		expired, err := s.refreshTokenRepo.DeleteExpired(ctx, tx, now)
+		if err != nil {
+			return fmt.Errorf("failed to delete expired tokens: %w", err)
+		}
+
+		revoked, err := s.refreshTokenRepo.DeleteRevokedBefore(ctx, tx, now.Add(-revokedTokenRetention))
+		if err != nil {
+			return fmt.Errorf("failed to delete old revoked tokens: %w", err)
+		}
+
+		if expired > 0 || revoked > 0 {
+			s.logger.Info("refresh token cleanup complete",
+				zap.Int64("expired_deleted", expired),
+				zap.Int64("revoked_deleted", revoked),
+			)
+		}
+
+		return nil
 	})
 }
 
