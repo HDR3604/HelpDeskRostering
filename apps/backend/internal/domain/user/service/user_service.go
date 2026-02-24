@@ -19,6 +19,17 @@ type UserService struct {
 	repository repository.UserRepositoryInterface
 }
 
+type UserServiceInterface interface {
+	Create(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error)
+	GetByID(ctx context.Context, userID string) (*aggregate.User, error)
+	GetByEmail(ctx context.Context, email string) (*aggregate.User, error)
+	Update(ctx context.Context, userID string, input UpdateUserInput) error
+	DeactivateByEmailDomain(ctx context.Context, emailDomain aggregate.EmailDomain) error
+	List(ctx context.Context) ([]*aggregate.User, error)
+	ListByRole(ctx context.Context, role string) ([]*aggregate.User, error)
+	ListActive(ctx context.Context) ([]*aggregate.User, error)
+}
+
 type UpdateUserInput struct {
 	Email    *string
 	Role     *aggregate.Role
