@@ -3,6 +3,6 @@ import { isLoggedIn } from './auth'
 
 export function requireAuth() {
   if (!isLoggedIn()) {
-    throw redirect({ to: '/login' })
+    throw redirect({ to: '/sign-in' })
   }
 }
