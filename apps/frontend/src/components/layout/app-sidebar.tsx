@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { useUser } from '@/hooks/use-user'
-import { logoutUser } from '@/lib/auth'
+import { useLogout } from '@/hooks/use-logout'
 import { MOCK_SCHEDULES, MOCK_STUDENTS } from '@/lib/mock-data'
 import { getApplicationStatus } from '@/types/student'
 
@@ -55,6 +55,7 @@ export function AppSidebar() {
     const currentPath = router.location.pathname
     const navigate = useNavigate()
     const { role, firstName, lastName, email } = useUser()
+    const logout = useLogout()
 
     const isOnAssistants = currentPath.startsWith('/assistants')
 
@@ -404,12 +405,7 @@ export function AppSidebar() {
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onSelect={() => {
-                                        logoutUser()
-                                        navigate({ to: '/sign-in' })
-                                    }}
-                                >
+                                <DropdownMenuItem onSelect={() => logout()}>
                                     <LogOut className="mr-2 size-4" />
                                     Sign out
                                 </DropdownMenuItem>

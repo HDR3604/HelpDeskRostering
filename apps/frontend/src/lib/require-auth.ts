@@ -1,8 +1,11 @@
 import { redirect } from '@tanstack/react-router'
-import { isLoggedIn } from './auth'
+import { isAuthenticated } from './auth'
 
-export function requireAuth() {
-    if (!isLoggedIn()) {
-        throw redirect({ to: '/sign-in' })
+export function requireAuth({ location }: { location: { href: string } }) {
+    if (!isAuthenticated()) {
+        throw redirect({
+            to: '/sign-in',
+            search: { redirect: location.href },
+        })
     }
 }

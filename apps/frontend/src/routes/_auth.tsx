@@ -1,10 +1,10 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
-import { isLoggedIn } from '@/lib/auth'
+import { isAuthenticated } from '@/lib/auth'
 
 export const Route = createFileRoute('/_auth')({
     beforeLoad: () => {
-        if (isLoggedIn()) {
+        if (isAuthenticated()) {
             throw redirect({ to: '/' })
         }
     },

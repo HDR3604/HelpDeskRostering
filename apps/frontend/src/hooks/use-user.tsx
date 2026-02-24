@@ -1,9 +1,7 @@
 import * as React from 'react'
 import type { Student } from '@/types/student'
 import { MOCK_STUDENTS } from '@/lib/mock-data'
-import { getRole, getEmail, getName } from '@/lib/auth'
-
-type Role = 'admin' | 'student'
+import { getTokenPayload, type JwtPayload } from '@/lib/auth'
 
 // TODO: Remove mock student data once student API is implemented
 const MOCK_CURRENT_STUDENT = MOCK_STUDENTS.find(
@@ -11,7 +9,7 @@ const MOCK_CURRENT_STUDENT = MOCK_STUDENTS.find(
 )!
 
 type UserContextValue = {
-    role: Role
+    role: JwtPayload['role']
     firstName: string | null
     lastName: string | null
     email: string | null
@@ -23,29 +21,42 @@ type UserContextValue = {
 
 const UserContext = React.createContext<UserContextValue | null>(null)
 
-function resolveInitialRole(): Role {
-    if (typeof window === 'undefined') return 'admin'
-    const tokenRole = getRole()
-    if (tokenRole === 'admin' || tokenRole === 'student') return tokenRole
-    return 'admin'
+function buildUserValue(payload: JwtPayload | null): UserContextValue {
+    return {
+        role: payload?.role ?? 'admin',
+        firstName: payload?.first_name ?? null,
+        lastName: payload?.last_name ?? null,
+        email: payload?.email ?? null,
+        currentStudent: MOCK_CURRENT_STUDENT,
+        currentStudentId: String(MOCK_CURRENT_STUDENT.student_id),
+    }
 }
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-    const role = resolveInitialRole()
-    const email = getEmail()
-    const name = getName()
-
-    const value = React.useMemo<UserContextValue>(
-        () => ({
-            role,
-            firstName: name?.firstName ?? null,
-            lastName: name?.lastName ?? null,
-            email,
-            currentStudent: MOCK_CURRENT_STUDENT,
-            currentStudentId: String(MOCK_CURRENT_STUDENT.student_id),
-        }),
-        [role, name?.firstName, name?.lastName, email],
+    const [value, setValue] = React.useState<UserContextValue>(() =>
+        buildUserValue(getTokenPayload()),
     )
+
+    // Cross-tab sync: when another tab modifies localStorage (login/logout),
+    // re-derive user state or redirect to sign-in if tokens were cleared.
+    React.useEffect(() => {
+        function onStorage(e: StorageEvent) {
+            if (
+                e.key === 'auth_token' ||
+                e.key === 'auth_storage' ||
+                e.key === null
+            ) {
+                const payload = getTokenPayload()
+                if (!payload) {
+                    window.location.href = '/sign-in'
+                    return
+                }
+                setValue(buildUserValue(payload))
+            }
+        }
+        window.addEventListener('storage', onStorage)
+        return () => window.removeEventListener('storage', onStorage)
+    }, [])
 
     return <UserContext.Provider value={value}>{children}</UserContext.Provider>
 }

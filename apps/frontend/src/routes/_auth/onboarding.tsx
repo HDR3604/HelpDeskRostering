@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { AlertCircle, GraduationCap } from 'lucide-react'
 
+import { ErrorState } from '@/components/layout/error-state'
 import { StepSetPassword } from '@/features/onboarding/components/step-set-password'
 import {
     BankingDetailsForm,
@@ -44,16 +45,11 @@ function OnboardingPage() {
     if (!token) {
         return (
             <div className="flex min-h-screen items-center justify-center px-4">
-                <div className="text-center space-y-3">
-                    <AlertCircle className="mx-auto size-10 text-muted-foreground" />
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Invalid onboarding link
-                    </h1>
-                    <p className="text-muted-foreground">
-                        This link is missing a valid token. Please check your
-                        email for the correct onboarding link.
-                    </p>
-                </div>
+                <ErrorState
+                    icon={<AlertCircle />}
+                    title="Invalid onboarding link"
+                    description="This link is missing a valid token. Please check your email for the correct onboarding link."
+                />
             </div>
         )
     }

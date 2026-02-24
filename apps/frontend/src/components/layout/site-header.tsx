@@ -22,7 +22,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
 import { useUser } from '@/hooks/use-user'
-import { logoutUser } from '@/lib/auth'
+import { useLogout } from '@/hooks/use-logout'
 import { MOCK_SCHEDULES } from '@/lib/mock-data'
 
 const PAGE_TITLES: Record<string, string> = {
@@ -85,6 +85,7 @@ export function SiteHeader() {
     const currentPath = router.location.pathname
     const { firstName, lastName, email } = useUser()
 
+    const logout = useLogout()
     const displayName =
         firstName && lastName ? `${firstName} ${lastName}` : (email ?? '')
     const userInitials =
@@ -175,12 +176,7 @@ export function SiteHeader() {
                             </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                            onSelect={() => {
-                                logoutUser()
-                                window.location.href = '/sign-in'
-                            }}
-                        >
+                        <DropdownMenuItem onSelect={() => logout()}>
                             <LogOut className="mr-2 size-4" />
                             Sign out
                         </DropdownMenuItem>

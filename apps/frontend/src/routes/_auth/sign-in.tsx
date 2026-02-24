@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { loginUser } from '@/lib/auth'
+import { loginUser, type ApiErrorBody } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -18,7 +18,12 @@ import {
 } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
 
+const searchSchema = z.object({
+    redirect: z.string().optional(),
+})
+
 export const Route = createFileRoute('/_auth/sign-in')({
+    validateSearch: searchSchema,
     component: SignInComponent,
 })
 
@@ -35,6 +40,7 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function SignInComponent() {
     const navigate = useNavigate()
+    const { redirect: redirectTo } = Route.useSearch()
     const [error, setError] = useState('')
     const [showPassword, setShowPassword] = useState(false)
 
@@ -51,15 +57,20 @@ export function SignInComponent() {
         setError('')
         try {
             await loginUser(values.email, values.password, values.remember)
-            navigate({ to: '/' })
+            navigate({ to: redirectTo || '/' })
         } catch (err: unknown) {
-            const message = (err as { data?: { error?: string } })?.data?.error
-            if (message?.includes('not been verified')) {
+            const status = (err as { status?: number }).status
+            const message =
+                (err as { data?: ApiErrorBody }).data?.error ?? ''
+
+            if (status === 403 && message.includes('not been verified')) {
                 setError('Please verify your email before signing in.')
-            } else if (message?.includes('not active')) {
+            } else if (status === 403 && message.includes('not active')) {
                 setError('Your account has been deactivated.')
-            } else {
+            } else if (status === 401) {
                 setError('Invalid email or password. Please try again.')
+            } else {
+                setError('Something went wrong. Please try again later.')
             }
         }
     }
