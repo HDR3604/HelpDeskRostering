@@ -7,11 +7,11 @@ export const Route = createFileRoute("/_auth")({
 
 function AuthLayout() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <div className="flex shrink-0 justify-end border-b p-3">
         <ThemeSwitcher />
       </div>
-      <main className="flex-1">
+      <main className="flex-1 overflow-auto">
         <Outlet />
       </main>
     </div>

@@ -1,24 +1,13 @@
-import * as React from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { GraduationCap, Eye, EyeOff } from 'lucide-react'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from "react"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { GraduationCap, Eye, EyeOff } from "lucide-react"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
-import { loginUser } from '../../lib/auth'
-import { Button } from "../../components/ui/button"
-import { Input } from "../../components/ui/input"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../../components/ui/alert-dialog"
+import { loginUser } from "@/lib/auth"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Form,
   FormControl,
@@ -26,16 +15,16 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "../../components/ui/form"
-import { Checkbox } from "../../components/ui/checkbox"
+} from "@/components/ui/form"
+import { Checkbox } from "@/components/ui/checkbox"
 
-export const Route = createFileRoute('/_auth/sign-in')({
+export const Route = createFileRoute("/_auth/sign-in")({
   component: SignInComponent,
 })
 
 const loginSchema = z.object({
-  studentId: z.string().min(1, 'Student ID is required'),
-  password: z.string().min(1, 'Password is required'),
+  email: z.string().min(1, "Email is required").email("Please enter a valid email"),
+  password: z.string().min(1, "Password is required"),
   remember: z.boolean().optional(),
 })
 
@@ -43,67 +32,75 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function SignInComponent() {
   const navigate = useNavigate()
-  const [error, setError] = React.useState('')
-  const [showPassword, setShowPassword] = React.useState(false)
+  const [error, setError] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      studentId: '',
-      password: '',
+      email: "",
+      password: "",
       remember: false,
     },
   })
 
   const onSubmit = async (values: LoginValues) => {
-    setError('')
+    setError("")
     try {
-      const result = await loginUser(values.studentId, values.password, values.remember)
-      if (result.role === 'admin') {
-        navigate({ to: '/' })
-      } else {
-        navigate({ to: '/' })
-      }
-    } catch (err) {
-      setError('Invalid student ID or password. Please try again.')
+      await loginUser(values.email, values.password, values.remember)
+      navigate({ to: "/" })
+    } catch {
+      setError("Invalid email or password. Please try again.")
     }
   }
 
   return (
-    <div className="w-full lg:grid lg:min-h-[calc(100vh-4rem)] lg:grid-cols-2 xl:min-h-[800px]">
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <div className="grid gap-2 text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <GraduationCap className="size-5" />
-              </div>
-              <div className="flex flex-col leading-none text-left">
-                <span className="text-lg font-semibold">HelpDesk</span>
-                <span className="text-xs text-muted-foreground">Rostering</span>
-              </div>
+    <div className="flex h-full">
+      <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
+        <div className="w-full max-w-sm space-y-6">
+          {/* Branded header */}
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <GraduationCap className="size-5" />
             </div>
-            <h1 className="text-3xl font-bold">Welcome Back</h1>
-            <p className="text-balance text-muted-foreground">
-              Enter your Student ID below to login
+            <div className="flex flex-col leading-none">
+              <span className="text-lg font-semibold">HelpDesk</span>
+              <span className="text-xs text-muted-foreground">Rostering</span>
+            </div>
+          </div>
+
+          {/* Heading */}
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Welcome back
+            </h1>
+            <p className="text-muted-foreground">
+              Enter your email below to sign in to your account
             </p>
           </div>
 
+          {/* Form */}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
               <FormField
                 control={form.control}
-                name="studentId"
+                name="email"
                 render={({ field }) => (
                   <FormItem className="grid gap-2">
-                    <FormLabel>Student ID</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="816000000" {...field} />
+                      <Input
+                        type="email"
+                        placeholder="you@uwi.edu"
+                        autoComplete="email"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="password"
@@ -111,18 +108,19 @@ export function SignInComponent() {
                   <FormItem className="grid gap-2">
                     <div className="flex items-center">
                       <FormLabel>Password</FormLabel>
-                      <a
-                        href="/passwordreset"
-                        className="ml-auto inline-block text-sm text-primary hover:underline"
+                      <Link
+                        to="/sign-in"
+                        className="ml-auto text-sm underline-offset-4 hover:underline"
                       >
-                        Forgot password?
-                      </a>
+                        Forgot your password?
+                      </Link>
                     </div>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
+                          autoComplete="current-password"
                           {...field}
                         />
                         <button
@@ -130,11 +128,13 @@ export function SignInComponent() {
                           className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground hover:text-foreground"
                           onClick={() => setShowPassword(!showPassword)}
                           tabIndex={-1}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          <span className="sr-only">
-                            {showPassword ? "Hide password" : "Show password"}
-                          </span>
+                          {showPassword ? (
+                            <EyeOff className="size-4" />
+                          ) : (
+                            <Eye className="size-4" />
+                          )}
                         </button>
                       </div>
                     </FormControl>
@@ -142,73 +142,58 @@ export function SignInComponent() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="remember"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-2 space-y-0 mt-1">
+                  <FormItem className="flex items-center gap-2 space-y-0">
                     <FormControl>
                       <Checkbox
                         checked={field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Remember me
-                      </FormLabel>
-                    </div>
+                    <FormLabel className="text-sm font-normal">
+                      Remember me
+                    </FormLabel>
                   </FormItem>
                 )}
               />
 
               {error && (
-                <div className="text-sm font-medium text-destructive mt-2">
-                  {error}
-                </div>
+                <p className="text-sm font-medium text-destructive">{error}</p>
               )}
 
-              <Button type="submit" className="w-full mt-2" disabled={form.formState.isSubmitting}>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={form.formState.isSubmitting}
+              >
                 {form.formState.isSubmitting ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           </Form>
 
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="text-primary font-medium hover:underline">
-                  Apply to be an Assistant
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Continue to Assistant Application?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You’ll be taken to the Assistant application form. Submitting an application doesn’t grant access—applications must be reviewed and approved.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => navigate({ to: '/sign-up' as any })}>
-                    Continue
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link
+              to="/sign-up"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Apply to be an Assistant
+            </Link>
+          </p>
         </div>
       </div>
-      <div className="hidden bg-muted lg:block">
+
+      <div className="relative hidden w-1/2 shrink-0 p-4 lg:block">
         <img
-          src="/images/UwiFrontPage.jpg"
-          alt="UWI Campus"
-          className="h-full w-full object-cover dark:brightness-[0.8]"
+          src="/images/UwiFrontPage.webp"
+          alt="Student working at a desk"
+          className="absolute inset-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)] rounded-xl object-cover dark:brightness-[0.8]"
         />
       </div>
     </div>
   )
 }
-
-// Force route rebuild
