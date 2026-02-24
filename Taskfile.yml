@@ -90,6 +90,13 @@ tasks:
     cmds:
       - go test ./...
 
+  test:backend:fresh:
+    desc: Clear test cache and run backend tests
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go clean -testcache
+      - go test ./...
+
   test:scheduler:
     desc: Run scheduler tests
     dir: "{{.SCHEDULER_DIR}}"
