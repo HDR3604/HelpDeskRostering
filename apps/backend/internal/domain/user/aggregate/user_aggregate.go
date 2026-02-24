@@ -31,6 +31,8 @@ var RoleValues = []Role{Role_Admin, Role_Student}
 
 type User struct {
 	ID              uuid.UUID  `json:"id"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
 	Email           string     `json:"email"`
 	Password        string     `json:"password"`
 	Role            Role       `json:"role"`
@@ -41,7 +43,11 @@ type User struct {
 }
 
 // NewUser creates a new User with validation
-func NewUser(email, password string, role Role) (*User, error) {
+func NewUser(firstName, lastName, email, password string, role Role) (*User, error) {
+	if strings.TrimSpace(firstName) == "" || strings.TrimSpace(lastName) == "" {
+		return nil, errors.ErrNameRequired
+	}
+
 	// Validate email
 	if isValidEmail(email) != nil {
 		return nil, errors.ErrInvalidEmail
@@ -63,11 +69,13 @@ func NewUser(email, password string, role Role) (*User, error) {
 	}
 
 	return &User{
-		ID:       uuid.New(),
-		Email:    email,
-		Password: password,
-		Role:     role,
-		IsActive: true,
+		ID:        uuid.New(),
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
+		Password:  password,
+		Role:      role,
+		IsActive:  true,
 	}, nil
 }
 
@@ -185,6 +193,8 @@ func ValidateRoleAgainstEmail(role Role, email string) error {
 func (u *User) ToModel() *model.Users {
 	return &model.Users{
 		UserID:          u.ID,
+		FirstName:       u.FirstName,
+		LastName:        u.LastName,
 		EmailAddress:    u.Email,
 		Password:        u.Password,
 		Role:            model.Roles(u.Role),
@@ -201,6 +211,8 @@ func UserFromModel(m *model.Users) *User {
 	}
 	return &User{
 		ID:              m.UserID,
+		FirstName:       m.FirstName,
+		LastName:        m.LastName,
 		Email:           m.EmailAddress,
 		Password:        m.Password,
 		Role:            Role(m.Role),

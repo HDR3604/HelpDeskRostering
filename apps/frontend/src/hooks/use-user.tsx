@@ -1,44 +1,50 @@
 import * as React from 'react'
 import type { Student } from '@/types/student'
 import { MOCK_STUDENTS } from '@/lib/mock-data'
+import { getRole, getEmail, getName } from '@/lib/auth'
 
 type Role = 'admin' | 'student'
 
-const STORAGE_KEY = 'ui-role'
-
-// Mock student: Jane Doe (accepted, has schedule assignments)
+// TODO: Remove mock student data once student API is implemented
 const MOCK_CURRENT_STUDENT = MOCK_STUDENTS.find(
     (s) => s.student_id === 816012345,
 )!
 
 type UserContextValue = {
     role: Role
-    setRole: (role: Role) => void
+    firstName: string | null
+    lastName: string | null
+    email: string | null
+    /** @deprecated Mock data — will be replaced by API call */
     currentStudent: Student
+    /** @deprecated Mock data — will be replaced by API call */
     currentStudentId: string
 }
 
 const UserContext = React.createContext<UserContextValue | null>(null)
 
-export function UserProvider({ children }: { children: React.ReactNode }) {
-    const [role, setRoleState] = React.useState<Role>(() => {
-        if (typeof window === 'undefined') return 'admin'
-        return (localStorage.getItem(STORAGE_KEY) as Role) || 'admin'
-    })
+function resolveInitialRole(): Role {
+    if (typeof window === 'undefined') return 'admin'
+    const tokenRole = getRole()
+    if (tokenRole === 'admin' || tokenRole === 'student') return tokenRole
+    return 'admin'
+}
 
-    const setRole = React.useCallback((r: Role) => {
-        localStorage.setItem(STORAGE_KEY, r)
-        setRoleState(r)
-    }, [])
+export function UserProvider({ children }: { children: React.ReactNode }) {
+    const role = resolveInitialRole()
+    const email = getEmail()
+    const name = getName()
 
     const value = React.useMemo<UserContextValue>(
         () => ({
             role,
-            setRole,
+            firstName: name?.firstName ?? null,
+            lastName: name?.lastName ?? null,
+            email,
             currentStudent: MOCK_CURRENT_STUDENT,
             currentStudentId: String(MOCK_CURRENT_STUDENT.student_id),
         }),
-        [role, setRole],
+        [role, name?.firstName, name?.lastName, email],
     )
 
     return <UserContext.Provider value={value}>{children}</UserContext.Provider>

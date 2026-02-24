@@ -11,7 +11,7 @@ type MockAuthService struct {
 	LoginFn               func(ctx context.Context, email, password string) (string, string, error)
 	RefreshFn             func(ctx context.Context, rawRefreshToken string) (string, string, error)
 	LogoutFn              func(ctx context.Context, rawRefreshToken string) error
-	RegisterFn            func(ctx context.Context, email, password, role string) (*userAggregate.User, error)
+	RegisterFn            func(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error)
 	ChangePasswordFn      func(ctx context.Context, userID, currentPassword, newPassword string) error
 	VerifyEmailFn         func(ctx context.Context, rawToken string) error
 	ResendVerificationFn  func(ctx context.Context, email string) error
@@ -34,8 +34,8 @@ func (m *MockAuthService) Logout(ctx context.Context, rawRefreshToken string) er
 	return m.LogoutFn(ctx, rawRefreshToken)
 }
 
-func (m *MockAuthService) Register(ctx context.Context, email, password, role string) (*userAggregate.User, error) {
-	return m.RegisterFn(ctx, email, password, role)
+func (m *MockAuthService) Register(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error) {
+	return m.RegisterFn(ctx, firstName, lastName, email, password, role)
 }
 
 func (m *MockAuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {

@@ -53,12 +53,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Email == "" || req.Password == "" || req.Role == "" {
-		writeError(w, http.StatusBadRequest, "email, password, and role are required")
+	if req.FirstName == "" || req.LastName == "" || req.Email == "" || req.Password == "" || req.Role == "" {
+		writeError(w, http.StatusBadRequest, "first_name, last_name, email, password, and role are required")
 		return
 	}
 
-	user, err := h.service.Register(r.Context(), req.Email, req.Password, req.Role)
+	user, err := h.service.Register(r.Context(), req.FirstName, req.LastName, req.Email, req.Password, req.Role)
 	if err != nil {
 		h.handleServiceError(w, err)
 		return

@@ -20,6 +20,8 @@ import (
 )
 
 func main() {
+	firstName := os.Getenv("SEED_ADMIN_FIRST_NAME")
+	lastName := os.Getenv("SEED_ADMIN_LAST_NAME")
 	email := os.Getenv("SEED_ADMIN_EMAIL")
 	password := os.Getenv("SEED_ADMIN_PASSWORD")
 	dbURL := os.Getenv("DATABASE_URL")
@@ -66,6 +68,8 @@ func main() {
 		now := time.Now()
 		user := &aggregate.User{
 			ID:              uuid.New(),
+			FirstName:       firstName,
+			LastName:        lastName,
 			Email:           email,
 			Password:        string(hashed),
 			Role:            aggregate.Role_Admin,

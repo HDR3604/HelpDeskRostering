@@ -4,7 +4,6 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { AlertCircle, GraduationCap } from 'lucide-react'
 
-import { useUser } from '@/hooks/use-user'
 import { StepSetPassword } from '@/features/onboarding/components/step-set-password'
 import {
     BankingDetailsForm,
@@ -34,7 +33,6 @@ const STEPS = [
 
 function OnboardingPage() {
     const { token } = Route.useSearch()
-    const { setRole } = useUser()
     const navigate = useNavigate()
 
     const [step, setStep] = React.useState(0)
@@ -80,7 +78,6 @@ function OnboardingPage() {
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
         setIsSubmitting(false)
-        setRole('student')
         toast.success('Onboarding complete! Welcome aboard.')
         navigate({ to: '/' })
     }

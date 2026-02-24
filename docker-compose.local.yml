@@ -70,6 +70,7 @@ services:
       - /app/node_modules  # Exclude node_modules from mount
     environment:
       - CI=true
+      - VITE_API_PROXY_TARGET=http://backend:8080
     restart: unless-stopped
 
   postgres:

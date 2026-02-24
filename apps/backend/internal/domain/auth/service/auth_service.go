@@ -26,6 +26,9 @@ import (
 
 type Claims struct {
 	jwt.RegisteredClaims
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Email     string  `json:"email"`
 	Role      string  `json:"role"`
 	StudentID *string `json:"student_id,omitempty"`
 }
@@ -34,7 +37,7 @@ type AuthServiceInterface interface {
 	Login(ctx context.Context, email, password string) (accessToken, refreshToken string, err error)
 	Refresh(ctx context.Context, rawRefreshToken string) (accessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, rawRefreshToken string) error
-	Register(ctx context.Context, email, password, role string) (*userAggregate.User, error)
+	Register(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error)
 	ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error
 	VerifyEmail(ctx context.Context, rawToken string) error
 	ResendVerification(ctx context.Context, email string) error
@@ -90,11 +93,11 @@ func NewAuthService(
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password, role string) (*userAggregate.User, error) {
+func (s *AuthService) Register(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error) {
 	userRole := userAggregate.Role(role)
 
 	// Validate via aggregate (plain password before hashing)
-	_, err := userAggregate.NewUser(email, password, userRole)
+	_, err := userAggregate.NewUser(firstName, lastName, email, password, userRole)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +108,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	user, err := userAggregate.NewUser(email, string(hashedPassword), userRole)
+	user, err := userAggregate.NewUser(firstName, lastName, email, string(hashedPassword), userRole)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user aggregate: %w", err)
 	}
@@ -206,7 +209,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 			}
 		}
 
-		accessToken, err = s.generateAccessToken(user.ID.String(), string(user.Role), studentID)
+		accessToken, err = s.generateAccessToken(user.ID.String(), user.FirstName, user.LastName, user.Email, string(user.Role), studentID)
 		if err != nil {
 			return fmt.Errorf("failed to generate access token: %w", err)
 		}
@@ -280,7 +283,7 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (stri
 			}
 		}
 
-		newAccessToken, err = s.generateAccessToken(user.ID.String(), string(user.Role), studentID)
+		newAccessToken, err = s.generateAccessToken(user.ID.String(), user.FirstName, user.LastName, user.Email, string(user.Role), studentID)
 		if err != nil {
 			return fmt.Errorf("failed to generate access token: %w", err)
 		}
@@ -576,7 +579,7 @@ func (s *AuthService) ValidateAccessToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-func (s *AuthService) generateAccessToken(userID string, role string, studentID *string) (string, error) {
+func (s *AuthService) generateAccessToken(userID, firstName, lastName, email, role string, studentID *string) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -585,6 +588,9 @@ func (s *AuthService) generateAccessToken(userID string, role string, studentID 
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(s.accessTokenTTL) * time.Second)),
 			Issuer:    "helpdesk-api",
 		},
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
 		Role:      role,
 		StudentID: studentID,
 	}

@@ -4,8 +4,10 @@ import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SiteHeader } from '@/components/layout/site-header'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { StudentProvider } from '@/features/admin/student-management/student-context'
+import { requireAuth } from '@/lib/require-auth'
 
 export const Route = createFileRoute('/_app')({
+    beforeLoad: requireAuth,
     component: AppLayout,
 })
 

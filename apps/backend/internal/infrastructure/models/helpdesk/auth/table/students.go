@@ -21,6 +21,7 @@ type studentsTable struct {
 	EmailAddress       postgres.ColumnString
 	FirstName          postgres.ColumnString
 	LastName           postgres.ColumnString
+	PhoneNumber        postgres.ColumnString
 	TranscriptMetadata postgres.ColumnString // transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; current_level: string; }
 	Availability       postgres.ColumnString // Availability contains a json indicating the availability of a student for each time slot given. The times a represented in 24-hour format. e.g. 8 represents 8 am - 9am { 0: [8...16], . . 4: [8...16] // 24 hr format }
 	CreatedAt          postgres.ColumnTimestampz
@@ -75,6 +76,7 @@ func newStudentsTableImpl(schemaName, tableName, alias string) studentsTable {
 		EmailAddressColumn       = postgres.StringColumn("email_address")
 		FirstNameColumn          = postgres.StringColumn("first_name")
 		LastNameColumn           = postgres.StringColumn("last_name")
+		PhoneNumberColumn        = postgres.StringColumn("phone_number")
 		TranscriptMetadataColumn = postgres.StringColumn("transcript_metadata")
 		AvailabilityColumn       = postgres.StringColumn("availability")
 		CreatedAtColumn          = postgres.TimestampzColumn("created_at")
@@ -84,8 +86,8 @@ func newStudentsTableImpl(schemaName, tableName, alias string) studentsTable {
 		RejectedAtColumn         = postgres.TimestampzColumn("rejected_at")
 		MinWeeklyHoursColumn     = postgres.FloatColumn("min_weekly_hours")
 		MaxWeeklyHoursColumn     = postgres.FloatColumn("max_weekly_hours")
-		allColumns               = postgres.ColumnList{StudentIDColumn, EmailAddressColumn, FirstNameColumn, LastNameColumn, TranscriptMetadataColumn, AvailabilityColumn, CreatedAtColumn, UpdatedAtColumn, DeletedAtColumn, AcceptedAtColumn, RejectedAtColumn, MinWeeklyHoursColumn, MaxWeeklyHoursColumn}
-		mutableColumns           = postgres.ColumnList{EmailAddressColumn, FirstNameColumn, LastNameColumn, TranscriptMetadataColumn, AvailabilityColumn, CreatedAtColumn, UpdatedAtColumn, DeletedAtColumn, AcceptedAtColumn, RejectedAtColumn, MinWeeklyHoursColumn, MaxWeeklyHoursColumn}
+		allColumns               = postgres.ColumnList{StudentIDColumn, EmailAddressColumn, FirstNameColumn, LastNameColumn, PhoneNumberColumn, TranscriptMetadataColumn, AvailabilityColumn, CreatedAtColumn, UpdatedAtColumn, DeletedAtColumn, AcceptedAtColumn, RejectedAtColumn, MinWeeklyHoursColumn, MaxWeeklyHoursColumn}
+		mutableColumns           = postgres.ColumnList{EmailAddressColumn, FirstNameColumn, LastNameColumn, PhoneNumberColumn, TranscriptMetadataColumn, AvailabilityColumn, CreatedAtColumn, UpdatedAtColumn, DeletedAtColumn, AcceptedAtColumn, RejectedAtColumn, MinWeeklyHoursColumn, MaxWeeklyHoursColumn}
 		defaultColumns           = postgres.ColumnList{CreatedAtColumn, MinWeeklyHoursColumn}
 	)
 
@@ -97,6 +99,7 @@ func newStudentsTableImpl(schemaName, tableName, alias string) studentsTable {
 		EmailAddress:       EmailAddressColumn,
 		FirstName:          FirstNameColumn,
 		LastName:           LastNameColumn,
+		PhoneNumber:        PhoneNumberColumn,
 		TranscriptMetadata: TranscriptMetadataColumn,
 		Availability:       AvailabilityColumn,
 		CreatedAt:          CreatedAtColumn,

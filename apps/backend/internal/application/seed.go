@@ -46,6 +46,8 @@ func seedDefaultAdmin(
 		now := time.Now()
 		user := &aggregate.User{
 			ID:              uuid.New(),
+			FirstName:       cfg.SeedAdminFirstName,
+			LastName:        cfg.SeedAdminLastName,
 			Email:           cfg.SeedAdminEmail,
 			Password:        string(hashed),
 			Role:            aggregate.Role_Admin,

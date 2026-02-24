@@ -62,10 +62,10 @@ func (s *UserService) HashPassword(password string) (string, error) {
 	return string(hashedBytes), err
 }
 
-func (s *UserService) Create(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error) {
+func (s *UserService) Create(ctx context.Context, firstName, lastName, email, password string, role aggregate.Role) (*aggregate.User, error) {
 	s.logger.Info("creating user", zap.String("email", email), zap.String("role", string(role)))
 
-	user, err := aggregate.NewUser(email, password, role)
+	user, err := aggregate.NewUser(firstName, lastName, email, password, role)
 	if err != nil {
 		return nil, err
 	}

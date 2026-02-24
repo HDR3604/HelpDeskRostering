@@ -79,6 +79,8 @@ func (s *AuthServiceTestSuite) newVerifiedAdmin() *userAggregate.User {
 	now := time.Now()
 	return &userAggregate.User{
 		ID:              uuid.New(),
+		FirstName:       "Test",
+		LastName:        "User",
 		Email:           "admin@uwi.edu",
 		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Admin,
@@ -91,6 +93,8 @@ func (s *AuthServiceTestSuite) newVerifiedStudent() *userAggregate.User {
 	now := time.Now()
 	return &userAggregate.User{
 		ID:              uuid.New(),
+		FirstName:       "Test",
+		LastName:        "User",
 		Email:           "student@my.uwi.edu",
 		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Student,
@@ -102,6 +106,8 @@ func (s *AuthServiceTestSuite) newVerifiedStudent() *userAggregate.User {
 func (s *AuthServiceTestSuite) newUnverifiedUser() *userAggregate.User {
 	return &userAggregate.User{
 		ID:              uuid.New(),
+		FirstName:       "Test",
+		LastName:        "User",
 		Email:           "admin@uwi.edu",
 		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Admin,
@@ -114,6 +120,8 @@ func (s *AuthServiceTestSuite) newInactiveUser() *userAggregate.User {
 	now := time.Now()
 	return &userAggregate.User{
 		ID:              uuid.New(),
+		FirstName:       "Test",
+		LastName:        "User",
 		Email:           "admin@uwi.edu",
 		Password:        hashPassword("P@ssword1"),
 		Role:            userAggregate.Role_Admin,
@@ -214,7 +222,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Admin() {
 		return &dtos.SendEmailResponse{ID: "test-id"}, nil
 	}
 
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "admin")
+	result, err := s.service.Register(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", "admin")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -245,7 +253,7 @@ func (s *AuthServiceTestSuite) TestRegister_Success_Student() {
 		return &dtos.SendEmailResponse{ID: "test-id"}, nil
 	}
 
-	result, err := s.service.Register(s.ctx, "student@my.uwi.edu", "P@ssword1", "student")
+	result, err := s.service.Register(s.ctx, "Test", "User", "student@my.uwi.edu", "P@ssword1", "student")
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -265,35 +273,35 @@ func (s *AuthServiceTestSuite) TestRegister_EmailAlreadyExists() {
 		return existing, nil
 	}
 
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "admin")
+	result, err := s.service.Register(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", "admin")
 
 	s.ErrorIs(err, userErrors.ErrEmailAlreadyExists)
 	s.Nil(result)
 }
 
 func (s *AuthServiceTestSuite) TestRegister_InvalidEmail() {
-	result, err := s.service.Register(s.ctx, "bad-email", "P@ssword1", "admin")
+	result, err := s.service.Register(s.ctx, "Test", "User", "bad-email", "P@ssword1", "admin")
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *AuthServiceTestSuite) TestRegister_InvalidRole() {
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "superuser")
+	result, err := s.service.Register(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", "superuser")
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *AuthServiceTestSuite) TestRegister_WeakPassword() {
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "abc", "admin")
+	result, err := s.service.Register(s.ctx, "Test", "User", "admin@uwi.edu", "abc", "admin")
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *AuthServiceTestSuite) TestRegister_RoleEmailMismatch() {
-	result, err := s.service.Register(s.ctx, "student@my.uwi.edu", "P@ssword1", "admin")
+	result, err := s.service.Register(s.ctx, "Test", "User", "student@my.uwi.edu", "P@ssword1", "admin")
 
 	s.Require().Error(err)
 	s.Nil(result)
@@ -313,7 +321,7 @@ func (s *AuthServiceTestSuite) TestRegister_SendEmailFails() {
 		return nil, errors.New("email service down")
 	}
 
-	result, err := s.service.Register(s.ctx, "admin@uwi.edu", "P@ssword1", "admin")
+	result, err := s.service.Register(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", "admin")
 
 	s.ErrorIs(err, authErrors.ErrSendVerificationFailed)
 	s.Nil(result)

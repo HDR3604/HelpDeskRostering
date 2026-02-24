@@ -52,8 +52,15 @@ export function SignInComponent() {
         try {
             await loginUser(values.email, values.password, values.remember)
             navigate({ to: '/' })
-        } catch {
-            setError('Invalid email or password. Please try again.')
+        } catch (err: unknown) {
+            const message = (err as { data?: { error?: string } })?.data?.error
+            if (message?.includes('not been verified')) {
+                setError('Please verify your email before signing in.')
+            } else if (message?.includes('not active')) {
+                setError('Your account has been deactivated.')
+            } else {
+                setError('Invalid email or password. Please try again.')
+            }
         }
     }
 

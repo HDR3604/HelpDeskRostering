@@ -40,21 +40,25 @@ func (s *UserServiceTestSuite) SetupTest() {
 
 func (s *UserServiceTestSuite) newAdminUser() *aggregate.User {
 	return &aggregate.User{
-		ID:       uuid.New(),
-		Email:    "admin@uwi.edu",
-		Password: "hashed_password",
-		Role:     aggregate.Role_Admin,
-		IsActive: true,
+		ID:        uuid.New(),
+		FirstName: "Test",
+		LastName:  "User",
+		Email:     "admin@uwi.edu",
+		Password:  "hashed_password",
+		Role:      aggregate.Role_Admin,
+		IsActive:  true,
 	}
 }
 
 func (s *UserServiceTestSuite) newStudentUser() *aggregate.User {
 	return &aggregate.User{
-		ID:       uuid.New(),
-		Email:    "student@my.uwi.edu",
-		Password: "hashed_password",
-		Role:     aggregate.Role_Student,
-		IsActive: true,
+		ID:        uuid.New(),
+		FirstName: "Test",
+		LastName:  "User",
+		Email:     "student@my.uwi.edu",
+		Password:  "hashed_password",
+		Role:      aggregate.Role_Student,
+		IsActive:  true,
 	}
 }
 
@@ -87,7 +91,7 @@ func (s *UserServiceTestSuite) TestCreate_Success_Admin() {
 		return user, nil
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -104,7 +108,7 @@ func (s *UserServiceTestSuite) TestCreate_Success_Student() {
 		return user, nil
 	}
 
-	result, err := s.service.Create(s.ctx, "student@my.uwi.edu", "P@ssword1", aggregate.Role_Student)
+	result, err := s.service.Create(s.ctx, "Test", "User", "student@my.uwi.edu", "P@ssword1", aggregate.Role_Student)
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
@@ -118,7 +122,7 @@ func (s *UserServiceTestSuite) TestCreate_EmailAlreadyExists() {
 		return existing, nil
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.ErrorIs(err, userErrors.ErrEmailAlreadyExists)
 	s.Nil(result)
@@ -129,49 +133,49 @@ func (s *UserServiceTestSuite) TestCreate_GetByEmailRepositoryError() {
 		return nil, errors.New("db connection error")
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidEmail() {
-	result, err := s.service.Create(s.ctx, "not-a-valid-email", "password1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "not-a-valid-email", "password1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidRole() {
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "password1", aggregate.Role("invalid_role"))
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "password1", aggregate.Role("invalid_role"))
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidPassword_TooShort() {
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "abc", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "abc", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *UserServiceTestSuite) TestCreate_InvalidPassword_NoDigit() {
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "passwordonly", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "passwordonly", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *UserServiceTestSuite) TestCreate_RoleEmailMismatch_AdminWithStudentDomain() {
-	result, err := s.service.Create(s.ctx, "user@my.uwi.edu", "password1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "user@my.uwi.edu", "password1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
 }
 
 func (s *UserServiceTestSuite) TestCreate_RoleEmailMismatch_StudentWithStaffDomain() {
-	result, err := s.service.Create(s.ctx, "user@uwi.edu", "password1", aggregate.Role_Student)
+	result, err := s.service.Create(s.ctx, "Test", "User", "user@uwi.edu", "password1", aggregate.Role_Student)
 
 	s.Require().Error(err)
 	s.Nil(result)
@@ -185,7 +189,7 @@ func (s *UserServiceTestSuite) TestCreate_RepositoryCreateFails() {
 		return nil, errors.New("db write error")
 	}
 
-	result, err := s.service.Create(s.ctx, "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
+	result, err := s.service.Create(s.ctx, "Test", "User", "admin@uwi.edu", "P@ssword1", aggregate.Role_Admin)
 
 	s.Require().Error(err)
 	s.Nil(result)
