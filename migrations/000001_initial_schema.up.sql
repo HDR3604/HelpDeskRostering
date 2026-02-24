@@ -48,7 +48,7 @@ CREATE TABLE "auth"."students" (
     "email_address" varchar(255) NOT NULL UNIQUE,
     "first_name" varchar(50) NOT NULL,
     "last_name" varchar(100) NOT NULL,
-    "phone_number" varchar(20),
+    "phone_number" varchar(20) NOT NULL,
     -- transcript metadata contains the relevant extracted information from their provided transcripts. 
     -- It should follow the below structure:
     -- {
