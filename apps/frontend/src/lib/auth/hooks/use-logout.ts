@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router"
 import { useCallback } from "react"
-import { logoutUser } from "@/lib/auth"
+import { logoutUser } from "../actions"
 
 /**
  * Returns a stable callback that logs out the user

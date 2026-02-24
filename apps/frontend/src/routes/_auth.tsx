@@ -1,7 +1,6 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
-import { isAuthenticated } from '@/lib/auth'
-import { ensureValidToken } from '@/lib/api-client'
+import { isAuthenticated, ensureValidToken } from '@/lib/auth'
 
 export const Route = createFileRoute('/_auth')({
     beforeLoad: async () => {

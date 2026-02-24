@@ -9,7 +9,7 @@ import {
     UserSearch,
     DollarSign,
 } from 'lucide-react'
-import { useUser } from '@/hooks/use-user'
+import { useUser } from '@/lib/auth'
 import {
     CommandDialog,
     CommandEmpty,

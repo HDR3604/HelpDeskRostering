@@ -1,4 +1,4 @@
-import { useUser } from '@/hooks/use-user'
+import { useUser } from '@/lib/auth'
 import {
     MOCK_ACTIVE_SCHEDULE,
     MOCK_SHIFT_TEMPLATES,

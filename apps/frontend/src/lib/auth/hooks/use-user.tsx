@@ -1,7 +1,9 @@
 import * as React from 'react'
 import type { Student } from '@/types/student'
 import { MOCK_STUDENTS } from '@/lib/mock-data'
-import { getTokenPayload, type JwtPayload } from '@/lib/auth'
+import { getTokenPayload } from '../token'
+import { ACCESS_TOKEN_KEY, STORAGE_PREF_KEY } from '../constants'
+import type { JwtPayload } from '../types'
 
 // TODO: Remove mock student data once student API is implemented
 const MOCK_CURRENT_STUDENT = MOCK_STUDENTS.find(
@@ -42,8 +44,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     React.useEffect(() => {
         function onStorage(e: StorageEvent) {
             if (
-                e.key === 'auth_token' ||
-                e.key === 'auth_storage' ||
+                e.key === ACCESS_TOKEN_KEY ||
+                e.key === STORAGE_PREF_KEY ||
                 e.key === null
             ) {
                 const payload = getTokenPayload()

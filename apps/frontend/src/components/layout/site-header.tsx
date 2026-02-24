@@ -21,8 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
-import { useUser } from '@/hooks/use-user'
-import { useLogout } from '@/hooks/use-logout'
+import { useUser, useLogout } from '@/lib/auth'
 import { MOCK_SCHEDULES } from '@/lib/mock-data'
 
 const PAGE_TITLES: Record<string, string> = {

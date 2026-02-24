@@ -1,62 +1,10 @@
-import axios from "redaxios"
-import type { Response } from "redaxios"
-import {
-  getAccessToken,
-  getRefreshToken,
-  setTokens,
-  clearTokens,
-  isTokenExpired,
-  type AuthTokenResponse,
-} from "./auth"
+import axios, { type AxiosResponse, isAxiosError } from "axios"
+import { getAccessToken, proactiveRefresh, reactiveRefresh } from "@/lib/auth"
+import { AUTH_ENDPOINT_PREFIX } from "@/lib/auth/constants"
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "/api/v1",
 })
-
-// ── Token Refresh ──────────────────────────────────────────────────────
-// A single in-flight refresh promise ensures concurrent 401s don't each
-// trigger their own refresh call — they all wait on the same promise.
-
-let refreshPromise: Promise<string> | null = null
-
-async function refreshAccessToken(): Promise<string> {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken) throw new Error("No refresh token")
-
-  // Use the raw client (not apiClient) to avoid infinite request() loops
-  const { data } = await client.post<AuthTokenResponse>("/auth/refresh", {
-    refresh_token: refreshToken,
-  })
-
-  const rememberMe = localStorage.getItem("auth_storage") === "local"
-  setTokens(data.access_token, data.refresh_token, rememberMe)
-  return data.access_token
-}
-
-function forceLogout() {
-  clearTokens()
-  if (typeof window !== "undefined") {
-    window.location.href = "/sign-in"
-  }
-}
-
-// ── Ensure Valid Token ─────────────────────────────────────────────────
-// Used by route guards to silently refresh an expired token before
-// falling back to a sign-in redirect.
-
-export async function ensureValidToken(): Promise<void> {
-  const token = getAccessToken()
-  if (token && !isTokenExpired(token)) return
-
-  if (!getRefreshToken()) throw new Error("No valid session")
-
-  if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
-      refreshPromise = null
-    })
-  }
-  await refreshPromise
-}
 
 // ── Request Wrapper ────────────────────────────────────────────────────
 
@@ -65,48 +13,25 @@ function headers(token: string | null): Record<string, string> {
 }
 
 async function request<T>(
-  fn: (token: string | null) => Promise<Response<T>>,
+  fn: (token: string | null) => Promise<AxiosResponse<T>>,
   url: string,
-): Promise<Response<T>> {
-  const isAuthEndpoint = url.startsWith("/auth/")
+): Promise<AxiosResponse<T>> {
+  const isAuthEndpoint = url.startsWith(AUTH_ENDPOINT_PREFIX)
 
-  // Proactive refresh: if the access token is about to expire, refresh
-  // before making the request so the server never sees an expired token.
-  let token = getAccessToken()
-  if (token && !isAuthEndpoint && isTokenExpired(token)) {
-    try {
-      if (!refreshPromise) {
-        refreshPromise = refreshAccessToken().finally(() => {
-          refreshPromise = null
-        })
-      }
-      token = await refreshPromise
-    } catch {
-      forceLogout()
-      throw new Error("Session expired")
-    }
-  }
+  // Proactive refresh (delegated to auth SDK)
+  const token = await proactiveRefresh(getAccessToken(), url)
 
   try {
     return await fn(token)
   } catch (error) {
-    const err = error as { status?: number }
-
-    // Reactive refresh: if the server returned 401, try to refresh once
-    // and retry the original request with a fresh token.
-    if (err.status === 401 && !isAuthEndpoint) {
-      try {
-        if (!refreshPromise) {
-          refreshPromise = refreshAccessToken().finally(() => {
-            refreshPromise = null
-          })
-        }
-        const freshToken = await refreshPromise
-        return await fn(freshToken)
-      } catch {
-        forceLogout()
-        throw new Error("Session expired")
-      }
+    // Reactive refresh on 401 (delegated to auth SDK)
+    if (
+      isAxiosError(error) &&
+      error.response?.status === 401 &&
+      !isAuthEndpoint
+    ) {
+      const freshToken = await reactiveRefresh()
+      return await fn(freshToken)
     }
 
     throw error

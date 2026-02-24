@@ -13,8 +13,7 @@ import {
     UserSearch,
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
-import { useUser } from '@/hooks/use-user'
-import { useLogout } from '@/hooks/use-logout'
+import { useUser, useLogout } from '@/lib/auth'
 import { MOCK_SCHEDULES, MOCK_STUDENTS } from '@/lib/mock-data'
 import { getApplicationStatus } from '@/types/student'
 

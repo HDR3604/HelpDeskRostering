@@ -1,6 +1,6 @@
 import { redirect } from '@tanstack/react-router'
-import { isAuthenticated } from './auth'
-import { ensureValidToken } from './api-client'
+import { isAuthenticated } from './token'
+import { ensureValidToken } from './refresh'
 
 export async function requireAuth({
     location,

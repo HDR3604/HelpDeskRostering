@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
+import { isAxiosError } from 'axios'
 import { loginUser, type ApiErrorBody } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,9 +60,14 @@ export function SignInComponent() {
             await loginUser(values.email, values.password, values.remember)
             navigate({ to: redirectTo || '/' })
         } catch (err: unknown) {
-            const status = (err as { status?: number }).status
+            if (!isAxiosError(err)) {
+                setError('Something went wrong. Please try again later.')
+                return
+            }
+
+            const status = err.response?.status
             const message =
-                (err as { data?: ApiErrorBody }).data?.error ?? ''
+                (err.response?.data as ApiErrorBody | undefined)?.error ?? ''
 
             if (status === 403 && message.includes('not been verified')) {
                 setError('Please verify your email before signing in.')
