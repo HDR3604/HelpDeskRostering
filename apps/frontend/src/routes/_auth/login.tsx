@@ -10,7 +10,19 @@ import {
   CardHeader,
   CardTitle,
 } from "../../components/ui/card"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../components/ui/alert-dialog"
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { GraduationCap } from 'lucide-react'
 
 export const Route = createFileRoute('/_auth/login')({
   component: LoginComponent,
@@ -43,7 +55,16 @@ export function LoginComponent() {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-slate-100">
+    <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4 gap-6">
+      <div className="flex items-center gap-3 w-full max-w-4xl">
+        <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <GraduationCap className="size-5" />
+        </div>
+        <div className="flex flex-col leading-none">
+          <span className="text-lg font-semibold">HelpDesk</span>
+          <span className="text-xs text-muted-foreground">Rostering</span>
+        </div>
+      </div>
       <Card className="w-full max-w-4xl overflow-hidden shadow-xl flex flex-row p-0 min-h-[500px]">
         <div className="hidden lg:block lg:w-1/2 relative">
           <img
@@ -53,38 +74,37 @@ export function LoginComponent() {
         </div>
 
         <div className="w-full lg:w-1/2 flex flex-col justify-center p-10">
-          <CardHeader className="px-0 pt-0">
-            <p className="text-s font-semibold text-blue-700 mb-1">
+          <CardHeader className="px-0 pt-0 text-center space-y-2">
+            <CardTitle className="text-2xl font-semibold tracking-tight sm:text-3xl">
               Welcome back
-            </p>
-            <CardTitle className="text-2xl font-bold text-slate-800">
-              Sign in to your account
             </CardTitle>
+            <p className="text-muted-foreground">
+              Sign in to your account
+            </p>
           </CardHeader>
 
           <CardContent className="px-0">
             <form onSubmit={handleSubmit}>
               <div className="flex flex-col gap-5">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="studentId" className="text-slate-800 font-medium mt-1">
+                  <Label htmlFor="studentId">
                     Student ID
                   </Label>
                   <Input
                     id="studentId"
                     value={studentId}
                     onChange={(e) => setStudentId(e.target.value)}
-                    required
-                    className="h-12" />
+                    required />
                 </div>
 
                 <div className="grid gap-1.5">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="password" className="text-slate-700 font-medium">
+                    <Label htmlFor="password">
                       Password
                     </Label>
 
                     <a href="/passwordreset"
-                      className="text-xs text-blue-600 hover:text-blue-800 hover:underline transition-colors">
+                      className="text-xs text-primary hover:underline">
                       Forgot password?
                     </a>
                   </div>
@@ -94,13 +114,12 @@ export function LoginComponent() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="h-12" />
+                    required />
                 </div>
 
                 <Button
                   type="submit"
-                  className="w-full h-12 hover:bg-blue-800 text-white font-semibold bg-blue-700 mt-1"
+                  className="w-full"
                   disabled={isSubmitting}>
                   {isSubmitting ? "Signing in..." : "Sign In"}
                 </Button>
@@ -110,13 +129,30 @@ export function LoginComponent() {
           </CardContent>
 
           <CardFooter className="px-0 pb-0">
-            <p className="text-sm text-slate-500 text-center w-full  mt-1">
-              Don't have an account?
-              <a href="/signup"
-                className="text-blue-600 font-medium hover:underline transition-colors ml-1">
-                Sign Up as an Assistant
-              </a>
-            </p>
+            <div className="text-sm text-muted-foreground text-center w-full mt-1">
+              Don't have an account?{" "}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button className="text-primary font-medium hover:underline">
+                    Apply to be an Assistant
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will take you to the sign-up page for new assistants. Do you want to proceed?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => navigate({ to: '/sign-up' as any })}>
+                      Continue
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardFooter>
         </div>
       </Card>
