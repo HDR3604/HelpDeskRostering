@@ -9,8 +9,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary with optimizations
+# Build binaries with optimizations
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o seed-admin ./cmd/seed-admin
 
 # Production image
 FROM alpine:3.20
@@ -23,8 +24,9 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
-# Copy binary
+# Copy binaries
 COPY --from=builder /app/server .
+COPY --from=builder /app/seed-admin .
 
 # Copy migrations if they exist
 COPY --from=builder /app/migrations* ./migrations/

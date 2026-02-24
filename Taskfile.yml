@@ -244,6 +244,16 @@ tasks:
     cmds:
       - ./scripts/seed_dev.sh
 
+  db:seed-admin:
+    desc: "Seed admin user (usage: task db:seed-admin -- <email> <password>)"
+    dir: "{{.BACKEND_DIR}}"
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+      SEED_ADMIN_EMAIL: "{{index .CLI_ARGS_LIST 0}}"
+      SEED_ADMIN_PASSWORD: "{{index .CLI_ARGS_LIST 1}}"
+    cmds:
+      - go run ./cmd/seed-admin
+
   # Visualize
   visualize:
     desc: "Show shifts, schedule grid, and availability (usage: task visualize [-- <id>])"

@@ -78,6 +78,11 @@ func NewApp(cfg Config) (*App, error) {
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 	bankingDetailsRepository := studentRepo.NewBankingDetailsRepository(logger, cfg.EncryptionKey)
 
+	// Seed default admin (idempotent, skipped if env vars not set)
+	if err := seedDefaultAdmin(context.Background(), cfg, logger, txManager, userRepository); err != nil {
+		logger.Warn("failed to seed default admin", zap.Error(err))
+	}
+
 	// Email sender
 	var emailSenderSvc emailInterfaces.EmailSenderInterface
 	if cfg.Environment == "production" {

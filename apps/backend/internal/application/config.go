@@ -20,6 +20,8 @@ type Config struct {
 	FrontendURL          string
 	FromEmail            string
 	EncryptionKey        string
+	SeedAdminEmail       string
+	SeedAdminPassword    string
 }
 
 func LoadConfig() (Config, error) {
@@ -108,6 +110,9 @@ func LoadConfig() (Config, error) {
 	if _, err := hex.DecodeString(cfg.EncryptionKey); err != nil {
 		return Config{}, fmt.Errorf("ENCRYPTION_KEY must be valid hex: %w", err)
 	}
+
+	cfg.SeedAdminEmail = os.Getenv("SEED_ADMIN_EMAIL")
+	cfg.SeedAdminPassword = os.Getenv("SEED_ADMIN_PASSWORD")
 
 	return cfg, nil
 }
