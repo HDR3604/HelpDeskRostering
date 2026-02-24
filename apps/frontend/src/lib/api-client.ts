@@ -40,6 +40,24 @@ function forceLogout() {
   }
 }
 
+// ── Ensure Valid Token ─────────────────────────────────────────────────
+// Used by route guards to silently refresh an expired token before
+// falling back to a sign-in redirect.
+
+export async function ensureValidToken(): Promise<void> {
+  const token = getAccessToken()
+  if (token && !isTokenExpired(token)) return
+
+  if (!getRefreshToken()) throw new Error("No valid session")
+
+  if (!refreshPromise) {
+    refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = null
+    })
+  }
+  await refreshPromise
+}
+
 // ── Request Wrapper ────────────────────────────────────────────────────
 
 function headers(token: string | null): Record<string, string> {

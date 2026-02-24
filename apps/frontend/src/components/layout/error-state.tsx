@@ -11,7 +11,7 @@ interface ErrorStateProps {
 const iconVariantStyles = {
   destructive: "bg-destructive/10 text-destructive",
   muted: "bg-muted text-muted-foreground",
-}
+} satisfies Record<NonNullable<ErrorStateProps["iconVariant"]>, string>
 
 export function ErrorState({
   icon,
@@ -24,7 +24,7 @@ export function ErrorState({
     <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
       <div
         className={cn(
-          "flex h-12 w-12 items-center justify-center rounded-full [&_svg]:h-6 [&_svg]:w-6",
+          "flex size-12 items-center justify-center rounded-full [&_svg]:size-6",
           iconVariantStyles[iconVariant],
         )}
       >
