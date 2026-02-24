@@ -13,17 +13,17 @@ import (
 )
 
 type UpdateSchedulerConfigParams struct {
-	Name                   string
+	Name                  string
 	CourseShortfallPenalty float64
-	MinHoursPenalty        float64
-	MaxHoursPenalty        float64
-	UnderstaffedPenalty    float64
-	ExtraHoursPenalty      float64
-	MaxExtraPenalty        float64
-	BaselineHoursTarget    int32
-	SolverTimeLimit        *int32
-	SolverGap              *float64
-	LogSolverOutput        bool
+	MinHoursPenalty       float64
+	MaxHoursPenalty       float64
+	UnderstaffedPenalty   float64
+	ExtraHoursPenalty     float64
+	MaxExtraPenalty       float64
+	BaselineHoursTarget   int32
+	SolverTimeLimit       *int32
+	SolverGap             *float64
+	LogSolverOutput       bool
 }
 
 type SchedulerConfigServiceInterface interface {
@@ -54,7 +54,7 @@ func NewSchedulerConfigService(
 }
 
 func (s *SchedulerConfigService) authCtx(ctx context.Context) (database.AuthContext, error) {
-	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	authCtx, ok := database.AuthContextFromContext(ctx)
 	if !ok {
 		s.logger.Error("missing auth context in request")
 		return database.AuthContext{}, scheduleErrors.ErrMissingAuthContext

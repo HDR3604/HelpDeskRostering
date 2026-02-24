@@ -7,7 +7,6 @@ import (
 	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
-	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	authMiddleware "github.com/HDR3604/HelpDeskApp/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
@@ -38,13 +37,6 @@ func registerRoutes(
 			} else {
 				r.Use(authMiddleware.JWTAuth(authSvc))
 			}
-
-			r.Group(func(r chi.Router) {
-				// Admin Routes
-				r.Use(authMiddleware.Permission([]aggregate.Role{aggregate.Role_Admin}))
-
-				scheduleHdl.RegisterAdminRoutes(r)
-			})
 
 			authHdl.RegisterAuthenticatedRoutes(r)
 			scheduleHdl.RegisterRoutes(r)

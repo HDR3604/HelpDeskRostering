@@ -53,7 +53,7 @@ func NewShiftTemplateService(
 }
 
 func (s *ShiftTemplateService) authCtx(ctx context.Context) (database.AuthContext, error) {
-	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	authCtx, ok := database.AuthContextFromContext(ctx)
 	if !ok {
 		s.logger.Error("missing auth context in request")
 		return database.AuthContext{}, scheduleErrors.ErrMissingAuthContext

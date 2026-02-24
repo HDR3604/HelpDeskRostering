@@ -71,7 +71,7 @@ func NewScheduleService(
 }
 
 func (s *ScheduleService) authCtx(ctx context.Context) (database.AuthContext, error) {
-	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	authCtx, ok := database.AuthContextFromContext(ctx)
 	if !ok {
 		s.logger.Error("missing auth context in request")
 		return database.AuthContext{}, scheduleErrors.ErrMissingAuthContext
@@ -481,14 +481,14 @@ func schedulerConfigToSchedulerConfig(config *aggregate.SchedulerConfig) *types.
 
 	return &types.SchedulerConfig{
 		CourseShortfallPenalty: float32(config.CourseShortfallPenalty),
-		MinHoursPenalty:        float32(config.MinHoursPenalty),
-		MaxHoursPenalty:        float32(config.MaxHoursPenalty),
-		UnderstaffedPenalty:    float32(config.UnderstaffedPenalty),
-		ExtraHoursPenalty:      float32(config.ExtraHoursPenalty),
-		MaxExtraPenalty:        float32(config.MaxExtraPenalty),
-		BaselineHoursTarget:    config.BaselineHoursTarget,
-		SolverTimeLimit:        config.SolverTimeLimit,
-		SolverGap:              solverGap,
-		LogSolverOutput:        config.LogSolverOutput,
+		MinHoursPenalty:       float32(config.MinHoursPenalty),
+		MaxHoursPenalty:       float32(config.MaxHoursPenalty),
+		UnderstaffedPenalty:   float32(config.UnderstaffedPenalty),
+		ExtraHoursPenalty:     float32(config.ExtraHoursPenalty),
+		MaxExtraPenalty:       float32(config.MaxExtraPenalty),
+		BaselineHoursTarget:   config.BaselineHoursTarget,
+		SolverTimeLimit:       config.SolverTimeLimit,
+		SolverGap:             solverGap,
+		LogSolverOutput:       config.LogSolverOutput,
 	}
 }

@@ -37,7 +37,7 @@ func (s *JWTMiddlewareTestSuite) newTestRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.JWTAuth(s.mockAuthSvc))
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
-		ac, ok := database.GetAuthContextFromContext(r.Context())
+		ac, ok := database.AuthContextFromContext(r.Context())
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
 			return

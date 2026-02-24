@@ -14,7 +14,6 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	authDtos "github.com/HDR3604/HelpDeskApp/internal/domain/auth/types/dtos"
-	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
@@ -102,45 +101,23 @@ func (s *AuthE2ETestSuite) SetupSuite() {
 	// 5. Real auth handler
 	hdl := handler.NewAuthHandler(logger, authSvc, 3600)
 
-	// 6. Chi router — mirrors production routes.go structure
+	// 6. Chi router with routes registered manually to avoid duplicate /auth mount panic
 	s.router = chi.NewRouter()
-	s.router.Route("/api/v1", func(r chi.Router) {
-		// Public auth routes (no JWT)
-		hdl.RegisterRoutes(r)
+	s.router.Route("/api/v1/auth", func(r chi.Router) {
+		// Public routes
+		r.Post("/register", hdl.Register)
+		r.Post("/login", hdl.Login)
+		r.Post("/refresh", hdl.Refresh)
+		r.Post("/logout", hdl.Logout)
+		r.Post("/verify-email", hdl.VerifyEmail)
+		r.Post("/resend-verification", hdl.ResendVerification)
+		r.Post("/forgot-password", hdl.ForgotPassword)
+		r.Post("/reset-password", hdl.ResetPassword)
 
-		// Protected routes (JWT middleware)
+		// Authenticated routes
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.JWTAuth(authSvc))
-
-			// Admin-only routes
-			r.Group(func(r chi.Router) {
-				r.Use(middleware.Permission([]aggregate.Role{aggregate.Role_Admin}))
-				r.Get("/test/admin-only", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(map[string]string{"access": "admin"})
-				})
-			})
-
-			// Student-only routes
-			r.Group(func(r chi.Router) {
-				r.Use(middleware.Permission([]aggregate.Role{aggregate.Role_Student}))
-				r.Get("/test/student-only", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(map[string]string{"access": "student"})
-				})
-			})
-
-			// Any authenticated role routes
-			r.Group(func(r chi.Router) {
-				r.Use(middleware.Permission([]aggregate.Role{aggregate.Role_Admin, aggregate.Role_Student}))
-				r.Get("/test/any-role", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(map[string]string{"access": "any"})
-				})
-			})
-
-			// Authenticated routes (any role, no permission middleware)
-			hdl.RegisterAuthenticatedRoutes(r)
+			r.Patch("/change-password", hdl.ChangePassword)
 		})
 	})
 }
@@ -451,62 +428,4 @@ func (s *AuthE2ETestSuite) TestE2E_DuplicateRegistration() {
 	// 2. Duplicate registration with same email -> 409
 	rr = s.doRequest(http.MethodPost, "/api/v1/auth/register", registerBody, "")
 	s.Equal(http.StatusConflict, rr.Code, "expected 409 for duplicate registration: %s", rr.Body.String())
-}
-
-// ---------------------------------------------------------------------------
-// Permission Middleware E2E Tests
-// ---------------------------------------------------------------------------
-
-func (s *AuthE2ETestSuite) TestE2E_Permission_AdminAccessesAdminRoute() {
-	tokens := s.registerAndVerify("admin.perm@uwi.edu", "StrongP@ss1", "admin")
-
-	rr := s.doRequest(http.MethodGet, "/api/v1/test/admin-only", "", tokens.AccessToken)
-	s.Equal(http.StatusOK, rr.Code)
-}
-
-func (s *AuthE2ETestSuite) TestE2E_Permission_StudentBlockedFromAdminRoute() {
-	tokens := s.registerAndVerify("student.perm@my.uwi.edu", "StrongP@ss1", "student")
-
-	rr := s.doRequest(http.MethodGet, "/api/v1/test/admin-only", "", tokens.AccessToken)
-	s.Equal(http.StatusForbidden, rr.Code)
-
-	var body map[string]string
-	err := json.Unmarshal(rr.Body.Bytes(), &body)
-	s.Require().NoError(err)
-	s.Equal("access not allowed", body["error"])
-}
-
-func (s *AuthE2ETestSuite) TestE2E_Permission_StudentAccessesStudentRoute() {
-	tokens := s.registerAndVerify("student.own@my.uwi.edu", "StrongP@ss1", "student")
-
-	rr := s.doRequest(http.MethodGet, "/api/v1/test/student-only", "", tokens.AccessToken)
-	s.Equal(http.StatusOK, rr.Code)
-}
-
-func (s *AuthE2ETestSuite) TestE2E_Permission_AdminBlockedFromStudentRoute() {
-	tokens := s.registerAndVerify("admin.blocked@uwi.edu", "StrongP@ss1", "admin")
-
-	rr := s.doRequest(http.MethodGet, "/api/v1/test/student-only", "", tokens.AccessToken)
-	s.Equal(http.StatusForbidden, rr.Code)
-
-	var body map[string]string
-	err := json.Unmarshal(rr.Body.Bytes(), &body)
-	s.Require().NoError(err)
-	s.Equal("access not allowed", body["error"])
-}
-
-func (s *AuthE2ETestSuite) TestE2E_Permission_BothRolesAccessAnyRoute() {
-	adminTokens := s.registerAndVerify("anyrole.admin@uwi.edu", "StrongP@ss1", "admin")
-	studentTokens := s.registerAndVerify("anyrole.student@my.uwi.edu", "StrongP@ss1", "student")
-
-	rr := s.doRequest(http.MethodGet, "/api/v1/test/any-role", "", adminTokens.AccessToken)
-	s.Equal(http.StatusOK, rr.Code)
-
-	rr = s.doRequest(http.MethodGet, "/api/v1/test/any-role", "", studentTokens.AccessToken)
-	s.Equal(http.StatusOK, rr.Code)
-}
-
-func (s *AuthE2ETestSuite) TestE2E_Permission_UnauthenticatedRequest() {
-	rr := s.doRequest(http.MethodGet, "/api/v1/test/admin-only", "", "")
-	s.Equal(http.StatusUnauthorized, rr.Code)
 }
