@@ -8,6 +8,7 @@ import (
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
+	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	authMiddleware "github.com/HDR3604/HelpDeskApp/internal/middleware"
@@ -19,6 +20,7 @@ func registerRoutes(
 	cfg Config,
 	authHdl *authHandler.AuthHandler,
 	authSvc authService.AuthServiceInterface,
+	transcriptHdl *transcriptHandler.TranscriptHandler,
 	scheduleHdl *scheduleHandler.ScheduleHandler,
 	scheduleGenerationHdl *scheduleHandler.ScheduleGenerationHandler,
 	shiftTemplateHdl *scheduleHandler.ShiftTemplateHandler,
@@ -32,10 +34,11 @@ func registerRoutes(
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public auth routes — rate limited by IP
+		// Public routes — rate limited by IP
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RateLimit(cfg.RateLimitRPM))
 			authHdl.RegisterRoutes(r)
+			transcriptHdl.RegisterRoutes(r)
 		})
 
 		// Protected routes (JWT middleware)

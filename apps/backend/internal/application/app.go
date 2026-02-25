@@ -15,6 +15,7 @@ import (
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
 	studentService "github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
+	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	userService "github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
@@ -96,7 +97,6 @@ func NewApp(cfg Config) (*App, error) {
 	// Services
 	userSvc := userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
 	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
-	_ = transcriptsSvc // TODO: inject into domain service when needed
 
 	authSvc := authService.NewAuthService(
 		logger,
@@ -122,6 +122,7 @@ func NewApp(cfg Config) (*App, error) {
 
 	// Handlers
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
+	transcriptHdl := transcriptHandler.NewTranscriptHandler(logger, transcriptsSvc)
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
@@ -142,7 +143,7 @@ func NewApp(cfg Config) (*App, error) {
 		MaxAge:           300,
 	}))
 
-	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
 
 	app := &App{
 		config:  cfg,

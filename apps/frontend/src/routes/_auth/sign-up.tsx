@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDocumentTitle } from '@/hooks/use-document-title'
-import { simulateTranscriptExtraction } from '@/features/sign-up/lib/mock-transcript'
+import { extractTranscript } from '@/features/sign-up/lib/extract-transcript'
 import {
     mockSendVerificationEmail,
     mockCheckVerificationStatus,
@@ -78,7 +78,7 @@ function SignUpPage() {
         setTranscript(file)
         setIsProcessing(true)
         try {
-            const extracted = await simulateTranscriptExtraction(file)
+            const extracted = await extractTranscript(file)
             if (!verifyData) {
                 setVerifyData(extracted)
             }
