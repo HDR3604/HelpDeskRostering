@@ -13,6 +13,7 @@ import (
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	userService "github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
@@ -82,9 +83,10 @@ func NewApp(cfg Config) (*App, error) {
 	}
 
 	// Services
-	_ = userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
+	userSvc := userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
 	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
 	_ = transcriptsSvc // TODO: inject into domain service when needed
+	//
 
 	authSvc := authService.NewAuthService(
 		logger,
@@ -113,6 +115,7 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
+	userHdl := userHandler.NewUserHandler(logger, userSvc)
 
 	// Router
 	r := chi.NewRouter()
@@ -120,7 +123,7 @@ func NewApp(cfg Config) (*App, error) {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, userHdl)
 
 	app := &App{
 		config: cfg,
