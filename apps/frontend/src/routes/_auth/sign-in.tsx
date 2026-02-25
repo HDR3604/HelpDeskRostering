@@ -145,7 +145,7 @@ export function SignInComponent() {
                                         <div className="flex items-center">
                                             <FormLabel>Password</FormLabel>
                                             <Link
-                                                to="/sign-in"
+                                                to="/forgot-password"
                                                 className="ml-auto text-sm underline-offset-4 hover:underline"
                                             >
                                                 Forgot your password?
