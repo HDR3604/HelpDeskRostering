@@ -50,6 +50,10 @@ func (u *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rolePlaceholder, err := u.parseRole(r)
+	if err != nil {
+		u.handleUserError(w, err)
+		return
+	}
 	role := *rolePlaceholder
 	user, err := aggregate.NewUser(req.Email, req.Password, role)
 	if err != nil {
