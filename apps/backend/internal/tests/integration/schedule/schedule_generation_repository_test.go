@@ -77,7 +77,7 @@ func (s *ScheduleGenerationRepositoryTestSuite) createSchedule() *aggregate.Sche
 	schedule := &aggregate.Schedule{
 		ScheduleID:           uuid.New(),
 		Title:                "Test Schedule",
-		Assignments:          json.RawMessage("{}"),
+		Assignments:          json.RawMessage("[]"),
 		AvailabilityMetadata: json.RawMessage("{}"),
 		CreatedBy:            s.userID,
 		EffectiveFrom:        time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC),

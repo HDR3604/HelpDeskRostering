@@ -83,7 +83,7 @@ func (s *ScheduleHandlerTestSuite) sampleSchedule() *aggregate.Schedule {
 		ScheduleID:           uuid.MustParse("11111111-1111-1111-1111-111111111111"),
 		Title:                "Fall 2025",
 		IsActive:             false,
-		Assignments:          json.RawMessage(`{}`),
+		Assignments:          json.RawMessage(`[]`),
 		AvailabilityMetadata: json.RawMessage(`{}`),
 		CreatedAt:            time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		CreatedBy:            uuid.MustParse("22222222-2222-2222-2222-222222222222"),

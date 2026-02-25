@@ -31,7 +31,11 @@ export function MiniWeeklySchedule({
 }: MiniWeeklyScheduleProps) {
     const [expanded, setExpanded] = useState(false)
 
-    if (!schedule || schedule.assignments.length === 0) {
+    const assignments = Array.isArray(schedule?.assignments)
+        ? schedule.assignments
+        : []
+
+    if (!schedule || assignments.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -45,7 +49,7 @@ export function MiniWeeklySchedule({
     }
 
     const uniqueStudentIds = Array.from(
-        new Set(schedule.assignments.map((a) => a.assistant_id)),
+        new Set(assignments.map((a) => a.assistant_id)),
     )
     const studentColorIndex = Object.fromEntries(
         uniqueStudentIds.map((id, i) => [id, i % STUDENT_COLORS.length]),
@@ -53,7 +57,7 @@ export function MiniWeeklySchedule({
 
     // Group assignments by day, sorted by start time
     const byDay: Record<number, Assignment[]> = {}
-    for (const a of schedule.assignments) {
+    for (const a of assignments) {
         if (!byDay[a.day_of_week]) byDay[a.day_of_week] = []
         byDay[a.day_of_week].push(a)
     }
@@ -84,7 +88,7 @@ export function MiniWeeklySchedule({
                     : ' onwards'),
         },
         { icon: Users, label: `${uniqueStudentIds.length} students` },
-        { icon: Layers, label: `${schedule.assignments.length} assignments` },
+        { icon: Layers, label: `${assignments.length} assignments` },
     ]
 
     return (

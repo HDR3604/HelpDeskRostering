@@ -6,11 +6,15 @@ export interface Assignment {
     end: string
 }
 
+export type ScheduleStatus = 'draft' | 'active' | 'archived'
+
 export interface ScheduleResponse {
     schedule_id: string
     title: string
+    status: ScheduleStatus
     is_active: boolean
-    assignments: Assignment[]
+    assignments: Assignment[] | null
+    availability_metadata?: unknown
     created_at: string
     created_by: string
     updated_at: string | null
@@ -19,6 +23,7 @@ export interface ScheduleResponse {
     effective_to: string | null
     generation_id: string | null
     config_id: string | null
+    scheduler_metadata?: unknown
 }
 
 export type GenerationStatus =

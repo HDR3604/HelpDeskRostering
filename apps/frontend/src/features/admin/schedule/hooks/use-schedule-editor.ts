@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import type { ScheduleResponse, Assignment } from '@/types/schedule'
 import type { ShiftTemplate } from '@/types/shift-template'
 import type { Student } from '@/types/student'
+import { useSaveScheduleAssignments } from '@/lib/queries/schedules'
 import type { EditorState, EditorAction } from '../types'
 import { autoGenerate } from '../auto-generate'
 
@@ -104,7 +105,9 @@ function initializeState(
     includedStudentIds: string[],
 ): EditorState {
     const assignmentsByShift: Record<string, string[]> = {}
-    for (const a of schedule.assignments) {
+    for (const a of Array.isArray(schedule.assignments)
+        ? schedule.assignments
+        : []) {
         if (!assignmentsByShift[a.shift_id]) assignmentsByShift[a.shift_id] = []
         assignmentsByShift[a.shift_id].push(a.assistant_id)
     }
@@ -124,6 +127,7 @@ export function useScheduleEditor(
     students: Student[],
     onSave: (updated: ScheduleResponse) => void,
 ) {
+    const saveMutation = useSaveScheduleAssignments(schedule.schedule_id)
     const includedStudentIds = students.map((s) => String(s.student_id))
     const [state, dispatch] = useReducer(
         editorReducer,
@@ -165,11 +169,7 @@ export function useScheduleEditor(
         })
     }, [shiftTemplates, students])
 
-    const handleSave = useCallback(async () => {
-        dispatch({ type: 'SET_SAVING', isSaving: true })
-        await new Promise((r) => setTimeout(r, 600))
-
-        // Convert assignmentsByShift back to Assignment[]
+    const buildAssignments = useCallback((): Assignment[] => {
         const shiftMap = new Map(shiftTemplates.map((s) => [s.id, s]))
         const assignments: Assignment[] = []
         for (const [shiftId, studentIds] of Object.entries(
@@ -187,16 +187,22 @@ export function useScheduleEditor(
                 })
             }
         }
+        return assignments
+    }, [state.assignmentsByShift, shiftTemplates])
 
-        const updated: ScheduleResponse = {
-            ...schedule,
-            assignments,
-            updated_at: new Date().toISOString(),
-        }
-        onSave(updated)
-        dispatch({ type: 'MARK_SAVED' })
-        toast.success('Schedule saved')
-    }, [state.assignmentsByShift, shiftTemplates, schedule, onSave])
+    const handleSave = useCallback(() => {
+        dispatch({ type: 'SET_SAVING', isSaving: true })
+        const assignments = buildAssignments()
+        saveMutation.mutate(assignments, {
+            onSuccess: (updated) => {
+                onSave(updated)
+                dispatch({ type: 'MARK_SAVED' })
+            },
+            onError: () => {
+                dispatch({ type: 'SET_SAVING', isSaving: false })
+            },
+        })
+    }, [buildAssignments, saveMutation, onSave])
 
     return {
         state,

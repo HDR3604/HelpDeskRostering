@@ -63,7 +63,12 @@ export function getScheduleColumns({
             id: 'students',
             header: () => <div className="text-center">Students</div>,
             accessorFn: (row) =>
-                new Set(row.assignments.map((a) => a.assistant_id)).size,
+                new Set(
+                    (Array.isArray(row.assignments)
+                        ? row.assignments
+                        : []
+                    ).map((a) => a.assistant_id),
+                ).size,
             cell: ({ getValue }) => (
                 <div className="text-center">{getValue<number>()}</div>
             ),
@@ -71,26 +76,27 @@ export function getScheduleColumns({
         {
             id: 'assignments',
             header: () => <div className="text-center">Assignments</div>,
-            accessorFn: (row) => row.assignments.length,
+            accessorFn: (row) =>
+                (Array.isArray(row.assignments) ? row.assignments : []).length,
             cell: ({ getValue }) => (
                 <div className="text-center">{getValue<number>()}</div>
             ),
         },
         {
             id: 'status',
-            accessorFn: (row) => (row.archived_at ? 'archived' : 'inactive'),
+            accessorFn: (row) => row.status,
             header: 'Status',
             cell: ({ row }) => {
-                const archived = !!row.original.archived_at
+                const status = row.original.status
                 return (
                     <Badge
                         className={
-                            archived
+                            status === 'archived'
                                 ? 'bg-muted text-muted-foreground hover:bg-muted'
                                 : 'bg-blue-500/15 text-blue-500 hover:bg-blue-500/15'
                         }
                     >
-                        {archived ? 'Archived' : 'Inactive'}
+                        {status === 'archived' ? 'Archived' : 'Available'}
                     </Badge>
                 )
             },
@@ -145,7 +151,7 @@ export function getScheduleColumns({
                                     Download
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                {!schedule.is_active && (
+                                {schedule.status === 'draft' && (
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.stopPropagation()
@@ -156,7 +162,7 @@ export function getScheduleColumns({
                                         Set Active
                                     </DropdownMenuItem>
                                 )}
-                                {!schedule.archived_at && (
+                                {schedule.status === 'draft' && (
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.stopPropagation()
@@ -167,7 +173,7 @@ export function getScheduleColumns({
                                         Archive
                                     </DropdownMenuItem>
                                 )}
-                                {schedule.archived_at && (
+                                {schedule.status === 'archived' && (
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.stopPropagation()

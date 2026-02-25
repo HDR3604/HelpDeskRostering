@@ -38,6 +38,7 @@ func (h *ScheduleHandler) RegisterAdminRoutes(r chi.Router) {
 	r.Post("/schedules/generate", h.GenerateSchedule)
 	r.Get("/schedules", h.List)
 	r.Get("/schedules/archived", h.ListArchived)
+	r.Put("/schedules/{id}", h.Update)
 	r.Patch("/schedules/{id}/archive", h.Archive)
 	r.Patch("/schedules/{id}/unarchive", h.Unarchive)
 	r.Patch("/schedules/{id}/activate", h.Activate)
@@ -81,6 +82,29 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, dtos.ScheduleToResponse(created))
+}
+
+func (h *ScheduleHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := h.parseID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid schedule ID")
+		return
+	}
+
+	var req dtos.UpdateScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid request body", zap.Error(err))
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	updated, err := h.service.UpdateSchedule(r.Context(), id, req.Title, req.Assignments)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.ScheduleToResponse(updated))
 }
 
 func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Request) {
@@ -240,6 +264,11 @@ func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "effective from must be before effective to and not equal")
 	case errors.Is(err, scheduleErrors.ErrMissingAuthContext):
 		writeError(w, http.StatusUnauthorized, "unauthorized")
+	case errors.Is(err, scheduleErrors.ErrAlreadyActive),
+		errors.Is(err, scheduleErrors.ErrAlreadyDraft),
+		errors.Is(err, scheduleErrors.ErrAlreadyArchived),
+		errors.Is(err, scheduleErrors.ErrInvalidTransition):
+		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, schedulerErrors.ErrSchedulerUnavailable),
 		errors.Is(err, schedulerErrors.ErrSchedulerInternal):
 		writeError(w, http.StatusBadGateway, "scheduler service unavailable")

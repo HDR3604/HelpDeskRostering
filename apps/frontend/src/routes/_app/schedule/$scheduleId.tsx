@@ -1,14 +1,13 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { CalendarX } from 'lucide-react'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/layout/error-state'
 import type { ScheduleResponse } from '@/types/schedule'
-import {
-    MOCK_SCHEDULES,
-    MOCK_SHIFT_TEMPLATES,
-    MOCK_STUDENTS,
-} from '@/lib/mock-data'
+import { useSchedule, scheduleKeys } from '@/lib/queries/schedules'
+import { useShiftTemplates } from '@/lib/queries/shift-templates'
+import { MOCK_STUDENTS } from '@/lib/mock-data'
 import { ScheduleEditor } from '@/features/admin/schedule/schedule-editor'
 import { ScheduleEditorSkeleton } from '@/features/admin/skeletons/schedule-editor-skeleton'
 
@@ -20,11 +19,29 @@ export const Route = createFileRoute('/_app/schedule/$scheduleId')({
 function ScheduleEditorPage() {
     const { scheduleId } = Route.useParams()
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
-    const schedule = MOCK_SCHEDULES.find((s) => s.schedule_id === scheduleId)
+    const scheduleQuery = useSchedule(scheduleId)
+    const shiftTemplatesQuery = useShiftTemplates()
+
+    const schedule = scheduleQuery.data
+    const shiftTemplates = shiftTemplatesQuery.data ?? []
+    const isLoading =
+        scheduleQuery.isLoading || shiftTemplatesQuery.isLoading
+    const isNotFound =
+        scheduleQuery.error &&
+        (
+            scheduleQuery.error as {
+                response?: { status?: number }
+            }
+        )?.response?.status === 404
+    const error = scheduleQuery.error || shiftTemplatesQuery.error
+
     useDocumentTitle(schedule?.title ?? 'Schedule')
 
-    if (!schedule) {
+    if (isLoading) return <ScheduleEditorSkeleton />
+
+    if (isNotFound) {
         return (
             <ErrorState
                 icon={<CalendarX />}
@@ -38,13 +55,22 @@ function ScheduleEditorPage() {
         )
     }
 
-    function handleSave(updated: ScheduleResponse) {
-        const idx = MOCK_SCHEDULES.findIndex(
-            (s) => s.schedule_id === updated.schedule_id,
+    if (error || !schedule) {
+        return (
+            <ErrorState
+                icon={<CalendarX />}
+                title="Something went wrong"
+                description="Failed to load schedule. Please try again."
+            />
         )
-        if (idx >= 0) {
-            MOCK_SCHEDULES[idx] = updated
-        }
+    }
+
+    function handleSave(updated: ScheduleResponse) {
+        queryClient.setQueryData<ScheduleResponse>(
+            scheduleKeys.detail(scheduleId),
+            updated,
+        )
+        queryClient.invalidateQueries({ queryKey: scheduleKeys.lists() })
     }
 
     function handleBack() {
@@ -56,7 +82,7 @@ function ScheduleEditorPage() {
             <ScheduleEditor
                 key={scheduleId}
                 schedule={schedule}
-                shiftTemplates={MOCK_SHIFT_TEMPLATES}
+                shiftTemplates={shiftTemplates}
                 students={MOCK_STUDENTS}
                 onSave={handleSave}
                 onBack={handleBack}

@@ -22,9 +22,15 @@ type GenerateScheduleRequest struct {
 	Assistants    []types.Assistant `json:"assistants"`
 }
 
+type UpdateScheduleRequest struct {
+	Title       *string          `json:"title,omitempty"`
+	Assignments *json.RawMessage `json:"assignments,omitempty"`
+}
+
 type ScheduleResponse struct {
 	ScheduleID           string          `json:"schedule_id"`
 	Title                string          `json:"title"`
+	Status               string          `json:"status"`
 	IsActive             bool            `json:"is_active"`
 	Assignments          json.RawMessage `json:"assignments"`
 	AvailabilityMetadata json.RawMessage `json:"availability_metadata"`
@@ -42,6 +48,7 @@ func ScheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
 	resp := ScheduleResponse{
 		ScheduleID:           s.ScheduleID.String(),
 		Title:                s.Title,
+		Status:               string(s.Status()),
 		IsActive:             s.IsActive,
 		Assignments:          s.Assignments,
 		AvailabilityMetadata: s.AvailabilityMetadata,

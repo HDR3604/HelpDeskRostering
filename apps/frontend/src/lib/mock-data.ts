@@ -358,6 +358,7 @@ function shiftId(day: number, hour: number): string {
 export const MOCK_ACTIVE_SCHEDULE: ScheduleResponse = {
     schedule_id: 'sched-001',
     title: 'Week 5 — Feb 17-21 Schedule',
+    status: 'active',
     is_active: true,
     assignments: [
         // Jane Doe — Mon 8-11, Wed 8-10, Fri 8-10
@@ -558,6 +559,7 @@ export const MOCK_SCHEDULES: ScheduleResponse[] = [
     {
         schedule_id: 'sched-002',
         title: 'Week 4 — Feb 10-14 Schedule',
+        status: 'archived',
         is_active: false,
         assignments: [
             {
@@ -608,6 +610,7 @@ export const MOCK_SCHEDULES: ScheduleResponse[] = [
     {
         schedule_id: 'sched-003',
         title: 'Week 3 — Feb 3-7 Schedule',
+        status: 'archived',
         is_active: false,
         assignments: [
             {
@@ -712,7 +715,7 @@ export function buildStudentNameMap(
 
 // --- Chart Data (derived from time_logs + assignments in production) ---
 
-// Hours worked this week per accepted student (from time_logs: entry_at → exit_at)
+// Hours worked this week per accepted student (from time_logs: entry_at -> exit_at)
 export const MOCK_HOURS_WORKED = [
     { name: 'Jane Doe', hours: 11.5, fill: 'var(--chart-1)' },
     { name: 'Tanya Williams', hours: 12, fill: 'var(--chart-2)' },

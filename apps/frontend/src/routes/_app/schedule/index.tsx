@@ -1,17 +1,26 @@
 import { lazy, Suspense, useState } from 'react'
 import { toast } from 'sonner'
+import { CalendarX } from 'lucide-react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import type { ScheduleResponse } from '@/types/schedule'
 import {
-    MOCK_SCHEDULES,
+    useSchedules,
+    useCreateSchedule,
+    useRenameSchedule,
+    useArchiveSchedule,
+    useUnarchiveSchedule,
+    useActivateSchedule,
+    useDeactivateSchedule,
+} from '@/lib/queries/schedules'
+import { useShiftTemplates } from '@/lib/queries/shift-templates'
+import { useSchedulerConfigs } from '@/lib/queries/scheduler-configs'
+import {
     MOCK_STUDENTS,
-    MOCK_SHIFT_TEMPLATES,
     STUDENT_NAME_MAP,
     MOCK_HOURS_WORKED,
     MOCK_MISSED_SHIFTS,
     MOCK_HOURS_TREND,
-    MOCK_SCHEDULER_CONFIGS,
 } from '@/lib/mock-data'
 import { ScheduleListView } from '@/features/admin/schedule/schedule-list-view'
 import { ScheduleListSkeleton } from '@/features/admin/skeletons/schedule-list-skeleton'
@@ -19,6 +28,7 @@ import { RenameScheduleDialog } from '@/features/admin/schedule/components/renam
 import { ActivateScheduleDialog } from '@/features/admin/schedule/components/activate-schedule-dialog'
 import { NotifyStudentsDialog } from '@/features/admin/schedule/components/notify-students-dialog'
 import { ConfirmDialog } from '@/features/admin/schedule/components/confirm-dialog'
+import { ErrorState } from '@/components/layout/error-state'
 
 const CreateScheduleDialog = lazy(() =>
     import('@/features/admin/schedule/components/create-schedule-dialog').then(
@@ -34,89 +44,63 @@ export const Route = createFileRoute('/_app/schedule/')({
 function ScheduleListPage() {
     useDocumentTitle('Schedule')
     const navigate = useNavigate()
-    const [schedules, setSchedules] =
-        useState<ScheduleResponse[]>(MOCK_SCHEDULES)
-    const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-    // Rename
+    // Queries
+    const schedulesQuery = useSchedules()
+    const shiftTemplatesQuery = useShiftTemplates()
+    const configsQuery = useSchedulerConfigs()
+
+    const schedules = schedulesQuery.data ?? []
+    const shiftTemplates = shiftTemplatesQuery.data ?? []
+    const configs = configsQuery.data ?? []
+
+    // Mutations
+    const createMutation = useCreateSchedule()
+    const renameMutation = useRenameSchedule()
+    const archiveMutation = useArchiveSchedule()
+    const unarchiveMutation = useUnarchiveSchedule()
+    const activateMutation = useActivateSchedule()
+    const deactivateMutation = useDeactivateSchedule()
+
+    // Dialogs
+    const [createDialogOpen, setCreateDialogOpen] = useState(false)
     const [renameTarget, setRenameTarget] = useState<ScheduleResponse | null>(
         null,
     )
-
-    // Activate
     const [activateTarget, setActivateTarget] =
         useState<ScheduleResponse | null>(null)
-
-    // Notify
     const [notifyTarget, setNotifyTarget] = useState<ScheduleResponse | null>(
         null,
     )
-
-    // Archive / Deactivate confirmations
-    const [archiveTarget, setArchiveTarget] = useState<ScheduleResponse | null>(
-        null,
-    )
+    const [archiveTarget, setArchiveTarget] =
+        useState<ScheduleResponse | null>(null)
     const [deactivateTarget, setDeactivateTarget] =
         useState<ScheduleResponse | null>(null)
 
-    function handleCreateSchedule(newSchedule: ScheduleResponse) {
-        // Add to global mock array so the editor route can find it
-        MOCK_SCHEDULES.unshift(newSchedule)
-        setSchedules((prev) => [newSchedule, ...prev])
-        setCreateDialogOpen(false)
-        navigate({
-            to: '/schedule/$scheduleId',
-            params: { scheduleId: newSchedule.schedule_id },
-        })
-    }
+    const isLoading =
+        schedulesQuery.isLoading ||
+        shiftTemplatesQuery.isLoading ||
+        configsQuery.isLoading
+    const error =
+        schedulesQuery.error ||
+        shiftTemplatesQuery.error ||
+        configsQuery.error
+
+    if (isLoading) return <ScheduleListSkeleton />
+    if (error)
+        return (
+            <ErrorState
+                icon={<CalendarX />}
+                title="Something went wrong"
+                description="Failed to load schedules. Please try again."
+            />
+        )
 
     function handleOpenSchedule(id: string) {
-        navigate({ to: '/schedule/$scheduleId', params: { scheduleId: id } })
-    }
-
-    function handleRename(newTitle: string) {
-        if (!renameTarget) return
-        try {
-            setSchedules((prev) =>
-                prev.map((s) =>
-                    s.schedule_id === renameTarget.schedule_id
-                        ? { ...s, title: newTitle }
-                        : s,
-                ),
-            )
-            toast.success('Schedule renamed', {
-                description: `Renamed to "${newTitle}".`,
-            })
-        } catch {
-            toast.error('Failed to rename', {
-                description: 'Something went wrong. Please try again.',
-            })
-        }
-    }
-
-    function handleSetActive(notify: boolean) {
-        if (!activateTarget) return
-        const title = activateTarget.title
-        try {
-            setSchedules((prev) =>
-                prev.map((s) => ({
-                    ...s,
-                    is_active: s.schedule_id === activateTarget.schedule_id,
-                    archived_at:
-                        s.schedule_id === activateTarget.schedule_id
-                            ? null
-                            : s.archived_at,
-                })),
-            )
-            setActivateTarget(null)
-            toast.success('Schedule activated', {
-                description: `"${title}" is now active.${notify ? ' Students have been notified.' : ''}`,
-            })
-        } catch {
-            toast.error('Failed to activate', {
-                description: 'Something went wrong. Please try again.',
-            })
-        }
+        navigate({
+            to: '/schedule/$scheduleId',
+            params: { scheduleId: id },
+        })
     }
 
     function handleDownload(schedule: ScheduleResponse) {
@@ -139,78 +123,11 @@ function ScheduleListPage() {
         }
     }
 
-    function handleConfirmArchive() {
-        if (!archiveTarget) return
-        const title = archiveTarget.title
-        try {
-            setSchedules((prev) =>
-                prev.map((s) =>
-                    s.schedule_id === archiveTarget.schedule_id
-                        ? {
-                              ...s,
-                              archived_at: new Date().toISOString(),
-                              is_active: false,
-                          }
-                        : s,
-                ),
-            )
-            toast.success('Schedule archived', {
-                description: `"${title}" has been archived.`,
-            })
-        } catch {
-            toast.error('Failed to archive', {
-                description: 'Something went wrong. Please try again.',
-            })
-        }
-        setArchiveTarget(null)
-    }
-
-    function handleConfirmDeactivate() {
-        if (!deactivateTarget) return
-        const title = deactivateTarget.title
-        try {
-            setSchedules((prev) =>
-                prev.map((s) =>
-                    s.schedule_id === deactivateTarget.schedule_id
-                        ? { ...s, is_active: false }
-                        : s,
-                ),
-            )
-            toast.success('Schedule deactivated', {
-                description: `"${title}" is no longer active.`,
-            })
-        } catch {
-            toast.error('Failed to deactivate', {
-                description: 'Something went wrong. Please try again.',
-            })
-        }
-        setDeactivateTarget(null)
-    }
-
-    function handleUnarchive(schedule: ScheduleResponse) {
-        try {
-            setSchedules((prev) =>
-                prev.map((s) =>
-                    s.schedule_id === schedule.schedule_id
-                        ? { ...s, archived_at: null }
-                        : s,
-                ),
-            )
-            toast.success('Schedule unarchived', {
-                description: `"${schedule.title}" has been restored.`,
-            })
-        } catch {
-            toast.error('Failed to unarchive', {
-                description: 'Something went wrong. Please try again.',
-            })
-        }
-    }
-
     return (
         <div className="mx-auto max-w-7xl">
             <ScheduleListView
                 schedules={schedules}
-                shiftTemplates={MOCK_SHIFT_TEMPLATES}
+                shiftTemplates={shiftTemplates}
                 studentNames={STUDENT_NAME_MAP}
                 hoursWorked={MOCK_HOURS_WORKED}
                 missedShifts={MOCK_MISSED_SHIFTS}
@@ -222,7 +139,14 @@ function ScheduleListPage() {
                 onSetActive={setActivateTarget}
                 onDownload={handleDownload}
                 onArchive={setArchiveTarget}
-                onUnarchive={handleUnarchive}
+                onUnarchive={(s) =>
+                    unarchiveMutation.mutate(s.schedule_id, {
+                        onSuccess: () =>
+                            toast.success('Schedule unarchived', {
+                                description: `"${s.title}" has been restored.`,
+                            }),
+                    })
+                }
                 onDeactivate={setDeactivateTarget}
                 onNotify={setNotifyTarget}
             />
@@ -233,8 +157,29 @@ function ScheduleListPage() {
                         open={createDialogOpen}
                         onOpenChange={setCreateDialogOpen}
                         students={MOCK_STUDENTS}
-                        configs={MOCK_SCHEDULER_CONFIGS}
-                        onCreated={handleCreateSchedule}
+                        configs={configs}
+                        onCreated={(mockSchedule) =>
+                            createMutation.mutate(
+                                {
+                                    title: mockSchedule.title,
+                                    effective_from:
+                                        mockSchedule.effective_from,
+                                    effective_to: mockSchedule.effective_to,
+                                },
+                                {
+                                    onSuccess: (created: ScheduleResponse) => {
+                                        setCreateDialogOpen(false)
+                                        navigate({
+                                            to: '/schedule/$scheduleId',
+                                            params: {
+                                                scheduleId:
+                                                    created.schedule_id,
+                                            },
+                                        })
+                                    },
+                                },
+                            )
+                        }
                     />
                 </Suspense>
             )}
@@ -245,7 +190,13 @@ function ScheduleListPage() {
                     if (!open) setRenameTarget(null)
                 }}
                 currentTitle={renameTarget?.title ?? ''}
-                onRename={handleRename}
+                onRename={(newTitle) => {
+                    if (!renameTarget) return
+                    renameMutation.mutate({
+                        id: renameTarget.schedule_id,
+                        title: newTitle,
+                    })
+                }}
             />
 
             <ActivateScheduleDialog
@@ -254,7 +205,19 @@ function ScheduleListPage() {
                     if (!open) setActivateTarget(null)
                 }}
                 scheduleTitle={activateTarget?.title ?? ''}
-                onConfirm={handleSetActive}
+                onConfirm={(notify) => {
+                    if (!activateTarget) return
+                    const title = activateTarget.title
+                    activateMutation.mutate(activateTarget.schedule_id, {
+                        onSuccess: () => {
+                            setActivateTarget(null)
+                            toast.success('Schedule activated', {
+                                description: `"${title}" is now active.`,
+                            })
+                        },
+                    })
+                    if (notify) toast.info('Students notified')
+                }}
             />
 
             <NotifyStudentsDialog
@@ -265,17 +228,10 @@ function ScheduleListPage() {
                 scheduleTitle={notifyTarget?.title ?? ''}
                 onConfirm={() => {
                     const title = notifyTarget?.title
-                    try {
-                        setNotifyTarget(null)
-                        toast.success('Notifications sent', {
-                            description: `All students assigned to "${title}" have been notified.`,
-                        })
-                    } catch {
-                        toast.error('Failed to notify', {
-                            description:
-                                'Something went wrong. Please try again.',
-                        })
-                    }
+                    setNotifyTarget(null)
+                    toast.success('Notifications sent', {
+                        description: `All students assigned to "${title}" have been notified.`,
+                    })
                 }}
             />
 
@@ -295,7 +251,18 @@ function ScheduleListPage() {
                     </>
                 }
                 confirmLabel="Archive"
-                onConfirm={handleConfirmArchive}
+                onConfirm={() => {
+                    if (!archiveTarget) return
+                    const title = archiveTarget.title
+                    archiveMutation.mutate(archiveTarget.schedule_id, {
+                        onSuccess: () => {
+                            toast.success('Schedule archived', {
+                                description: `"${title}" has been archived.`,
+                            })
+                        },
+                    })
+                    setArchiveTarget(null)
+                }}
             />
 
             <ConfirmDialog
@@ -315,7 +282,18 @@ function ScheduleListPage() {
                     </>
                 }
                 confirmLabel="Deactivate"
-                onConfirm={handleConfirmDeactivate}
+                onConfirm={() => {
+                    if (!deactivateTarget) return
+                    const title = deactivateTarget.title
+                    deactivateMutation.mutate(deactivateTarget.schedule_id, {
+                        onSuccess: () => {
+                            setDeactivateTarget(null)
+                            toast.success('Schedule deactivated', {
+                                description: `"${title}" is no longer active.`,
+                            })
+                        },
+                    })
+                }}
             />
         </div>
     )

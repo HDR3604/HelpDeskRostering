@@ -14,9 +14,11 @@ import { StudentWeeklySchedule } from './components/student-weekly-schedule'
 export function StudentDashboard() {
     const { currentStudent, currentStudentId } = useUser()
 
-    const myAssignments = MOCK_ACTIVE_SCHEDULE.assignments.filter(
-        (a) => a.assistant_id === currentStudentId,
-    )
+    const myAssignments = (
+        Array.isArray(MOCK_ACTIVE_SCHEDULE.assignments)
+            ? MOCK_ACTIVE_SCHEDULE.assignments
+            : []
+    ).filter((a) => a.assistant_id === currentStudentId)
 
     const isAccepted = getApplicationStatus(currentStudent) === 'accepted'
 

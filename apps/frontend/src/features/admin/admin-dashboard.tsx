@@ -84,8 +84,12 @@ export function AdminDashboard() {
 
     const scheduledThisWeekCount = useMemo(
         () =>
-            new Set(MOCK_ACTIVE_SCHEDULE.assignments.map((a) => a.assistant_id))
-                .size,
+            new Set(
+                (Array.isArray(MOCK_ACTIVE_SCHEDULE.assignments)
+                    ? MOCK_ACTIVE_SCHEDULE.assignments
+                    : []
+                ).map((a) => a.assistant_id),
+            ).size,
         [],
     )
 

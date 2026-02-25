@@ -169,6 +169,7 @@ export function useGenerationStatus(
                 const newSchedule: ScheduleResponse = {
                     schedule_id: scheduleId,
                     title: formValues.title,
+                    status: 'draft',
                     is_active: false,
                     assignments,
                     created_at: new Date().toISOString(),

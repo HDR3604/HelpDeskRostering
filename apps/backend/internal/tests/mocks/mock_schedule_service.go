@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
@@ -21,6 +22,7 @@ type MockScheduleService struct {
 	UnarchiveFn        func(ctx context.Context, id uuid.UUID) error
 	ActivateFn         func(ctx context.Context, id uuid.UUID) error
 	DeactivateFn       func(ctx context.Context, id uuid.UUID) error
+	UpdateScheduleFn   func(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error)
 	GenerateScheduleFn func(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error)
 }
 
@@ -54,6 +56,10 @@ func (m *MockScheduleService) Activate(ctx context.Context, id uuid.UUID) error 
 
 func (m *MockScheduleService) Deactivate(ctx context.Context, id uuid.UUID) error {
 	return m.DeactivateFn(ctx, id)
+}
+
+func (m *MockScheduleService) UpdateSchedule(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error) {
+	return m.UpdateScheduleFn(ctx, id, title, assignments)
 }
 
 func (m *MockScheduleService) GenerateSchedule(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error) {

@@ -14,8 +14,7 @@ import {
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { useUser, useLogout } from '@/lib/auth'
-import { MOCK_SCHEDULES, MOCK_STUDENTS } from '@/lib/mock-data'
-import { getApplicationStatus } from '@/types/student'
+import { useSchedules } from '@/lib/queries/schedules'
 
 import {
     Sidebar,
@@ -66,20 +65,18 @@ export function AppSidebar() {
             ? `${firstName[0]}${lastName[0]}`.toUpperCase()
             : (email ?? '').slice(0, 2).toUpperCase()
 
-    const pendingCount = useMemo(
-        () =>
-            MOCK_STUDENTS.filter((s) => getApplicationStatus(s) === 'pending')
-                .length,
-        [],
-    )
+    const { data: schedules } = useSchedules()
 
     const recentSchedules = useMemo(
         () =>
-            MOCK_SCHEDULES.slice(0, 3).map((s) => ({
-                title: s.title,
-                to: `/schedule/${s.schedule_id}`,
-            })),
-        [],
+            (schedules ?? [])
+                .filter((s) => s.status !== 'archived')
+                .slice(0, 3)
+                .map((s) => ({
+                    title: s.title,
+                    to: `/schedule/${s.schedule_id}`,
+                })),
+        [schedules],
     )
 
     return (

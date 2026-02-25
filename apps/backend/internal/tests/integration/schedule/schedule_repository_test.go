@@ -58,7 +58,7 @@ func (s *ScheduleRepositoryTestSuite) createSchedule(title string, effectiveFrom
 	schedule := &aggregate.Schedule{
 		ScheduleID:           uuid.New(),
 		Title:                title,
-		Assignments:          json.RawMessage("{}"),
+		Assignments:          json.RawMessage("[]"),
 		AvailabilityMetadata: json.RawMessage("{}"),
 		CreatedBy:            s.userID,
 		EffectiveFrom:        effectiveFrom,
@@ -259,7 +259,7 @@ func (s *ScheduleRepositoryTestSuite) TestUpdate_NotFound() {
 		ScheduleID:           uuid.New(),
 		Title:                "Ghost",
 		CreatedBy:            s.userID,
-		Assignments:          json.RawMessage(`{}`),
+		Assignments:          json.RawMessage(`[]`),
 		AvailabilityMetadata: json.RawMessage(`{}`),
 		EffectiveFrom:        time.Date(2025, 9, 1, 0, 0, 0, 0, time.UTC),
 	}

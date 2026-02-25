@@ -137,6 +137,23 @@ func (r *ScheduleRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate
 func (r *ScheduleRepository) Update(ctx context.Context, tx *sql.Tx, schedule *aggregate.Schedule) error {
 	m := schedule.ToModel()
 
+	// Dereference nullable fields so nil pointers become true nil interface{}
+	// values, which go-jet maps to SQL NULL. Using .MODEL() with nil pointers
+	// can silently skip the column, leaving the DB value unchanged.
+	var archivedAt, effectiveTo, generationID, schedulerMetadata interface{}
+	if m.ArchivedAt != nil {
+		archivedAt = *m.ArchivedAt
+	}
+	if m.EffectiveTo != nil {
+		effectiveTo = *m.EffectiveTo
+	}
+	if m.GenerationID != nil {
+		generationID = *m.GenerationID
+	}
+	if m.SchedulerMetadata != nil {
+		schedulerMetadata = *m.SchedulerMetadata
+	}
+
 	stmt := table.Schedules.UPDATE(
 		table.Schedules.Title,
 		table.Schedules.IsActive,
@@ -147,7 +164,17 @@ func (r *ScheduleRepository) Update(ctx context.Context, tx *sql.Tx, schedule *a
 		table.Schedules.EffectiveTo,
 		table.Schedules.GenerationID,
 		table.Schedules.SchedulerMetadata,
-	).MODEL(m).WHERE(table.Schedules.ScheduleID.EQ(postgres.UUID(m.ScheduleID)))
+	).SET(
+		m.Title,
+		m.IsActive,
+		m.Assignments,
+		m.AvailabilityMetadata,
+		archivedAt,
+		m.EffectiveFrom,
+		effectiveTo,
+		generationID,
+		schedulerMetadata,
+	).WHERE(table.Schedules.ScheduleID.EQ(postgres.UUID(m.ScheduleID)))
 
 	result, err := stmt.ExecContext(ctx, tx)
 	if err != nil {

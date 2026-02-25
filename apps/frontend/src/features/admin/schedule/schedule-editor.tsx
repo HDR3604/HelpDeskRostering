@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
-import { toast } from 'sonner'
 import { Monitor } from 'lucide-react'
 import {
     DndContext,
@@ -16,13 +15,11 @@ import type { ScheduleResponse } from '@/types/schedule'
 import type { ShiftTemplate } from '@/types/shift-template'
 import type { Student } from '@/types/student'
 import { buildStudentNameMap } from '@/lib/mock-data'
+import { useRenameSchedule } from '@/lib/queries/schedules'
 import { formatDateMedium } from '@/lib/format'
 import { parseDragId } from './types'
 import { useScheduleEditor } from './hooks/use-schedule-editor'
-import {
-    ScheduleEditorToolbar,
-    type ScheduleStatus,
-} from './components/schedule-editor-toolbar'
+import { ScheduleEditorToolbar } from './components/schedule-editor-toolbar'
 import { RenameScheduleDialog } from './components/rename-schedule-dialog'
 import { ScheduleGrid } from './components/schedule-grid'
 import { StudentPool } from './components/student-pool'
@@ -57,23 +54,12 @@ export function ScheduleEditor({
     )
 
     // Schedule status
-    const scheduleStatus: ScheduleStatus = schedule.archived_at
-        ? 'archived'
-        : schedule.is_active
-          ? 'active'
-          : 'inactive'
+    const scheduleStatus = schedule.status
 
     // Rename
     const [scheduleTitle, setScheduleTitle] = useState(schedule.title)
     const [renameOpen, setRenameOpen] = useState(false)
-
-    function handleRename(newTitle: string) {
-        setScheduleTitle(newTitle)
-        schedule.title = newTitle
-        toast.success('Schedule renamed', {
-            description: `Renamed to "${newTitle}".`,
-        })
-    }
+    const renameMutation = useRenameSchedule()
 
     // Save status feedback
     const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(
@@ -347,7 +333,12 @@ export function ScheduleEditor({
                     open={renameOpen}
                     onOpenChange={setRenameOpen}
                     currentTitle={scheduleTitle}
-                    onRename={handleRename}
+                    onRename={(newTitle) =>
+                        renameMutation.mutate(
+                            { id: schedule.schedule_id, title: newTitle },
+                            { onSuccess: () => setScheduleTitle(newTitle) },
+                        )
+                    }
                 />
             </div>
         </>
