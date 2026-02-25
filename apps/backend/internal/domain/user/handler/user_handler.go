@@ -153,7 +153,9 @@ func (u *UserHandler) Deactivate(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		u.handleUserError(w, err)
 	}
-	err = user.Deactivate()
+	if err := user.Deactivate(); err != nil {
+		u.handleUserError(w, err)
+	}
 
 	writeJSON(w, http.StatusOK, "deleted user")
 
