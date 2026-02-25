@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
+import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
@@ -36,6 +37,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthSignInRoute = AuthSignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/schedule': typeof AppScheduleRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/onboarding': typeof AuthOnboardingRoute
+  '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
   '/schedule/': typeof AppScheduleIndexRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/applications': typeof AppApplicationsRoute
   '/settings': typeof AppSettingsRoute
   '/onboarding': typeof AuthOnboardingRoute
+  '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
   '/schedule': typeof AppScheduleIndexRoute
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/_app/schedule': typeof AppScheduleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
+  '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
   '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/schedule'
     | '/settings'
     | '/onboarding'
+    | '/sign-in'
     | '/sign-up'
     | '/schedule/$scheduleId'
     | '/schedule/'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/applications'
     | '/settings'
     | '/onboarding'
+    | '/sign-in'
     | '/sign-up'
     | '/schedule/$scheduleId'
     | '/schedule'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/_app/schedule'
     | '/_app/settings'
     | '/_auth/onboarding'
+    | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/_app/'
     | '/_app/schedule/$scheduleId'
@@ -168,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-up'
       fullPath: '/sign-up'
       preLoaderRoute: typeof AuthSignUpRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/sign-in': {
+      id: '/_auth/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof AuthSignInRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/onboarding': {
@@ -247,11 +266,13 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
   AuthOnboardingRoute: typeof AuthOnboardingRoute
+  AuthSignInRoute: typeof AuthSignInRoute
   AuthSignUpRoute: typeof AuthSignUpRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthOnboardingRoute: AuthOnboardingRoute,
+  AuthSignInRoute: AuthSignInRoute,
   AuthSignUpRoute: AuthSignUpRoute,
 }
 
