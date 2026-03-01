@@ -29,6 +29,12 @@ func main() {
 	if email == "" || password == "" {
 		log.Fatal("SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required")
 	}
+	if firstName == "" {
+		firstName = "Admin"
+	}
+	if lastName == "" {
+		lastName = "User"
+	}
 	if dbURL == "" {
 		log.Fatal("DATABASE_URL is required")
 	}

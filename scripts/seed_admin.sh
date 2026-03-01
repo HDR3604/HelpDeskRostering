@@ -4,20 +4,22 @@ set -eu
 # Seed an admin user.
 #
 # Usage:
-#   ./scripts/seed_admin.sh <email> <password>
+#   ./scripts/seed_admin.sh <first_name> <last_name> <email> <password>
 #
 # Requires DATABASE_URL to be set (or sourced from .env.local).
 #
 # Dokploy (inside backend container terminal):
-#   ./seed_admin.sh admin@example.com 'MyP@ssw0rd!'
+#   ./seed_admin.sh Admin User admin@example.com 'MyP@ssw0rd!'
 #
 # Docker exec (from host):
-#   docker exec -e SEED_ADMIN_EMAIL='admin@example.com' \
+#   docker exec -e SEED_ADMIN_FIRST_NAME='Admin' \
+#               -e SEED_ADMIN_LAST_NAME='User' \
+#               -e SEED_ADMIN_EMAIL='admin@example.com' \
 #               -e SEED_ADMIN_PASSWORD='MyP@ssw0rd!' \
 #               <backend-container> ./seed-admin
 
-if [ $# -lt 2 ]; then
-  echo "Usage: $0 <email> <password>"
+if [ $# -lt 4 ]; then
+  echo "Usage: $0 <first_name> <last_name> <email> <password>"
   exit 1
 fi
 
@@ -35,8 +37,10 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-export SEED_ADMIN_EMAIL="$1"
-export SEED_ADMIN_PASSWORD="$2"
+export SEED_ADMIN_FIRST_NAME="$1"
+export SEED_ADMIN_LAST_NAME="$2"
+export SEED_ADMIN_EMAIL="$3"
+export SEED_ADMIN_PASSWORD="$4"
 
-echo "Seeding admin: $SEED_ADMIN_EMAIL"
+echo "Seeding admin: $SEED_ADMIN_FIRST_NAME $SEED_ADMIN_LAST_NAME ($SEED_ADMIN_EMAIL)"
 cd "$BACKEND_DIR" && go run ./cmd/seed-admin

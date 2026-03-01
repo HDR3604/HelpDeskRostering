@@ -245,12 +245,14 @@ tasks:
       - ./scripts/seed_dev.sh
 
   db:seed-admin:
-    desc: "Seed admin user (usage: task db:seed-admin -- <email> <password>)"
+    desc: "Seed admin user (usage: task db:seed-admin -- <first_name> <last_name> <email> <password>)"
     dir: "{{.BACKEND_DIR}}"
     env:
       DATABASE_URL: "{{.DATABASE_URL}}"
-      SEED_ADMIN_EMAIL: "{{index .CLI_ARGS_LIST 0}}"
-      SEED_ADMIN_PASSWORD: "{{index .CLI_ARGS_LIST 1}}"
+      SEED_ADMIN_FIRST_NAME: "{{index .CLI_ARGS_LIST 0}}"
+      SEED_ADMIN_LAST_NAME: "{{index .CLI_ARGS_LIST 1}}"
+      SEED_ADMIN_EMAIL: "{{index .CLI_ARGS_LIST 2}}"
+      SEED_ADMIN_PASSWORD: "{{index .CLI_ARGS_LIST 3}}"
     cmds:
       - go run ./cmd/seed-admin
 

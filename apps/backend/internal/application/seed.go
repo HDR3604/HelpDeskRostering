@@ -26,6 +26,13 @@ func seedDefaultAdmin(
 		return nil
 	}
 
+	if cfg.SeedAdminFirstName == "" {
+		cfg.SeedAdminFirstName = "Admin"
+	}
+	if cfg.SeedAdminLastName == "" {
+		cfg.SeedAdminLastName = "User"
+	}
+
 	return txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		existing, err := userRepo.GetByEmail(ctx, tx, cfg.SeedAdminEmail)
 		if err == nil && existing != nil {
