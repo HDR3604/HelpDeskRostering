@@ -74,7 +74,7 @@ Each domain follows **Domain-Driven Design** with this layered pattern:
 
 **Aggregate → Errors → Repository Interface → Infrastructure Repo → Service → Handler → DTOs**
 
-Current domains: `auth`, `schedule`, `user`.
+Current domains: `auth`, `schedule`, `student`, `user`.
 
 ---
 
@@ -165,13 +165,19 @@ In development, `devAuthMiddleware` bypasses JWT and injects a hardcoded admin c
 r.Route("/api/v1", func(r chi.Router) {
     // Public routes (no JWT)
     authHdl.RegisterRoutes(r)
+    transcriptHdl.RegisterRoutes(r)
+    studentHdl.RegisterPublicRoutes(r)  // POST /students
 
     // Protected routes (JWT or dev middleware)
     r.Group(func(r chi.Router) {
         r.Use(authMiddleware.JWTAuth(authSvc))
 
-        authHdl.RegisterAuthenticatedRoutes(r)
-        scheduleHdl.RegisterRoutes(r)
+        r.Group(func(r chi.Router) {
+            r.Use(authMiddleware.Permission([]aggregate.Role{aggregate.Role_Admin}))
+            studentHdl.RegisterAdminRoutes(r) // GET/PATCH /students
+        })
+
+        studentHdl.RegisterRoutes(r) // GET/PUT /students/me
         // ... more handlers
     })
 })
@@ -722,6 +728,13 @@ internal/
 │   │   ├── handler/dtos/      # Per-aggregate DTO files
 │   │   ├── repository/        # 4 repository interfaces
 │   │   └── service/           # 4 services
+│   ├── student/
+│   │   ├── aggregate/         # Student entity (availability, accept/reject workflow)
+│   │   ├── errors/            # ErrNotFound, ErrAlreadyAccepted, etc.
+│   │   ├── handler/           # StudentHandler (public apply, admin CRUD, /me)
+│   │   ├── handler/dtos/      # ApplyRequest, UpdateStudentRequest, StudentResponse
+│   │   ├── repository/        # StudentRepositoryInterface
+│   │   └── service/           # StudentService (Apply, Accept, Reject, List)
 │   └── user/
 │       ├── aggregate/         # User entity (role validation, email domain rules)
 │       ├── errors/            # ErrUserNotFound, ErrEmailAlreadyExists
@@ -733,6 +746,7 @@ internal/
 │   │   └── tx_manager_types.go # AuthContext struct
 │   ├── auth/                  # Auth token repository implementations
 │   ├── user/                  # User repository implementation
+│   ├── student/               # Student repository implementation
 │   ├── schedule/              # Schedule repository implementations
 │   ├── email/
 │   │   ├── interfaces/        # EmailSenderInterface
@@ -755,6 +769,7 @@ internal/
     ├── unit/                  # Unit tests (domain logic, handlers)
     │   ├── domains/auth/
     │   ├── domains/schedule/
+    │   ├── domains/student/
     │   ├── domains/user/
     │   └── infrastructure/
     ├── integration/           # Integration tests (real PostgreSQL via testcontainers)
