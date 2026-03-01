@@ -9,8 +9,6 @@ import (
 	"io"
 )
 
-// Encrypt encrypts plaintext using AES-256-GCM
-// Returns a hex-encoded string of nonce + ciphertext
 func Encrypt(plaintext string, key []byte) (string, error) {
 	if len(key) != 32 {
 		return "", fmt.Errorf("encryption key must be 32 bytes for AES-256, got %d", len(key))
@@ -35,8 +33,6 @@ func Encrypt(plaintext string, key []byte) (string, error) {
 	return hex.EncodeToString(ciphertext), nil
 }
 
-// Decrypt decrypts a hex-encoded ciphertext using AES-256-GCM
-// Expects hex-encoded input with nonce prefixed
 func Decrypt(ciphertext string, key []byte) (string, error) {
 	if len(key) != 32 {
 		return "", fmt.Errorf("encryption key must be 32 bytes for AES-256, got %d", len(key))
