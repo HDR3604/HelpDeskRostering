@@ -19,6 +19,7 @@ const (
 	TemplateID_RosterNotification TemplateID = "roster_notification"
 	TemplateID_EmailVerification  TemplateID = "email_verification"
 	TemplateID_PasswordReset      TemplateID = "password_reset"
+	TemplateID_VerificationCode   TemplateID = "verification_code"
 )
 
 var templateFiles = map[TemplateID]string{
@@ -27,6 +28,7 @@ var templateFiles = map[TemplateID]string{
 	TemplateID_RosterNotification: "roster_notification.html",
 	TemplateID_EmailVerification:  "email_verification.html",
 	TemplateID_PasswordReset:      "password_reset.html",
+	TemplateID_VerificationCode:   "verification_code.html",
 }
 
 type ShiftEntry struct {

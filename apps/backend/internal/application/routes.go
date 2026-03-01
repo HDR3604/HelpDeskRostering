@@ -11,6 +11,7 @@ import (
 	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
+	verificationHandler "github.com/HDR3604/HelpDeskApp/internal/domain/verification/handler"
 	authMiddleware "github.com/HDR3604/HelpDeskApp/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
@@ -27,6 +28,7 @@ func registerRoutes(
 	schedulerConfigHdl *scheduleHandler.SchedulerConfigHandler,
 	studentHdl *studentHandler.StudentHandler,
 	userHdl *userHandler.UserHandler,
+	verificationHdl *verificationHandler.VerificationHandler,
 ) {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -40,6 +42,7 @@ func registerRoutes(
 			authHdl.RegisterRoutes(r)
 			transcriptHdl.RegisterRoutes(r)
 			studentHdl.RegisterPublicRoutes(r)
+			verificationHdl.RegisterRoutes(r)
 		})
 
 		// Protected routes (JWT middleware)

@@ -51,6 +51,15 @@ export async function deactivateSchedule(id: string): Promise<void> {
     await apiClient.patch(`/schedules/${id}/deactivate`)
 }
 
+export async function notifyScheduleStudents(
+    id: string,
+): Promise<{ notified_count: number }> {
+    const { data } = await apiClient.post<{ notified_count: number }>(
+        `/schedules/${id}/notify`,
+    )
+    return data
+}
+
 export async function updateSchedule(
     id: string,
     req: {

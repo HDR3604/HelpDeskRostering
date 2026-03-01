@@ -1,13 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
+import { isAxiosError } from 'axios'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { extractTranscript } from '@/features/sign-up/lib/extract-transcript'
 import {
-    mockSendVerificationEmail,
-    mockCheckVerificationStatus,
-} from '@/features/sign-up/lib/mock-verification'
+    sendVerificationCode,
+    verifyVerificationCode,
+} from '@/lib/api/verification'
 import { useApplyAsStudent } from '@/lib/queries/students'
 import type {
     VerifyData,
@@ -65,6 +66,8 @@ function SignUpPage() {
     const [contactData, setContactData] = useState<ContactData | null>(null)
     const [isEmailVerified, setIsEmailVerified] = useState(false)
     const [isSendingVerification, setIsSendingVerification] = useState(false)
+    const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+    const [verifyError, setVerifyError] = useState<string | null>(null)
     const [availability, setAvailability] = useState<Record<
         string,
         number[]
@@ -100,7 +103,7 @@ function SignUpPage() {
         setContactData(data)
         setIsSendingVerification(true)
         try {
-            await mockSendVerificationEmail(data.email)
+            await sendVerificationCode(data.email)
         } catch {
             toast.error('Failed to send verification email. Please try again.')
         } finally {
@@ -112,9 +115,10 @@ function SignUpPage() {
     async function handleResendVerification() {
         if (!contactData) return
         setIsSendingVerification(true)
+        setVerifyError(null)
         try {
-            await mockSendVerificationEmail(contactData.email)
-            toast.success('Verification email resent.')
+            await sendVerificationCode(contactData.email)
+            toast.success('Verification code resent.')
         } catch {
             toast.error('Failed to resend. Please try again.')
         } finally {
@@ -122,17 +126,23 @@ function SignUpPage() {
         }
     }
 
-    // Poll for email verification while on the verify step
-    useEffect(() => {
-        if (step !== 3 || isEmailVerified || !contactData) return
-        const interval = setInterval(async () => {
-            const verified = await mockCheckVerificationStatus(
-                contactData.email,
-            )
-            if (verified) setIsEmailVerified(true)
-        }, 2_000)
-        return () => clearInterval(interval)
-    }, [step, isEmailVerified, contactData])
+    async function handleVerifyCode(code: string) {
+        if (!contactData) return
+        setIsVerifyingCode(true)
+        setVerifyError(null)
+        try {
+            await verifyVerificationCode(contactData.email, code)
+            setIsEmailVerified(true)
+        } catch (err) {
+            if (isAxiosError(err) && err.response?.data?.error) {
+                setVerifyError(err.response.data.error)
+            } else {
+                setVerifyError('Invalid or expired code. Please try again.')
+            }
+        } finally {
+            setIsVerifyingCode(false)
+        }
+    }
 
     function handleAvailabilityNext(avail: Record<string, number[]>) {
         setAvailability(avail)
@@ -252,6 +262,9 @@ function SignUpPage() {
                         email={contactData.email}
                         isVerified={isEmailVerified}
                         isSending={isSendingVerification}
+                        isVerifying={isVerifyingCode}
+                        error={verifyError}
+                        onVerify={handleVerifyCode}
                         onResend={handleResendVerification}
                         onBack={() => setStep(2)}
                         onNext={() => setStep(4)}

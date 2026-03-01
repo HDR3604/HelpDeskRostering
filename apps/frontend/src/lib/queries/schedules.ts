@@ -17,6 +17,7 @@ import {
     activateSchedule,
     deactivateSchedule,
     updateSchedule,
+    notifyScheduleStudents,
 } from '@/lib/api/schedules'
 
 // ── Key Factory ──────────────────────────────────────────────────────
@@ -196,6 +197,16 @@ export function useDeactivateSchedule() {
         },
         onError: (error) =>
             handleTransitionError(error, queryClient, 'deactivate'),
+    })
+}
+
+export function useNotifyStudents() {
+    return useMutation({
+        mutationFn: notifyScheduleStudents,
+        onError: () =>
+            toast.error('Failed to send notifications', {
+                description: 'Something went wrong. Please try again.',
+            }),
     })
 }
 

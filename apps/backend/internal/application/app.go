@@ -18,6 +18,8 @@ import (
 	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	userService "github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
+	verificationHandler "github.com/HDR3604/HelpDeskApp/internal/domain/verification/handler"
+	verificationService "github.com/HDR3604/HelpDeskApp/internal/domain/verification/service"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
@@ -27,6 +29,7 @@ import (
 	studentRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/student"
 	transcriptsService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/service"
 	userRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/user"
+	verificationInfra "github.com/HDR3604/HelpDeskApp/internal/infrastructure/verification"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -81,6 +84,7 @@ func NewApp(cfg Config) (*App, error) {
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 	bankingDetailsRepository := studentRepo.NewBankingDetailsRepository(logger, cfg.EncryptionKey)
 	studentRepository := studentRepo.NewStudentRepository(logger)
+	verificationRepository := verificationInfra.NewVerificationRepository(logger)
 
 	// Seed default admin (idempotent, skipped if env vars not set)
 	if err := seedDefaultAdmin(context.Background(), cfg, logger, txManager, userRepository); err != nil {
@@ -121,16 +125,18 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
 	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository)
 	studentSvc := studentService.NewStudentService(logger, studentRepository, txManager)
+	verificationSvc := verificationService.NewVerificationService(logger, txManager, verificationRepository, emailSenderSvc, cfg.FromEmail)
 
 	// Handlers
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
 	transcriptHdl := transcriptHandler.NewTranscriptHandler(logger, transcriptsSvc)
-	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)
+	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, emailSenderSvc, cfg.FromEmail)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
 	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc)
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
+	verificationHdl := verificationHandler.NewVerificationHandler(logger, verificationSvc)
 
 	// Router
 	r := chi.NewRouter()
@@ -145,7 +151,7 @@ func NewApp(cfg Config) (*App, error) {
 		MaxAge:           300,
 	}))
 
-	registerRoutes(r, cfg, authHdl, authSvc, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl)
 
 	app := &App{
 		config:  cfg,

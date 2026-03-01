@@ -12,6 +12,7 @@ import {
     useUnarchiveSchedule,
     useActivateSchedule,
     useDeactivateSchedule,
+    useNotifyStudents,
 } from '@/lib/queries/schedules'
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
 import { useSchedulerConfigs } from '@/lib/queries/scheduler-configs'
@@ -67,6 +68,7 @@ function ScheduleListPage() {
     const unarchiveMutation = useUnarchiveSchedule()
     const activateMutation = useActivateSchedule()
     const deactivateMutation = useDeactivateSchedule()
+    const notifyMutation = useNotifyStudents()
 
     // Dialogs
     const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -214,16 +216,24 @@ function ScheduleListPage() {
                 scheduleTitle={activateTarget?.title ?? ''}
                 onConfirm={(notify) => {
                     if (!activateTarget) return
+                    const id = activateTarget.schedule_id
                     const title = activateTarget.title
-                    activateMutation.mutate(activateTarget.schedule_id, {
+                    activateMutation.mutate(id, {
                         onSuccess: () => {
                             setActivateTarget(null)
                             toast.success('Schedule activated', {
                                 description: `"${title}" is now active.`,
                             })
+                            if (notify) {
+                                notifyMutation.mutate(id, {
+                                    onSuccess: (res) =>
+                                        toast.success('Students notified', {
+                                            description: `${res.notified_count} student(s) have been emailed.`,
+                                        }),
+                                })
+                            }
                         },
                     })
-                    if (notify) toast.info('Students notified')
                 }}
             />
 
@@ -234,10 +244,15 @@ function ScheduleListPage() {
                 }}
                 scheduleTitle={notifyTarget?.title ?? ''}
                 onConfirm={() => {
-                    const title = notifyTarget?.title
-                    setNotifyTarget(null)
-                    toast.success('Notifications sent', {
-                        description: `All students assigned to "${title}" have been notified.`,
+                    if (!notifyTarget) return
+                    const title = notifyTarget.title
+                    notifyMutation.mutate(notifyTarget.schedule_id, {
+                        onSuccess: (res) => {
+                            setNotifyTarget(null)
+                            toast.success('Notifications sent', {
+                                description: `${res.notified_count} student(s) assigned to "${title}" have been notified.`,
+                            })
+                        },
                     })
                 }}
             />

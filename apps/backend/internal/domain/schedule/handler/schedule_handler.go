@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -11,6 +12,12 @@ import (
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler/dtos"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	studentAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
+	studentService "github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
+	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/templates"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
+	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
 	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -18,14 +25,29 @@ import (
 )
 
 type ScheduleHandler struct {
-	logger  *zap.Logger
-	service service.ScheduleServiceInterface
+	logger      *zap.Logger
+	service     service.ScheduleServiceInterface
+	studentSvc  studentService.StudentServiceInterface
+	shiftTplSvc service.ShiftTemplateServiceInterface
+	emailSender emailInterfaces.EmailSenderInterface
+	fromEmail   string
 }
 
-func NewScheduleHandler(logger *zap.Logger, service service.ScheduleServiceInterface) *ScheduleHandler {
+func NewScheduleHandler(
+	logger *zap.Logger,
+	service service.ScheduleServiceInterface,
+	studentSvc studentService.StudentServiceInterface,
+	shiftTplSvc service.ShiftTemplateServiceInterface,
+	emailSender emailInterfaces.EmailSenderInterface,
+	fromEmail string,
+) *ScheduleHandler {
 	return &ScheduleHandler{
-		logger:  logger,
-		service: service,
+		logger:      logger,
+		service:     service,
+		studentSvc:  studentSvc,
+		shiftTplSvc: shiftTplSvc,
+		emailSender: emailSender,
+		fromEmail:   fromEmail,
 	}
 }
 
@@ -43,6 +65,7 @@ func (h *ScheduleHandler) RegisterAdminRoutes(r chi.Router) {
 	r.Patch("/schedules/{id}/unarchive", h.Unarchive)
 	r.Patch("/schedules/{id}/activate", h.Activate)
 	r.Patch("/schedules/{id}/deactivate", h.Deactivate)
+	r.Post("/schedules/{id}/notify", h.NotifyStudents)
 }
 
 func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +271,171 @@ func (h *ScheduleHandler) Deactivate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+var dayNames = [7]string{"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"}
+
+func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id, err := h.parseID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid schedule ID")
+		return
+	}
+
+	// Get the schedule
+	schedule, err := h.service.GetByID(ctx, id)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	// Parse assignments from the schedule's JSON
+	type assignmentEntry struct {
+		AssistantID int32     `json:"assistant_id"`
+		ShiftID     uuid.UUID `json:"shift_id"`
+	}
+	var assignments []assignmentEntry
+	if err := json.Unmarshal(schedule.Assignments, &assignments); err != nil {
+		h.logger.Error("failed to parse assignments", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, "failed to parse schedule assignments")
+		return
+	}
+
+	if len(assignments) == 0 {
+		writeJSON(w, http.StatusOK, map[string]int{"notified_count": 0})
+		return
+	}
+
+	// Collect unique assistant IDs and their shift IDs
+	type studentShifts struct {
+		shiftIDs []uuid.UUID
+	}
+	studentShiftMap := make(map[int32]*studentShifts)
+	for _, a := range assignments {
+		ss, ok := studentShiftMap[a.AssistantID]
+		if !ok {
+			ss = &studentShifts{}
+			studentShiftMap[a.AssistantID] = ss
+		}
+		ss.shiftIDs = append(ss.shiftIDs, a.ShiftID)
+	}
+
+	// Get all students
+	students, err := h.studentSvc.List(ctx, "")
+	if err != nil {
+		h.logger.Error("failed to list students", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, "failed to fetch students")
+		return
+	}
+
+	// Build studentID -> student map
+	studentMap := make(map[int32]*studentAggregate.Student, len(students))
+	for _, s := range students {
+		studentMap[s.StudentID] = s
+	}
+
+	// Get all shift templates
+	shiftTemplates, err := h.shiftTplSvc.ListAll(ctx)
+	if err != nil {
+		h.logger.Error("failed to list shift templates", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, "failed to fetch shift templates")
+		return
+	}
+
+	// Build shiftID -> template map
+	shiftMap := make(map[uuid.UUID]*aggregate.ShiftTemplate, len(shiftTemplates))
+	for _, t := range shiftTemplates {
+		shiftMap[t.ID] = t
+	}
+
+	// Build email batch
+	var batchEmails emailDtos.SendEmailBulkRequest
+	notifiedCount := 0
+
+	for studentID, ss := range studentShiftMap {
+		student, ok := studentMap[studentID]
+		if !ok {
+			h.logger.Warn("student not found for assignment", zap.Int32("student_id", studentID))
+			continue
+		}
+
+		// Collect shift entries for this student
+		var entries []templates.ShiftEntry
+		for _, shiftID := range ss.shiftIDs {
+			tpl, ok := shiftMap[shiftID]
+			if !ok {
+				h.logger.Warn("shift template not found", zap.String("shift_id", shiftID.String()))
+				continue
+			}
+
+			dayName := dayNames[tpl.DayOfWeek]
+			shiftDate := schedule.EffectiveFrom.AddDate(0, 0, int(tpl.DayOfWeek))
+			timeRange := fmt.Sprintf("%s - %s", tpl.StartTime.Format("15:04"), tpl.EndTime.Format("15:04"))
+
+			entries = append(entries, templates.ShiftEntry{
+				Day:  dayName,
+				Date: shiftDate.Format("2006-01-02"),
+				Time: timeRange,
+			})
+		}
+
+		if len(entries) == 0 {
+			continue
+		}
+
+		shiftRows := templates.BuildShiftRows(entries)
+
+		tmpl := types.EmailTemplate{
+			ID: templates.TemplateID_RosterNotification,
+			Variables: map[string]any{
+				"STUDENT_NAME":  fmt.Sprintf("%s %s", student.FirstName, student.LastName),
+				"SCHEDULE_NAME": schedule.Title,
+				"SHIFT_ROWS":    shiftRows,
+				"CONTACT_EMAIL": h.fromEmail,
+			},
+		}
+
+		html, err := templates.Render(tmpl)
+		if err != nil {
+			h.logger.Error("failed to render email template",
+				zap.Int32("student_id", studentID),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		batchEmails = append(batchEmails, emailDtos.BatchEmailItem{
+			From:    h.fromEmail,
+			To:      []string{student.EmailAddress},
+			Subject: fmt.Sprintf("Your Help Desk Schedule: %s", schedule.Title),
+			HTML:    html,
+			Tags: []types.EmailTag{
+				{Name: "type", Value: "roster_notification"},
+			},
+		})
+		notifiedCount++
+	}
+
+	// Send in batches of 100
+	for i := 0; i < len(batchEmails); i += 100 {
+		end := i + 100
+		if end > len(batchEmails) {
+			end = len(batchEmails)
+		}
+		batch := batchEmails[i:end]
+		if _, err := h.emailSender.SendBatch(ctx, batch); err != nil {
+			h.logger.Error("failed to send email batch",
+				zap.Int("batch_start", i),
+				zap.Error(err),
+			)
+			writeError(w, http.StatusInternalServerError, "failed to send notification emails")
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int{"notified_count": notifiedCount})
 }
 
 func (h *ScheduleHandler) parseID(r *http.Request) (uuid.UUID, error) {
