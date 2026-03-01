@@ -791,3 +791,13 @@ export const MOCK_TIME_LOGS: TimeLog[] = [
         distance_meters: 10.1,
     },
 ]
+
+// semesters for deactivated students page
+export const MOCK_SEMESTERS = [
+  { name: "Jane Doe", semester: 1 },
+  { name: "Mark Smith", semester: 2 },
+  { name: "Aisha Kumar", semester: 1 },
+  { name: "Carlos Perez", semester: 3 },
+  { name: "Tanya Williams", semester: 2 },
+  { name: "Devon Baptiste", semester: 1 },
+]
