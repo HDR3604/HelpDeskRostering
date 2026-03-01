@@ -15,4 +15,5 @@ var (
 	ErrCreateUserFailed          = errors.New("failed to create user")
 	ErrEmailAlreadyExists        = errors.New("email already exists")
 	ErrUserNotFound              = errors.New("user not found")
+	ErrMissingAuthContext        = errors.New("missing auth context")
 )

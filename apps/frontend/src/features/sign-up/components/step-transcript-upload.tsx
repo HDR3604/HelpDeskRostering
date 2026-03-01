@@ -9,7 +9,11 @@ interface StepTranscriptUploadProps {
     isProcessing?: boolean
 }
 
-export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: StepTranscriptUploadProps) {
+export function StepTranscriptUpload({
+    defaultValue,
+    onNext,
+    isProcessing,
+}: StepTranscriptUploadProps) {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const formRef = useRef<HTMLFormElement>(null)
     const [file, setFile] = useState<File | null>(defaultValue ?? null)
@@ -76,13 +80,18 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
             {file ? (
                 <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
                     <FileText className="size-5 shrink-0 text-primary" />
-                    <span className="flex-1 truncate text-sm font-medium">{file.name}</span>
+                    <span className="flex-1 truncate text-sm font-medium">
+                        {file.name}
+                    </span>
                     <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         className="size-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => { setFile(null); setError('') }}
+                        onClick={() => {
+                            setFile(null)
+                            setError('')
+                        }}
                     >
                         <X className="size-3.5" />
                     </Button>
@@ -96,7 +105,7 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
                         'outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                         isDragOver
                             ? 'border-primary bg-primary/5'
-                            : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                            : 'border-muted-foreground/25 hover:border-muted-foreground/50',
                     )}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
@@ -116,7 +125,9 @@ export function StepTranscriptUpload({ defaultValue, onNext, isProcessing }: Ste
                         <p className="text-sm font-medium">
                             Drop your transcript here or click to browse
                         </p>
-                        <p className="mt-1 text-xs text-muted-foreground">PDF only</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            PDF only
+                        </p>
                     </div>
                 </div>
             )}

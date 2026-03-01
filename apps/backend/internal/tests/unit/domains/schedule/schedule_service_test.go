@@ -264,16 +264,16 @@ func (s *ScheduleServiceTestSuite) setupShiftTemplateAndConfigMocks() {
 	}
 	s.schedulerConfigSvc.GetByIDFn = func(_ context.Context, id uuid.UUID) (*aggregate.SchedulerConfig, error) {
 		return &aggregate.SchedulerConfig{
-			ID:                    id,
-			Name:                  "Default",
+			ID:                     id,
+			Name:                   "Default",
 			CourseShortfallPenalty: 1.0,
-			MinHoursPenalty:       10.0,
-			MaxHoursPenalty:       5.0,
-			UnderstaffedPenalty:   100.0,
-			ExtraHoursPenalty:     5.0,
-			MaxExtraPenalty:       20.0,
-			BaselineHoursTarget:   6,
-			LogSolverOutput:       false,
+			MinHoursPenalty:        10.0,
+			MaxHoursPenalty:        5.0,
+			UnderstaffedPenalty:    100.0,
+			ExtraHoursPenalty:      5.0,
+			MaxExtraPenalty:        20.0,
+			BaselineHoursTarget:    6,
+			LogSolverOutput:        false,
 		}, nil
 	}
 }

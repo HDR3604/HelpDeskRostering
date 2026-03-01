@@ -11,11 +11,11 @@ import (
 )
 
 type MockRefreshTokenRepository struct {
-	CreateFn           func(ctx context.Context, tx *sql.Tx, token *aggregate.RefreshToken) (*aggregate.RefreshToken, error)
-	GetByTokenHashFn   func(ctx context.Context, tx *sql.Tx, tokenHash string) (*aggregate.RefreshToken, error)
-	RevokeByIDFn       func(ctx context.Context, tx *sql.Tx, tokenID uuid.UUID, replacedBy *uuid.UUID) error
+	CreateFn            func(ctx context.Context, tx *sql.Tx, token *aggregate.RefreshToken) (*aggregate.RefreshToken, error)
+	GetByTokenHashFn    func(ctx context.Context, tx *sql.Tx, tokenHash string) (*aggregate.RefreshToken, error)
+	RevokeByIDFn        func(ctx context.Context, tx *sql.Tx, tokenID uuid.UUID, replacedBy *uuid.UUID) error
 	RevokeAllByUserIDFn func(ctx context.Context, tx *sql.Tx, userID uuid.UUID) error
-	DeleteExpiredFn    func(ctx context.Context, tx *sql.Tx, beforeTime time.Time) (int64, error)
+	DeleteExpiredFn     func(ctx context.Context, tx *sql.Tx, beforeTime time.Time) (int64, error)
 }
 
 var _ repository.RefreshTokenRepositoryInterface = (*MockRefreshTokenRepository)(nil)

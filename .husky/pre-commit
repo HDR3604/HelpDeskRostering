@@ -1,0 +1,2 @@
+task format:check
+task test

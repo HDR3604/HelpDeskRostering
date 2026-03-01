@@ -117,17 +117,17 @@ func (h *SchedulerConfigHandler) Update(w http.ResponseWriter, r *http.Request) 
 	}
 
 	params := service.UpdateSchedulerConfigParams{
-		Name:                  req.Name,
+		Name:                   req.Name,
 		CourseShortfallPenalty: req.CourseShortfallPenalty,
-		MinHoursPenalty:       req.MinHoursPenalty,
-		MaxHoursPenalty:       req.MaxHoursPenalty,
-		UnderstaffedPenalty:   req.UnderstaffedPenalty,
-		ExtraHoursPenalty:     req.ExtraHoursPenalty,
-		MaxExtraPenalty:       req.MaxExtraPenalty,
-		BaselineHoursTarget:   req.BaselineHoursTarget,
-		SolverTimeLimit:       req.SolverTimeLimit,
-		SolverGap:             req.SolverGap,
-		LogSolverOutput:       req.LogSolverOutput,
+		MinHoursPenalty:        req.MinHoursPenalty,
+		MaxHoursPenalty:        req.MaxHoursPenalty,
+		UnderstaffedPenalty:    req.UnderstaffedPenalty,
+		ExtraHoursPenalty:      req.ExtraHoursPenalty,
+		MaxExtraPenalty:        req.MaxExtraPenalty,
+		BaselineHoursTarget:    req.BaselineHoursTarget,
+		SolverTimeLimit:        req.SolverTimeLimit,
+		SolverGap:              req.SolverGap,
+		LogSolverOutput:        req.LogSolverOutput,
 	}
 
 	updated, err := h.service.Update(r.Context(), id, params)

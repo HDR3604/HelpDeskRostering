@@ -92,11 +92,11 @@ func (s *AuthE2ETestSuite) SetupSuite() {
 		authTokenRepo,
 		emailSender,
 		jwtSecret,
-		3600,  // accessTokenTTL
-		86400, // refreshTokenTTL
-		86400, // verificationTokenTTL
+		3600,                    // accessTokenTTL
+		86400,                   // refreshTokenTTL
+		86400,                   // verificationTokenTTL
 		"http://localhost:3000", // frontendURL
-		"noreply@test.com",     // fromEmail
+		"noreply@test.com",      // fromEmail
 	)
 
 	// 5. Real auth handler

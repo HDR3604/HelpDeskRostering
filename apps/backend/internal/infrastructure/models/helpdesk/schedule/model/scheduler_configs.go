@@ -8,8 +8,9 @@
 package model
 
 import (
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Named optimizer configurations with penalty weights. Maps to Python SchedulerConfig dataclass.

@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+pnpm-lock.yaml
+apps/backend
+apps/scheduler
+apps/transcripts
+**/routeTree.gen.ts

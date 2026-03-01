@@ -37,12 +37,18 @@ export const verifySchema = z.object({
     degreeProgramme: z.string().min(1, 'Degree programme is required'),
     currentYear: z.string().min(1, 'Current year is required'),
     overallGpa: z
-        .number({ required_error: 'Overall GPA is required', invalid_type_error: 'Overall GPA is required' })
+        .number({
+            required_error: 'Overall GPA is required',
+            invalid_type_error: 'Overall GPA is required',
+        })
         .min(0.01, 'Overall GPA is required')
         .max(4.3, 'GPA cannot exceed 4.3')
         .refine((v) => !isNaN(v), { message: 'Overall GPA is required' }),
     degreeGpa: z
-        .number({ required_error: 'Degree GPA is required', invalid_type_error: 'Degree GPA is required' })
+        .number({
+            required_error: 'Degree GPA is required',
+            invalid_type_error: 'Degree GPA is required',
+        })
         .min(0.01, 'Degree GPA is required')
         .max(4.3, 'GPA cannot exceed 4.3')
         .refine((v) => !isNaN(v), { message: 'Degree GPA is required' }),
@@ -88,16 +94,17 @@ export type ContactData = z.infer<typeof contactSchema>
 
 // ─── Step 4: Availability ────────────────────────────────────────────────────
 export const availabilitySchema = z.object({
-    availability: z.record(
-        z.string(),
-        z.array(z.number())
-    ).refine(
-        (val) => Object.values(val).some((slots) => slots.length > 0),
-        { message: 'Select at least one time slot.' }
-    ),
+    availability: z
+        .record(z.string(), z.array(z.number()))
+        .refine((val) => Object.values(val).some((slots) => slots.length > 0), {
+            message: 'Select at least one time slot.',
+        }),
 })
 
 export type AvailabilityData = z.infer<typeof availabilitySchema>
 
 // ─── Combined type ───────────────────────────────────────────────────────────
-export type SignUpFormData = TranscriptData & VerifyData & ContactData & AvailabilityData
+export type SignUpFormData = TranscriptData &
+    VerifyData &
+    ContactData &
+    AvailabilityData

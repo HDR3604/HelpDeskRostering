@@ -1,0 +1,14 @@
+commit_msg=$(cat "$1")
+
+# Allow merge commits
+if echo "$commit_msg" | grep -qE '^Merge '; then
+  exit 0
+fi
+
+if ! echo "$commit_msg" | grep -qE '^\[HDR-[0-9]+\] .+'; then
+  echo "ERROR: Commit message must start with [HDR-<number>] followed by a description."
+  echo "Example: [HDR-15] Add user handler"
+  echo ""
+  echo "Got: $commit_msg"
+  exit 1
+fi

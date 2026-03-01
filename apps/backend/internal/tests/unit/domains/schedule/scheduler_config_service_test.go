@@ -42,18 +42,18 @@ func (s *SchedulerConfigServiceTestSuite) SetupTest() {
 
 func (s *SchedulerConfigServiceTestSuite) newSchedulerConfig() *aggregate.SchedulerConfig {
 	return &aggregate.SchedulerConfig{
-		ID:                    uuid.New(),
-		Name:                  "Test Config",
+		ID:                     uuid.New(),
+		Name:                   "Test Config",
 		CourseShortfallPenalty: 10.0,
-		MinHoursPenalty:       5.0,
-		MaxHoursPenalty:       5.0,
-		UnderstaffedPenalty:   8.0,
-		ExtraHoursPenalty:     3.0,
-		MaxExtraPenalty:       4.0,
-		BaselineHoursTarget:   10,
-		LogSolverOutput:       false,
-		IsDefault:             false,
-		CreatedAt:             time.Now(),
+		MinHoursPenalty:        5.0,
+		MaxHoursPenalty:        5.0,
+		UnderstaffedPenalty:    8.0,
+		ExtraHoursPenalty:      3.0,
+		MaxExtraPenalty:        4.0,
+		BaselineHoursTarget:    10,
+		LogSolverOutput:        false,
+		IsDefault:              false,
+		CreatedAt:              time.Now(),
 	}
 }
 
@@ -195,15 +195,15 @@ func (s *SchedulerConfigServiceTestSuite) TestUpdate_Success() {
 	}
 
 	params := service.UpdateSchedulerConfigParams{
-		Name:                  "Updated Config",
+		Name:                   "Updated Config",
 		CourseShortfallPenalty: 12.0,
-		MinHoursPenalty:       6.0,
-		MaxHoursPenalty:       6.0,
-		UnderstaffedPenalty:   9.0,
-		ExtraHoursPenalty:     4.0,
-		MaxExtraPenalty:       5.0,
-		BaselineHoursTarget:   12,
-		LogSolverOutput:       true,
+		MinHoursPenalty:        6.0,
+		MaxHoursPenalty:        6.0,
+		UnderstaffedPenalty:    9.0,
+		ExtraHoursPenalty:      4.0,
+		MaxExtraPenalty:        5.0,
+		BaselineHoursTarget:    12,
+		LogSolverOutput:        true,
 	}
 
 	result, err := s.service.Update(s.authCtx, existing.ID, params)
@@ -221,14 +221,14 @@ func (s *SchedulerConfigServiceTestSuite) TestUpdate_NotFound() {
 	}
 
 	params := service.UpdateSchedulerConfigParams{
-		Name:                  "Updated Config",
+		Name:                   "Updated Config",
 		CourseShortfallPenalty: 10.0,
-		MinHoursPenalty:       5.0,
-		MaxHoursPenalty:       5.0,
-		UnderstaffedPenalty:   8.0,
-		ExtraHoursPenalty:     3.0,
-		MaxExtraPenalty:       4.0,
-		BaselineHoursTarget:   10,
+		MinHoursPenalty:        5.0,
+		MaxHoursPenalty:        5.0,
+		UnderstaffedPenalty:    8.0,
+		ExtraHoursPenalty:      3.0,
+		MaxExtraPenalty:        4.0,
+		BaselineHoursTarget:    10,
 	}
 
 	result, err := s.service.Update(s.authCtx, uuid.New(), params)
@@ -245,14 +245,14 @@ func (s *SchedulerConfigServiceTestSuite) TestUpdate_ValidationError() {
 	}
 
 	params := service.UpdateSchedulerConfigParams{
-		Name:                  "",
+		Name:                   "",
 		CourseShortfallPenalty: 10.0,
-		MinHoursPenalty:       5.0,
-		MaxHoursPenalty:       5.0,
-		UnderstaffedPenalty:   8.0,
-		ExtraHoursPenalty:     3.0,
-		MaxExtraPenalty:       4.0,
-		BaselineHoursTarget:   10,
+		MinHoursPenalty:        5.0,
+		MaxHoursPenalty:        5.0,
+		UnderstaffedPenalty:    8.0,
+		ExtraHoursPenalty:      3.0,
+		MaxExtraPenalty:        4.0,
+		BaselineHoursTarget:    10,
 	}
 
 	result, err := s.service.Update(s.authCtx, existing.ID, params)
@@ -264,14 +264,14 @@ func (s *SchedulerConfigServiceTestSuite) TestUpdate_ValidationError() {
 
 func (s *SchedulerConfigServiceTestSuite) TestUpdate_MissingAuthContext() {
 	params := service.UpdateSchedulerConfigParams{
-		Name:                  "Updated Config",
+		Name:                   "Updated Config",
 		CourseShortfallPenalty: 10.0,
-		MinHoursPenalty:       5.0,
-		MaxHoursPenalty:       5.0,
-		UnderstaffedPenalty:   8.0,
-		ExtraHoursPenalty:     3.0,
-		MaxExtraPenalty:       4.0,
-		BaselineHoursTarget:   10,
+		MinHoursPenalty:        5.0,
+		MaxHoursPenalty:        5.0,
+		UnderstaffedPenalty:    8.0,
+		ExtraHoursPenalty:      3.0,
+		MaxExtraPenalty:        4.0,
+		BaselineHoursTarget:    10,
 	}
 
 	result, err := s.service.Update(context.Background(), uuid.New(), params)

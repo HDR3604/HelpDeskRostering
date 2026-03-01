@@ -10,21 +10,21 @@ import (
 )
 
 type SchedulerConfig struct {
-	ID                    uuid.UUID
-	Name                  string
+	ID                     uuid.UUID
+	Name                   string
 	CourseShortfallPenalty float64
-	MinHoursPenalty       float64
-	MaxHoursPenalty       float64
-	UnderstaffedPenalty   float64
-	ExtraHoursPenalty     float64
-	MaxExtraPenalty       float64
-	BaselineHoursTarget   int32
-	SolverTimeLimit       *int32
-	SolverGap             *float64
-	LogSolverOutput       bool
-	IsDefault             bool
-	CreatedAt             time.Time
-	UpdatedAt             *time.Time
+	MinHoursPenalty        float64
+	MaxHoursPenalty        float64
+	UnderstaffedPenalty    float64
+	ExtraHoursPenalty      float64
+	MaxExtraPenalty        float64
+	BaselineHoursTarget    int32
+	SolverTimeLimit        *int32
+	SolverGap              *float64
+	LogSolverOutput        bool
+	IsDefault              bool
+	CreatedAt              time.Time
+	UpdatedAt              *time.Time
 }
 
 func NewSchedulerConfig(
@@ -46,18 +46,18 @@ func NewSchedulerConfig(
 	}
 
 	return &SchedulerConfig{
-		ID:                    uuid.New(),
-		Name:                  name,
+		ID:                     uuid.New(),
+		Name:                   name,
 		CourseShortfallPenalty: courseShortfallPenalty,
-		MinHoursPenalty:       minHoursPenalty,
-		MaxHoursPenalty:       maxHoursPenalty,
-		UnderstaffedPenalty:   understaffedPenalty,
-		ExtraHoursPenalty:     extraHoursPenalty,
-		MaxExtraPenalty:       maxExtraPenalty,
-		BaselineHoursTarget:   baselineHoursTarget,
-		SolverTimeLimit:       solverTimeLimit,
-		SolverGap:             solverGap,
-		LogSolverOutput:       logSolverOutput,
+		MinHoursPenalty:        minHoursPenalty,
+		MaxHoursPenalty:        maxHoursPenalty,
+		UnderstaffedPenalty:    understaffedPenalty,
+		ExtraHoursPenalty:      extraHoursPenalty,
+		MaxExtraPenalty:        maxExtraPenalty,
+		BaselineHoursTarget:    baselineHoursTarget,
+		SolverTimeLimit:        solverTimeLimit,
+		SolverGap:              solverGap,
+		LogSolverOutput:        logSolverOutput,
 	}, nil
 }
 
@@ -114,40 +114,40 @@ func validateSchedulerConfig(
 
 func (c *SchedulerConfig) ToModel() model.SchedulerConfigs {
 	return model.SchedulerConfigs{
-		ID:                    c.ID,
-		Name:                  c.Name,
+		ID:                     c.ID,
+		Name:                   c.Name,
 		CourseShortfallPenalty: c.CourseShortfallPenalty,
-		MinHoursPenalty:       c.MinHoursPenalty,
-		MaxHoursPenalty:       c.MaxHoursPenalty,
-		UnderstaffedPenalty:   c.UnderstaffedPenalty,
-		ExtraHoursPenalty:     c.ExtraHoursPenalty,
-		MaxExtraPenalty:       c.MaxExtraPenalty,
-		BaselineHoursTarget:   c.BaselineHoursTarget,
-		SolverTimeLimit:       c.SolverTimeLimit,
-		SolverGap:             c.SolverGap,
-		LogSolverOutput:       c.LogSolverOutput,
-		IsDefault:             c.IsDefault,
-		CreatedAt:             c.CreatedAt,
-		UpdatedAt:             c.UpdatedAt,
+		MinHoursPenalty:        c.MinHoursPenalty,
+		MaxHoursPenalty:        c.MaxHoursPenalty,
+		UnderstaffedPenalty:    c.UnderstaffedPenalty,
+		ExtraHoursPenalty:      c.ExtraHoursPenalty,
+		MaxExtraPenalty:        c.MaxExtraPenalty,
+		BaselineHoursTarget:    c.BaselineHoursTarget,
+		SolverTimeLimit:        c.SolverTimeLimit,
+		SolverGap:              c.SolverGap,
+		LogSolverOutput:        c.LogSolverOutput,
+		IsDefault:              c.IsDefault,
+		CreatedAt:              c.CreatedAt,
+		UpdatedAt:              c.UpdatedAt,
 	}
 }
 
 func SchedulerConfigFromModel(m model.SchedulerConfigs) SchedulerConfig {
 	return SchedulerConfig{
-		ID:                    m.ID,
-		Name:                  m.Name,
+		ID:                     m.ID,
+		Name:                   m.Name,
 		CourseShortfallPenalty: m.CourseShortfallPenalty,
-		MinHoursPenalty:       m.MinHoursPenalty,
-		MaxHoursPenalty:       m.MaxHoursPenalty,
-		UnderstaffedPenalty:   m.UnderstaffedPenalty,
-		ExtraHoursPenalty:     m.ExtraHoursPenalty,
-		MaxExtraPenalty:       m.MaxExtraPenalty,
-		BaselineHoursTarget:   m.BaselineHoursTarget,
-		SolverTimeLimit:       m.SolverTimeLimit,
-		SolverGap:             m.SolverGap,
-		LogSolverOutput:       m.LogSolverOutput,
-		IsDefault:             m.IsDefault,
-		CreatedAt:             m.CreatedAt,
-		UpdatedAt:             m.UpdatedAt,
+		MinHoursPenalty:        m.MinHoursPenalty,
+		MaxHoursPenalty:        m.MaxHoursPenalty,
+		UnderstaffedPenalty:    m.UnderstaffedPenalty,
+		ExtraHoursPenalty:      m.ExtraHoursPenalty,
+		MaxExtraPenalty:        m.MaxExtraPenalty,
+		BaselineHoursTarget:    m.BaselineHoursTarget,
+		SolverTimeLimit:        m.SolverTimeLimit,
+		SolverGap:              m.SolverGap,
+		LogSolverOutput:        m.LogSolverOutput,
+		IsDefault:              m.IsDefault,
+		CreatedAt:              m.CreatedAt,
+		UpdatedAt:              m.UpdatedAt,
 	}
 }

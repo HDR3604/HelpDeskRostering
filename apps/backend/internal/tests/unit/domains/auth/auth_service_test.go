@@ -27,12 +27,12 @@ import (
 
 type AuthServiceTestSuite struct {
 	suite.Suite
-	userRepo              *mocks.MockUserRepository
-	refreshTokenRepo      *mocks.MockRefreshTokenRepository
-	authTokenRepo         *mocks.MockAuthTokenRepository
-	emailSender           *mocks.MockEmailSender
-	service               service.AuthServiceInterface
-	ctx                   context.Context
+	userRepo         *mocks.MockUserRepository
+	refreshTokenRepo *mocks.MockRefreshTokenRepository
+	authTokenRepo    *mocks.MockAuthTokenRepository
+	emailSender      *mocks.MockEmailSender
+	service          service.AuthServiceInterface
+	ctx              context.Context
 }
 
 func TestAuthServiceTestSuite(t *testing.T) {
