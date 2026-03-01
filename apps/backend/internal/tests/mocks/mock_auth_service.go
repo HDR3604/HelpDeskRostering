@@ -17,8 +17,8 @@ type MockAuthService struct {
 	ResendVerificationFn  func(ctx context.Context, email string) error
 	ForgotPasswordFn      func(ctx context.Context, email string) error
 	ResetPasswordFn       func(ctx context.Context, rawToken, newPassword string) error
-	ValidateAccessTokenFn    func(tokenString string) (*service.Claims, error)
-	CleanupStaleTokensFn     func(ctx context.Context) error
+	ValidateAccessTokenFn func(tokenString string) (*service.Claims, error)
+	CleanupStaleTokensFn  func(ctx context.Context) error
 }
 
 var _ service.AuthServiceInterface = (*MockAuthService)(nil)

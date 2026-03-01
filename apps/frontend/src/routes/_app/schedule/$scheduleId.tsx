@@ -26,8 +26,7 @@ function ScheduleEditorPage() {
 
     const schedule = scheduleQuery.data
     const shiftTemplates = shiftTemplatesQuery.data ?? []
-    const isLoading =
-        scheduleQuery.isLoading || shiftTemplatesQuery.isLoading
+    const isLoading = scheduleQuery.isLoading || shiftTemplatesQuery.isLoading
     const isNotFound =
         scheduleQuery.error &&
         (

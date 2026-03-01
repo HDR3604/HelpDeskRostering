@@ -14,10 +14,7 @@ export function RouteError() {
             description="An unexpected error occurred. Please try again."
         >
             <div className="flex gap-2">
-                <Button
-                    variant="outline"
-                    onClick={() => router.history.back()}
-                >
+                <Button variant="outline" onClick={() => router.history.back()}>
                     Go back
                 </Button>
                 <Button onClick={() => router.invalidate()}>Try again</Button>

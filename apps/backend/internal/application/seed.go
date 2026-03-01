@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
-	"github.com/google/uuid"
 	userErrors "github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )

@@ -99,8 +99,7 @@ export function ScheduleListView({
     onDeactivate,
     onNotify,
 }: ScheduleListViewProps) {
-    const activeSchedule =
-        schedules.find((s) => s.status === 'active') ?? null
+    const activeSchedule = schedules.find((s) => s.status === 'active') ?? null
     const pastSchedules = schedules.filter((s) => s.status !== 'active')
     const stats = getScheduleStats(activeSchedule)
 
@@ -303,10 +302,12 @@ function ScheduleOverview({
                 <CardTitle>Schedule Overview</CardTitle>
                 <CardDescription>
                     {schedule.title} — {uniqueStudentIds.length} students,{' '}
-                    {(Array.isArray(schedule.assignments)
-                        ? schedule.assignments
-                        : []
-                    ).length}{' '}
+                    {
+                        (Array.isArray(schedule.assignments)
+                            ? schedule.assignments
+                            : []
+                        ).length
+                    }{' '}
                     assignments
                 </CardDescription>
             </CardHeader>
@@ -337,8 +338,7 @@ function ScheduleOverview({
                                         key={day}
                                         className={cn(
                                             'flex items-center justify-center border-b border-border py-2',
-                                            idx > 0 &&
-                                                'border-l border-border',
+                                            idx > 0 && 'border-l border-border',
                                             idx === today &&
                                                 'bg-foreground/[0.03]',
                                         )}

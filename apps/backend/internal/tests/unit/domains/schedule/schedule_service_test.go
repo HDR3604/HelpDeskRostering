@@ -203,6 +203,9 @@ func (s *ScheduleServiceTestSuite) TestActivate_Success() {
 	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.Schedule, error) {
 		return schedule, nil
 	}
+	s.repo.GetActiveFn = func(_ context.Context, _ *sql.Tx) (*aggregate.Schedule, error) {
+		return nil, scheduleErrors.ErrNotFound
+	}
 	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, updated *aggregate.Schedule) error {
 		s.True(updated.IsActive)
 		return nil

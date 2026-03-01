@@ -47,7 +47,7 @@ func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role := aggregate.Role(req.Role)
-	user, err := h.service.Create(r.Context(), req.Email, req.Password, role)
+	user, err := h.service.Create(r.Context(), req.FirstName, req.LastName, req.Email, req.Password, role)
 	if err != nil {
 		h.handleUserError(w, err)
 		return

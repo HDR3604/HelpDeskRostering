@@ -20,7 +20,7 @@ type UserService struct {
 }
 
 type UserServiceInterface interface {
-	Create(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error)
+	Create(ctx context.Context, firstName, lastName, email, password string, role aggregate.Role) (*aggregate.User, error)
 	GetByID(ctx context.Context, userID string) (*aggregate.User, error)
 	GetByEmail(ctx context.Context, email string) (*aggregate.User, error)
 	Update(ctx context.Context, userID string, input UpdateUserInput) error

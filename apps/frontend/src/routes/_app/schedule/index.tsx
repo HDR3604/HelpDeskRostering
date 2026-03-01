@@ -72,8 +72,9 @@ function ScheduleListPage() {
     const [notifyTarget, setNotifyTarget] = useState<ScheduleResponse | null>(
         null,
     )
-    const [archiveTarget, setArchiveTarget] =
-        useState<ScheduleResponse | null>(null)
+    const [archiveTarget, setArchiveTarget] = useState<ScheduleResponse | null>(
+        null,
+    )
     const [deactivateTarget, setDeactivateTarget] =
         useState<ScheduleResponse | null>(null)
 
@@ -82,9 +83,7 @@ function ScheduleListPage() {
         shiftTemplatesQuery.isLoading ||
         configsQuery.isLoading
     const error =
-        schedulesQuery.error ||
-        shiftTemplatesQuery.error ||
-        configsQuery.error
+        schedulesQuery.error || shiftTemplatesQuery.error || configsQuery.error
 
     if (isLoading) return <ScheduleListSkeleton />
     if (error)
@@ -162,8 +161,7 @@ function ScheduleListPage() {
                             createMutation.mutate(
                                 {
                                     title: mockSchedule.title,
-                                    effective_from:
-                                        mockSchedule.effective_from,
+                                    effective_from: mockSchedule.effective_from,
                                     effective_to: mockSchedule.effective_to,
                                 },
                                 {
@@ -172,8 +170,7 @@ function ScheduleListPage() {
                                         navigate({
                                             to: '/schedule/$scheduleId',
                                             params: {
-                                                scheduleId:
-                                                    created.schedule_id,
+                                                scheduleId: created.schedule_id,
                                             },
                                         })
                                     },

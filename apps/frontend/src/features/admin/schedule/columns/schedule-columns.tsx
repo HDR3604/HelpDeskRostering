@@ -64,10 +64,9 @@ export function getScheduleColumns({
             header: () => <div className="text-center">Students</div>,
             accessorFn: (row) =>
                 new Set(
-                    (Array.isArray(row.assignments)
-                        ? row.assignments
-                        : []
-                    ).map((a) => a.assistant_id),
+                    (Array.isArray(row.assignments) ? row.assignments : []).map(
+                        (a) => a.assistant_id,
+                    ),
                 ).size,
             cell: ({ getValue }) => (
                 <div className="text-center">{getValue<number>()}</div>

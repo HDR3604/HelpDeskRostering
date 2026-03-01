@@ -5,9 +5,11 @@ import (
 )
 
 type CreateUserRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	Role      string `json:"role"`
 }
 
 type UpdateUserRequest struct {
@@ -18,6 +20,8 @@ type UpdateUserRequest struct {
 
 type UserResponse struct {
 	UserID          string  `json:"user_id"`
+	FirstName       string  `json:"first_name"`
+	LastName        string  `json:"last_name"`
 	Email           string  `json:"email"`
 	Role            string  `json:"role"`
 	IsActive        bool    `json:"is_active"`
@@ -28,10 +32,12 @@ type UserResponse struct {
 
 func UserToResponse(u *aggregate.User) UserResponse {
 	resp := UserResponse{
-		UserID:   u.ID.String(),
-		Email:    u.Email,
-		Role:     string(u.Role),
-		IsActive: u.IsActive,
+		UserID:    u.ID.String(),
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+		Email:     u.Email,
+		Role:      string(u.Role),
+		IsActive:  u.IsActive,
 	}
 	if u.CreatedAt != nil {
 		resp.CreatedAt = u.CreatedAt.Format("2006-01-02 15:04:05")
