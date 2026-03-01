@@ -2,15 +2,13 @@ import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { isAxiosError } from 'axios'
 import { AlertCircle, GraduationCap } from 'lucide-react'
 
 import { ErrorState } from '@/components/layout/error-state'
 import { StepSetPassword } from '@/features/onboarding/components/step-set-password'
-import {
-    BankingDetailsForm,
-    type BankingDetailsValues,
-} from '@/features/student/components/banking-details-form'
 import type { PasswordData } from '@/features/onboarding/lib/onboarding-schemas'
+import { completeOnboarding } from '@/lib/auth/actions'
 
 const searchSchema = z.object({
     token: z.string().catch(''),
@@ -21,25 +19,9 @@ export const Route = createFileRoute('/_auth/onboarding')({
     component: OnboardingPage,
 })
 
-const STEPS = [
-    {
-        title: 'Set your password',
-        description: 'Create a secure password for your account.',
-    },
-    {
-        title: 'Banking details',
-        description: 'We need this to process your salary payments.',
-    },
-] as const
-
 function OnboardingPage() {
     const { token } = Route.useSearch()
     const navigate = useNavigate()
-
-    const [step, setStep] = React.useState(0)
-    const [passwordData, setPasswordData] = React.useState<PasswordData | null>(
-        null,
-    )
     const [isSubmitting, setIsSubmitting] = React.useState(false)
 
     if (!token) {
@@ -54,31 +36,22 @@ function OnboardingPage() {
         )
     }
 
-    function handlePasswordNext(data: PasswordData) {
-        setPasswordData(data)
-        setStep(1)
-    }
-
-    async function handleBankingSubmit(values: BankingDetailsValues) {
+    async function handlePasswordSubmit(data: PasswordData) {
         setIsSubmitting(true)
-
-        const payload = {
-            token,
-            password: passwordData!.password,
-            bankingDetails: values,
+        try {
+            await completeOnboarding(token, data.password)
+            toast.success('Onboarding complete! Welcome aboard.')
+            navigate({ to: '/' })
+        } catch (error) {
+            if (isAxiosError(error) && error.response?.data?.error) {
+                toast.error(error.response.data.error)
+            } else {
+                toast.error('Something went wrong. Please try again.')
+            }
+        } finally {
+            setIsSubmitting(false)
         }
-
-        console.log('Onboarding payload:', payload)
-
-        // Mock API delay
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-
-        setIsSubmitting(false)
-        toast.success('Onboarding complete! Welcome aboard.')
-        navigate({ to: '/' })
     }
-
-    const currentStep = STEPS[step]
 
     return (
         <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
@@ -96,43 +69,21 @@ function OnboardingPage() {
                     </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="space-y-3">
-                    <div className="flex gap-1.5">
-                        {STEPS.map((_, i) => (
-                            <div
-                                key={i}
-                                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                                    i <= step ? 'bg-primary' : 'bg-muted'
-                                }`}
-                            />
-                        ))}
-                    </div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                        Step {step + 1} of {STEPS.length}
-                    </p>
-                </div>
-
                 {/* Step heading */}
                 <div className="space-y-2">
                     <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                        {currentStep.title}
+                        Set your password
                     </h1>
                     <p className="text-muted-foreground">
-                        {currentStep.description}
+                        Create a secure password for your account.
                     </p>
                 </div>
 
-                {/* Step content */}
-                {step === 0 && <StepSetPassword onNext={handlePasswordNext} />}
-                {step === 1 && (
-                    <BankingDetailsForm
-                        embedded
-                        onSubmit={handleBankingSubmit}
-                        isSubmitting={isSubmitting}
-                        submitLabel="Complete Onboarding"
-                    />
-                )}
+                {/* Password form */}
+                <StepSetPassword
+                    onNext={handlePasswordSubmit}
+                    isSubmitting={isSubmitting}
+                />
             </div>
         </div>
     )

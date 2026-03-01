@@ -21,9 +21,13 @@ import {
 
 interface StepSetPasswordProps {
     onNext: (data: PasswordData) => void
+    isSubmitting?: boolean
 }
 
-export function StepSetPassword({ onNext }: StepSetPasswordProps) {
+export function StepSetPassword({
+    onNext,
+    isSubmitting,
+}: StepSetPasswordProps) {
     const [showPassword, setShowPassword] = React.useState(false)
     const [showConfirm, setShowConfirm] = React.useState(false)
 
@@ -156,9 +160,9 @@ export function StepSetPassword({ onNext }: StepSetPasswordProps) {
                 {/* Navigation */}
                 <div className="flex items-center gap-3 pt-2">
                     <div className="flex-1" />
-                    <Button type="submit">
-                        Continue
-                        <ArrowRight className="size-4" />
+                    <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? 'Submitting...' : 'Continue'}
+                        {!isSubmitting && <ArrowRight className="size-4" />}
                     </Button>
                 </div>
             </form>

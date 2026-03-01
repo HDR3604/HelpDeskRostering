@@ -114,6 +114,7 @@ func NewApp(cfg Config) (*App, error) {
 		cfg.AccessTokenTTL,
 		cfg.RefreshTokenTTL,
 		cfg.VerificationTokenTTL,
+		cfg.OnboardingTokenTTL,
 		cfg.FrontendURL,
 		cfg.FromEmail,
 	)
@@ -134,7 +135,7 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
-	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc, emailSenderSvc, cfg.FromEmail, cfg.FrontendURL)
+	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc, authSvc, emailSenderSvc, cfg.FromEmail, cfg.FrontendURL)
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
 	verificationHdl := verificationHandler.NewVerificationHandler(logger, verificationSvc)
 

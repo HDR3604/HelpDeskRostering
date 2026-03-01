@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
+	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
 	studentErrors "github.com/HDR3604/HelpDeskApp/internal/domain/student/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/handler/dtos"
@@ -25,6 +26,7 @@ type StudentHandler struct {
 	logger         *zap.Logger
 	bankingService service.BankingDetailsServiceInterface
 	studentService service.StudentServiceInterface
+	authSvc        authService.AuthServiceInterface
 	emailSender    emailInterfaces.EmailSenderInterface
 	fromEmail      string
 	frontendURL    string
@@ -34,6 +36,7 @@ func NewStudentHandler(
 	logger *zap.Logger,
 	bankingSvc service.BankingDetailsServiceInterface,
 	studentSvc service.StudentServiceInterface,
+	authSvc authService.AuthServiceInterface,
 	emailSender emailInterfaces.EmailSenderInterface,
 	fromEmail string,
 	frontendURL string,
@@ -42,6 +45,7 @@ func NewStudentHandler(
 		logger:         logger,
 		bankingService: bankingSvc,
 		studentService: studentSvc,
+		authSvc:        authSvc,
 		emailSender:    emailSender,
 		fromEmail:      fromEmail,
 		frontendURL:    frontendURL,
@@ -145,8 +149,16 @@ func (h *StudentHandler) Accept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Send acceptance email (fire-and-forget)
-	go h.sendAcceptedEmail(context.WithoutCancel(r.Context()), student)
+	// Create user account + onboarding token
+	rawToken, err := h.authSvc.InitiateOnboarding(r.Context(), student.EmailAddress, student.FirstName, student.LastName)
+	if err != nil {
+		h.logger.Error("failed to initiate onboarding", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	// Send acceptance email with onboarding link (fire-and-forget)
+	go h.sendAcceptedEmail(context.WithoutCancel(r.Context()), student, rawToken)
 
 	writeJSON(w, http.StatusOK, dtos.StudentToResponse(student))
 }
@@ -331,8 +343,9 @@ func (h *StudentHandler) sendApplicationEmail(ctx context.Context, student *aggr
 }
 
 // sendAcceptedEmail sends the welcome/acceptance email with onboarding URL.
-func (h *StudentHandler) sendAcceptedEmail(ctx context.Context, student *aggregate.Student) {
+func (h *StudentHandler) sendAcceptedEmail(ctx context.Context, student *aggregate.Student, rawToken string) {
 	studentName := fmt.Sprintf("%s %s", student.FirstName, student.LastName)
+	onboardingURL := fmt.Sprintf("%s/onboarding?token=%s", h.frontendURL, rawToken)
 	_, err := h.emailSender.Send(ctx, emailDtos.SendEmailRequest{
 		From:    h.fromEmail,
 		To:      []string{student.EmailAddress},
@@ -341,7 +354,7 @@ func (h *StudentHandler) sendAcceptedEmail(ctx context.Context, student *aggrega
 			ID: templates.TemplateID_Welcome,
 			Variables: map[string]any{
 				"STUDENT_NAME":   studentName,
-				"ONBOARDING_URL": h.frontendURL,
+				"ONBOARDING_URL": onboardingURL,
 				"CONTACT_EMAIL":  h.fromEmail,
 			},
 		},

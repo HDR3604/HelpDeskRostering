@@ -95,6 +95,7 @@ func (s *AuthE2ETestSuite) SetupSuite() {
 		3600,                    // accessTokenTTL
 		86400,                   // refreshTokenTTL
 		86400,                   // verificationTokenTTL
+		604800,                  // onboardingTokenTTL
 		"http://localhost:3000", // frontendURL
 		"noreply@test.com",      // fromEmail
 	)

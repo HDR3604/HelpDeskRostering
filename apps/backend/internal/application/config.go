@@ -17,6 +17,7 @@ type Config struct {
 	RefreshTokenTTL      int // seconds
 	VerificationTokenTTL int // seconds
 	RateLimitRPM         int // requests per minute per IP
+	OnboardingTokenTTL   int // seconds
 	FrontendURL          string
 	FromEmail            string
 	EncryptionKey        string
@@ -87,6 +88,13 @@ func LoadConfig() (Config, error) {
 			return Config{}, fmt.Errorf("RATE_LIMIT_RPM must be positive, got %d", parsed)
 		}
 		cfg.RateLimitRPM = parsed
+	}
+
+	cfg.OnboardingTokenTTL = 604800 // 7 days
+	if v := os.Getenv("ONBOARDING_TOKEN_TTL"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			cfg.OnboardingTokenTTL = parsed
+		}
 	}
 
 	cfg.FrontendURL = os.Getenv("FRONTEND_URL")

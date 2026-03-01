@@ -37,12 +37,16 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 	stmt := table.Users.INSERT(
 		table.Users.UserID,
 		table.Users.EmailAddress,
+		table.Users.FirstName,
+		table.Users.LastName,
 		table.Users.Password,
 		table.Users.Role,
 		table.Users.IsActive,
 	).VALUES(
 		userModel.UserID,
 		userModel.EmailAddress,
+		userModel.FirstName,
+		userModel.LastName,
 		userModel.Password,
 		userModel.Role,
 		userModel.IsActive,

@@ -13,6 +13,7 @@ type AuthTokenType = string
 const (
 	AuthTokenType_EmailVerification AuthTokenType = "email_verification"
 	AuthTokenType_PasswordReset     AuthTokenType = "password_reset"
+	AuthTokenType_Onboarding        AuthTokenType = "onboarding"
 )
 
 type AuthToken struct {

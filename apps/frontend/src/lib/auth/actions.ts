@@ -18,6 +18,20 @@ export async function loginUser(
     return payload
 }
 
+export async function completeOnboarding(
+    token: string,
+    password: string,
+): Promise<JwtPayload> {
+    const { data } = await authHttpClient.post<AuthTokenResponse>(
+        '/auth/complete-onboarding',
+        { token, password },
+    )
+    setTokens(data.access_token, data.refresh_token, true)
+    const payload = decodeToken(data.access_token)
+    if (!payload) throw new Error('Invalid token received from server')
+    return payload
+}
+
 export async function logoutUser(): Promise<void> {
     const refreshToken = getRefreshToken()
     if (refreshToken) {

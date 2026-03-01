@@ -54,9 +54,10 @@ func (s *AuthServiceTestSuite) SetupTest() {
 		s.authTokenRepo,
 		s.emailSender,
 		[]byte("test-secret-key-that-is-at-least-32-bytes!"),
-		3600,  // accessTokenTTL
-		86400, // refreshTokenTTL
-		86400, // verificationTokenTTL
+		3600,   // accessTokenTTL
+		86400,  // refreshTokenTTL
+		86400,  // verificationTokenTTL
+		604800, // onboardingTokenTTL
 		"http://localhost:3000",
 		"noreply@test.com",
 	)

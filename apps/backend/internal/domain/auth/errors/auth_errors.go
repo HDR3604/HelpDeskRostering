@@ -24,4 +24,8 @@ var (
 	ErrPasswordResetTokenInvalid = errors.New("invalid password reset token")
 	ErrPasswordResetTokenExpired = errors.New("password reset token has expired")
 	ErrPasswordResetTokenUsed    = errors.New("password reset token has already been used")
+
+	ErrOnboardingTokenInvalid = errors.New("invalid onboarding token")
+	ErrOnboardingTokenExpired = errors.New("onboarding token has expired")
+	ErrOnboardingTokenUsed    = errors.New("onboarding token has already been used")
 )

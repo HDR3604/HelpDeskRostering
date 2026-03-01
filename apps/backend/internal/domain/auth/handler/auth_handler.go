@@ -39,6 +39,7 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 		r.Post("/resend-verification", h.ResendVerification)
 		r.Post("/forgot-password", h.ForgotPassword)
 		r.Post("/reset-password", h.ResetPassword)
+		r.Post("/complete-onboarding", h.CompleteOnboarding)
 	})
 }
 
@@ -219,6 +220,32 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.MessageResponse{Message: "password has been reset successfully"})
 }
 
+func (h *AuthHandler) CompleteOnboarding(w http.ResponseWriter, r *http.Request) {
+	var req dtos.CompleteOnboardingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Token == "" || req.Password == "" {
+		writeError(w, http.StatusBadRequest, "token and password are required")
+		return
+	}
+
+	accessToken, refreshToken, err := h.service.CompleteOnboarding(r.Context(), req.Token, req.Password)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.AuthTokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    h.accessTokenTTL,
+	})
+}
+
 func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	ac, ok := database.GetAuthContextFromContext(r.Context())
 	if !ok {
@@ -274,6 +301,12 @@ func (h *AuthHandler) handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, authErrors.ErrPasswordResetTokenExpired):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, authErrors.ErrPasswordResetTokenUsed):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, authErrors.ErrOnboardingTokenInvalid):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, authErrors.ErrOnboardingTokenExpired):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, authErrors.ErrOnboardingTokenUsed):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, authErrors.ErrEmailAlreadyVerified):
 		writeError(w, http.StatusConflict, err.Error())
