@@ -21,7 +21,11 @@ interface StepAvailabilityProps {
     onBack: () => void
 }
 
-export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabilityProps) {
+export function StepAvailability({
+    defaultValues,
+    onNext,
+    onBack,
+}: StepAvailabilityProps) {
     const [selected, setSelected] = useState<Availability>(() => {
         const init: Availability = {}
         for (let d = 0; d < 5; d++) {
@@ -39,8 +43,9 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
     const [activeCell, setActiveCell] = useState<[number, number]>([0, 0])
 
     const isSelected = useCallback(
-        (day: number, hour: number) => selected[String(day)]?.includes(hour) ?? false,
-        [selected]
+        (day: number, hour: number) =>
+            selected[String(day)]?.includes(hour) ?? false,
+        [selected],
     )
 
     const toggleSlot = useCallback((day: number, hour: number) => {
@@ -65,16 +70,22 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
                 const daySlots = prev[key] ?? []
                 const has = daySlots.includes(hour)
                 if (mode === 'add' && !has) {
-                    return { ...prev, [key]: [...daySlots, hour].sort((a, b) => a - b) }
+                    return {
+                        ...prev,
+                        [key]: [...daySlots, hour].sort((a, b) => a - b),
+                    }
                 }
                 if (mode === 'remove' && has) {
-                    return { ...prev, [key]: daySlots.filter((h) => h !== hour) }
+                    return {
+                        ...prev,
+                        [key]: daySlots.filter((h) => h !== hour),
+                    }
                 }
                 return prev
             })
             setValidationError('')
         },
-        []
+        [],
     )
 
     function handleMouseDown(day: number, hour: number) {
@@ -94,7 +105,9 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
     }
 
     // Touch support
-    function getCellFromTouch(e: React.TouchEvent): { day: number; hour: number } | null {
+    function getCellFromTouch(
+        e: React.TouchEvent,
+    ): { day: number; hour: number } | null {
         const touch = e.touches[0]
         if (!touch) return null
         const el = document.elementFromPoint(touch.clientX, touch.clientY)
@@ -162,12 +175,16 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
         setActiveCell([clampedDay, clampedHour])
         const hour = HOURS[clampedHour]
         const cell = gridRef.current?.querySelector(
-            `[data-day="${clampedDay}"][data-hour="${hour}"]`
+            `[data-day="${clampedDay}"][data-hour="${hour}"]`,
         ) as HTMLElement | null
         cell?.focus()
     }
 
-    function handleCellKeyDown(e: React.KeyboardEvent, day: number, hour: number) {
+    function handleCellKeyDown(
+        e: React.KeyboardEvent,
+        day: number,
+        hour: number,
+    ) {
         const hourIndex = HOURS.indexOf(hour as (typeof HOURS)[number])
 
         switch (e.key) {
@@ -194,10 +211,17 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
         }
     }
 
-    const totalSelected = Object.values(selected).reduce((sum, s) => sum + s.length, 0)
+    const totalSelected = Object.values(selected).reduce(
+        (sum, s) => sum + s.length,
+        0,
+    )
 
     return (
-        <div className="space-y-5" onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}>
+        <div
+            className="space-y-5"
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+        >
             {/* Grid */}
             <div
                 ref={gridRef}
@@ -209,11 +233,16 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
                 onTouchEnd={handleTouchEnd}
             >
                 {/* Day headers */}
-                <div className="grid grid-cols-[56px_repeat(5,1fr)] gap-1 mb-1" role="row">
+                <div
+                    className="grid grid-cols-[56px_repeat(5,1fr)] gap-1 mb-1"
+                    role="row"
+                >
                     <div role="columnheader" />
                     {DAYS.map((day, i) => {
                         const daySlots = selected[String(i)] ?? []
-                        const allSelected = HOURS.every((h) => daySlots.includes(h))
+                        const allSelected = HOURS.every((h) =>
+                            daySlots.includes(h),
+                        )
                         return (
                             <button
                                 key={day}
@@ -224,13 +253,19 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
                                     'rounded-md py-2 text-center text-xs font-medium transition-colors outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]',
                                     allSelected
                                         ? 'bg-primary/15 text-primary'
-                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
                                 )}
                                 onClick={() => toggleDay(i)}
-                                title={allSelected ? `Clear ${day}` : `Select all ${day}`}
+                                title={
+                                    allSelected
+                                        ? `Clear ${day}`
+                                        : `Select all ${day}`
+                                }
                             >
                                 <span className="hidden sm:inline">{day}</span>
-                                <span className="sm:hidden">{DAYS_SHORT[i]}</span>
+                                <span className="sm:hidden">
+                                    {DAYS_SHORT[i]}
+                                </span>
                             </button>
                         )
                     })}
@@ -239,13 +274,22 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
                 {/* Time rows */}
                 <div className="grid gap-1">
                     {HOURS.map((hour, hourIndex) => (
-                        <div key={hour} className="grid grid-cols-[56px_repeat(5,1fr)] gap-1" role="row">
-                            <div className="flex items-center justify-end pr-2 text-[11px] text-muted-foreground font-mono" role="rowheader">
+                        <div
+                            key={hour}
+                            className="grid grid-cols-[56px_repeat(5,1fr)] gap-1"
+                            role="row"
+                        >
+                            <div
+                                className="flex items-center justify-end pr-2 text-[11px] text-muted-foreground font-mono"
+                                role="rowheader"
+                            >
                                 {formatHour(hour)}
                             </div>
                             {DAYS.map((_, dayIndex) => {
                                 const active = isSelected(dayIndex, hour)
-                                const isActiveCell = activeCell[0] === dayIndex && activeCell[1] === hourIndex
+                                const isActiveCell =
+                                    activeCell[0] === dayIndex &&
+                                    activeCell[1] === hourIndex
                                 return (
                                     <div
                                         key={`${dayIndex}-${hour}`}
@@ -256,15 +300,21 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
                                             'h-8 rounded-md cursor-pointer transition-colors duration-100 outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                                             active
                                                 ? 'bg-primary hover:bg-primary/90'
-                                                : 'bg-muted/40 hover:bg-muted/70'
+                                                : 'bg-muted/40 hover:bg-muted/70',
                                         )}
                                         onMouseDown={(e) => {
                                             e.preventDefault()
                                             handleMouseDown(dayIndex, hour)
                                         }}
-                                        onMouseEnter={() => handleMouseEnter(dayIndex, hour)}
-                                        onFocus={() => setActiveCell([dayIndex, hourIndex])}
-                                        onKeyDown={(e) => handleCellKeyDown(e, dayIndex, hour)}
+                                        onMouseEnter={() =>
+                                            handleMouseEnter(dayIndex, hour)
+                                        }
+                                        onFocus={() =>
+                                            setActiveCell([dayIndex, hourIndex])
+                                        }
+                                        onKeyDown={(e) =>
+                                            handleCellKeyDown(e, dayIndex, hour)
+                                        }
                                         role="gridcell"
                                         aria-checked={active}
                                         aria-label={`${DAYS[dayIndex]} ${formatHour(hour)}`}
@@ -279,14 +329,23 @@ export function StepAvailability({ defaultValues, onNext, onBack }: StepAvailabi
             {/* Summary + Error + Clear */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                    {totalSelected} hour{totalSelected !== 1 ? 's' : ''} selected
+                    {totalSelected} hour{totalSelected !== 1 ? 's' : ''}{' '}
+                    selected
                 </p>
                 <div className="flex items-center gap-3">
                     {validationError && (
-                        <p className="text-destructive text-sm">{validationError}</p>
+                        <p className="text-destructive text-sm">
+                            {validationError}
+                        </p>
                     )}
                     {totalSelected > 0 && (
-                        <Button type="button" variant="ghost" size="sm" onClick={clearAll} className="text-muted-foreground">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearAll}
+                            className="text-muted-foreground"
+                        >
                             <RotateCcw className="size-3.5 mr-1" />
                             Clear
                         </Button>

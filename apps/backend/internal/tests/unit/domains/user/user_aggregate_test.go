@@ -355,4 +355,3 @@ func TestValidRoles(t *testing.T) {
 		}
 	}
 }
-

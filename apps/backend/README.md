@@ -97,6 +97,17 @@ Base URL: `http://localhost:8080/api/v1`
 | `PUT` | `/scheduler-configs/{id}` | Update a config |
 | `PATCH` | `/scheduler-configs/{id}/set-default` | Set config as default |
 
+
+### Users
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/users` | Create a user |
+| `GET` | `/users` | List all users |
+| `GET` | `/users/{id}` | Get user by ID |
+| `PUT` | `/users/{id}` | Update a user |
+| `DELETE` | `/users/{id}` | Deactivate a user |
+
 ### Health
 
 | Method | Path | Description |

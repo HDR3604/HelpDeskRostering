@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
-	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
 	"github.com/resend/resend-go/v2"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"

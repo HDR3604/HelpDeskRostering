@@ -55,19 +55,19 @@ func (s *SchedulerConfigHandlerTestSuite) doRequest(method, path string, body st
 func (s *SchedulerConfigHandlerTestSuite) sampleSchedulerConfig() *aggregate.SchedulerConfig {
 	solverTimeLimit := int32(300)
 	return &aggregate.SchedulerConfig{
-		ID:                    uuid.MustParse("11111111-1111-1111-1111-111111111111"),
-		Name:                  "Default Config",
+		ID:                     uuid.MustParse("11111111-1111-1111-1111-111111111111"),
+		Name:                   "Default Config",
 		CourseShortfallPenalty: 1.0,
-		MinHoursPenalty:       10.0,
-		MaxHoursPenalty:       5.0,
-		UnderstaffedPenalty:   100.0,
-		ExtraHoursPenalty:     5.0,
-		MaxExtraPenalty:       20.0,
-		BaselineHoursTarget:   6,
-		SolverTimeLimit:       &solverTimeLimit,
-		LogSolverOutput:       false,
-		IsDefault:             false,
-		CreatedAt:             time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		MinHoursPenalty:        10.0,
+		MaxHoursPenalty:        5.0,
+		UnderstaffedPenalty:    100.0,
+		ExtraHoursPenalty:      5.0,
+		MaxExtraPenalty:        20.0,
+		BaselineHoursTarget:    6,
+		SolverTimeLimit:        &solverTimeLimit,
+		LogSolverOutput:        false,
+		IsDefault:              false,
+		CreatedAt:              time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 }
 

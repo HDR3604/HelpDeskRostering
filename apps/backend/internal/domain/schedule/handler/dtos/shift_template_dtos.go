@@ -15,8 +15,8 @@ type CourseDemandDTO struct {
 type CreateShiftTemplateRequest struct {
 	Name          string            `json:"name"`
 	DayOfWeek     int32             `json:"day_of_week"`
-	StartTime     string            `json:"start_time"`  // "HH:MM"
-	EndTime       string            `json:"end_time"`    // "HH:MM"
+	StartTime     string            `json:"start_time"` // "HH:MM"
+	EndTime       string            `json:"end_time"`   // "HH:MM"
 	MinStaff      int32             `json:"min_staff"`
 	MaxStaff      *int32            `json:"max_staff,omitempty"`
 	CourseDemands []CourseDemandDTO `json:"course_demands"`
@@ -29,8 +29,8 @@ type BulkCreateShiftTemplatesRequest struct {
 type UpdateShiftTemplateRequest struct {
 	Name          string            `json:"name"`
 	DayOfWeek     int32             `json:"day_of_week"`
-	StartTime     string            `json:"start_time"`  // "HH:MM"
-	EndTime       string            `json:"end_time"`    // "HH:MM"
+	StartTime     string            `json:"start_time"` // "HH:MM"
+	EndTime       string            `json:"end_time"`   // "HH:MM"
 	MinStaff      int32             `json:"min_staff"`
 	MaxStaff      *int32            `json:"max_staff,omitempty"`
 	CourseDemands []CourseDemandDTO `json:"course_demands"`

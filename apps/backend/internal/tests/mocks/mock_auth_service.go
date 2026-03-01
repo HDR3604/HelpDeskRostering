@@ -8,12 +8,12 @@ import (
 )
 
 type MockAuthService struct {
-	LoginFn              func(ctx context.Context, email, password string) (string, string, error)
-	RefreshFn            func(ctx context.Context, rawRefreshToken string) (string, string, error)
-	LogoutFn             func(ctx context.Context, rawRefreshToken string) error
-	RegisterFn           func(ctx context.Context, email, password, role string) (*userAggregate.User, error)
-	ChangePasswordFn     func(ctx context.Context, userID, currentPassword, newPassword string) error
-	VerifyEmailFn        func(ctx context.Context, rawToken string) error
+	LoginFn               func(ctx context.Context, email, password string) (string, string, error)
+	RefreshFn             func(ctx context.Context, rawRefreshToken string) (string, string, error)
+	LogoutFn              func(ctx context.Context, rawRefreshToken string) error
+	RegisterFn            func(ctx context.Context, email, password, role string) (*userAggregate.User, error)
+	ChangePasswordFn      func(ctx context.Context, userID, currentPassword, newPassword string) error
+	VerifyEmailFn         func(ctx context.Context, rawToken string) error
 	ResendVerificationFn  func(ctx context.Context, email string) error
 	ForgotPasswordFn      func(ctx context.Context, email string) error
 	ResetPasswordFn       func(ctx context.Context, rawToken, newPassword string) error

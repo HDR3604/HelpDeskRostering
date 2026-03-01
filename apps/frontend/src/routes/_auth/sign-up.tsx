@@ -64,7 +64,10 @@ function SignUpPage() {
     const [contactData, setContactData] = useState<ContactData | null>(null)
     const [isEmailVerified, setIsEmailVerified] = useState(false)
     const [isSendingVerification, setIsSendingVerification] = useState(false)
-    const [availability, setAvailability] = useState<Record<string, number[]> | null>(null)
+    const [availability, setAvailability] = useState<Record<
+        string,
+        number[]
+    > | null>(null)
 
     const currentStep = STEPS[step]
     const showChrome = step < STEPS.length
@@ -122,7 +125,9 @@ function SignUpPage() {
     useEffect(() => {
         if (step !== 3 || isEmailVerified || !contactData) return
         const interval = setInterval(async () => {
-            const verified = await mockCheckVerificationStatus(contactData.email)
+            const verified = await mockCheckVerificationStatus(
+                contactData.email,
+            )
             if (verified) setIsEmailVerified(true)
         }, 2_000)
         return () => clearInterval(interval)
@@ -179,8 +184,12 @@ function SignUpPage() {
                                 <GraduationCap className="size-5" />
                             </div>
                             <div className="flex flex-col leading-none">
-                                <span className="text-lg font-semibold">HelpDesk</span>
-                                <span className="text-xs text-muted-foreground">Rostering</span>
+                                <span className="text-lg font-semibold">
+                                    HelpDesk
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    Rostering
+                                </span>
                             </div>
                         </div>
 
@@ -191,7 +200,9 @@ function SignUpPage() {
                                     <div
                                         key={i}
                                         className={`h-1.5 flex-1 rounded-full transition-colors ${
-                                            i <= step ? 'bg-primary' : 'bg-muted'
+                                            i <= step
+                                                ? 'bg-primary'
+                                                : 'bg-muted'
                                         }`}
                                     />
                                 ))}
@@ -257,18 +268,22 @@ function SignUpPage() {
                     />
                 )}
 
-                {step === 5 && verifyData && contactData && availability && transcript && (
-                    <StepReview
-                        verify={verifyData}
-                        contact={contactData}
-                        availability={availability}
-                        transcriptName={transcript.name}
-                        onGoToStep={setStep}
-                        onBack={() => setStep(4)}
-                        onSubmit={handleSubmit}
-                        isSubmitting={isSubmitting}
-                    />
-                )}
+                {step === 5 &&
+                    verifyData &&
+                    contactData &&
+                    availability &&
+                    transcript && (
+                        <StepReview
+                            verify={verifyData}
+                            contact={contactData}
+                            availability={availability}
+                            transcriptName={transcript.name}
+                            onGoToStep={setStep}
+                            onBack={() => setStep(4)}
+                            onSubmit={handleSubmit}
+                            isSubmitting={isSubmitting}
+                        />
+                    )}
 
                 {step === 6 && <SubmissionSuccess />}
             </div>

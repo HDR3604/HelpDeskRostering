@@ -11,7 +11,9 @@ export async function mockSendVerificationEmail(email: string): Promise<void> {
     console.log(`[mock] Verification email sent to ${email}`)
 }
 
-export async function mockCheckVerificationStatus(email: string): Promise<boolean> {
+export async function mockCheckVerificationStatus(
+    email: string,
+): Promise<boolean> {
     const timestamp = sentAt.get(email)
     if (!timestamp) return false
     return Date.now() - timestamp >= VERIFY_DELAY_MS

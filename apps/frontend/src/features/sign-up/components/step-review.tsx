@@ -9,7 +9,10 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { ArrowLeft, Loader2, Send } from 'lucide-react'
-import type { VerifyData, ContactData } from '@/features/sign-up/lib/sign-up-schemas'
+import type {
+    VerifyData,
+    ContactData,
+} from '@/features/sign-up/lib/sign-up-schemas'
 import { AvailabilitySummary } from './availability-summary'
 
 interface StepReviewProps {
@@ -38,7 +41,9 @@ export function StepReview({
             {/* Personal & Contact */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-base">Personal Information</h3>
+                    <h3 className="font-semibold text-base">
+                        Personal Information
+                    </h3>
                     <Button
                         type="button"
                         variant="ghost"
@@ -52,23 +57,31 @@ export function StepReview({
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                     <div>
-                        <span className="text-muted-foreground">Student ID</span>
+                        <span className="text-muted-foreground">
+                            Student ID
+                        </span>
                         <p className="font-medium">{verify.studentId}</p>
                     </div>
                     <div>
                         <span className="text-muted-foreground">Name</span>
-                        <p className="font-medium">{verify.firstName} {verify.lastName}</p>
+                        <p className="font-medium">
+                            {verify.firstName} {verify.lastName}
+                        </p>
                     </div>
                     <div>
                         <span className="text-muted-foreground">Email</span>
                         <p className="font-medium">{contact.email}</p>
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Phone Number</span>
+                        <span className="text-muted-foreground">
+                            Phone Number
+                        </span>
                         <p className="font-medium">{contact.phoneNumber}</p>
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Transcript</span>
+                        <span className="text-muted-foreground">
+                            Transcript
+                        </span>
                         <p className="font-medium">{transcriptName}</p>
                     </div>
                 </div>
@@ -77,7 +90,9 @@ export function StepReview({
             {/* Academic */}
             <section className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-base">Academic Information</h3>
+                    <h3 className="font-semibold text-base">
+                        Academic Information
+                    </h3>
                     <Button
                         type="button"
                         variant="ghost"
@@ -91,19 +106,27 @@ export function StepReview({
                 <Separator />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                     <div>
-                        <span className="text-muted-foreground">Degree Programme</span>
+                        <span className="text-muted-foreground">
+                            Degree Programme
+                        </span>
                         <p className="font-medium">{verify.degreeProgramme}</p>
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Current Year</span>
+                        <span className="text-muted-foreground">
+                            Current Year
+                        </span>
                         <p className="font-medium">{verify.currentYear}</p>
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Overall GPA</span>
+                        <span className="text-muted-foreground">
+                            Overall GPA
+                        </span>
                         <p className="font-medium">{verify.overallGpa}</p>
                     </div>
                     <div>
-                        <span className="text-muted-foreground">Degree GPA</span>
+                        <span className="text-muted-foreground">
+                            Degree GPA
+                        </span>
                         <p className="font-medium">{verify.degreeGpa}</p>
                     </div>
                 </div>
@@ -113,9 +136,13 @@ export function StepReview({
                         <TableHeader>
                             <TableRow className="bg-muted/50">
                                 <TableHead className="w-12">#</TableHead>
-                                <TableHead className="w-[120px]">Code</TableHead>
+                                <TableHead className="w-[120px]">
+                                    Code
+                                </TableHead>
                                 <TableHead>Name</TableHead>
-                                <TableHead className="w-[70px]">Grade</TableHead>
+                                <TableHead className="w-[70px]">
+                                    Grade
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                     </Table>
@@ -127,9 +154,15 @@ export function StepReview({
                                         <TableCell className="w-12 text-muted-foreground font-mono text-xs">
                                             {i + 1}
                                         </TableCell>
-                                        <TableCell className="w-[120px] font-medium">{course.courseCode}</TableCell>
-                                        <TableCell className="text-muted-foreground">{course.courseName}</TableCell>
-                                        <TableCell className="w-[70px]">{course.grade}</TableCell>
+                                        <TableCell className="w-[120px] font-medium">
+                                            {course.courseCode}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {course.courseName}
+                                        </TableCell>
+                                        <TableCell className="w-[70px]">
+                                            {course.grade}
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -164,7 +197,11 @@ export function StepReview({
                     Back
                 </Button>
                 <div className="flex-1" />
-                <Button type="button" onClick={onSubmit} disabled={isSubmitting}>
+                <Button
+                    type="button"
+                    onClick={onSubmit}
+                    disabled={isSubmitting}
+                >
                     {isSubmitting ? (
                         <>
                             <Loader2 className="size-4 animate-spin" />

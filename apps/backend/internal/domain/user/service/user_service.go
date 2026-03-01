@@ -19,6 +19,17 @@ type UserService struct {
 	repository repository.UserRepositoryInterface
 }
 
+type UserServiceInterface interface {
+	Create(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error)
+	GetByID(ctx context.Context, userID string) (*aggregate.User, error)
+	GetByEmail(ctx context.Context, email string) (*aggregate.User, error)
+	Update(ctx context.Context, userID string, input UpdateUserInput) error
+	DeactivateByEmailDomain(ctx context.Context, emailDomain aggregate.EmailDomain) error
+	List(ctx context.Context) ([]*aggregate.User, error)
+	ListByRole(ctx context.Context, role string) ([]*aggregate.User, error)
+	ListActive(ctx context.Context) ([]*aggregate.User, error)
+}
+
 type UpdateUserInput struct {
 	Email    *string
 	Role     *aggregate.Role
@@ -35,6 +46,15 @@ func NewUserService(
 		txManager:  txManager,
 		repository: repository,
 	}
+}
+
+func (s *UserService) authCtx(ctx context.Context) (database.AuthContext, error) {
+	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	if !ok {
+		s.logger.Error("missing auth context in request")
+		return database.AuthContext{}, userErrors.ErrMissingAuthContext
+	}
+	return authCtx, nil
 }
 
 func (s *UserService) HashPassword(password string) (string, error) {
@@ -82,8 +102,13 @@ func (s *UserService) Create(ctx context.Context, email, password string, role a
 func (s *UserService) GetByID(ctx context.Context, userID string) (*aggregate.User, error) {
 	s.logger.Debug("getting user by ID", zap.String("userID", userID))
 
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var result *aggregate.User
-	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repository.GetByID(ctx, tx, userID)
 		return txErr
@@ -171,8 +196,13 @@ func (s *UserService) DeactivateByEmailDomain(ctx context.Context, emailDomain a
 func (s *UserService) List(ctx context.Context) ([]*aggregate.User, error) {
 	s.logger.Debug("listing users")
 
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var result []*aggregate.User
-	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repository.List(ctx, tx)
 		return txErr
@@ -189,8 +219,13 @@ func (s *UserService) List(ctx context.Context) ([]*aggregate.User, error) {
 func (s *UserService) ListByRole(ctx context.Context, role string) ([]*aggregate.User, error) {
 	s.logger.Debug("listing users by role", zap.String("role", role))
 
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var result []*aggregate.User
-	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repository.ListByRole(ctx, tx, role)
 		return txErr
@@ -207,8 +242,13 @@ func (s *UserService) ListByRole(ctx context.Context, role string) ([]*aggregate
 func (s *UserService) ListActive(ctx context.Context) ([]*aggregate.User, error) {
 	s.logger.Debug("listing active users")
 
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var result []*aggregate.User
-	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repository.ListActive(ctx, tx)
 		return txErr

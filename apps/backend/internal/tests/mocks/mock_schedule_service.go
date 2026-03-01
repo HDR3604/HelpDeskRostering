@@ -13,13 +13,13 @@ var _ service.ScheduleServiceInterface = (*MockScheduleService)(nil)
 // MockScheduleService provides function-based mocking for the schedule service.
 // Set the Fn fields to control return values per test case.
 type MockScheduleService struct {
-	CreateFn       func(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
-	GetByIDFn      func(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error)
-	ListArchivedFn func(ctx context.Context) ([]*aggregate.Schedule, error)
-	ListFn         func(ctx context.Context) ([]*aggregate.Schedule, error)
-	ArchiveFn      func(ctx context.Context, id uuid.UUID) error
-	UnarchiveFn    func(ctx context.Context, id uuid.UUID) error
-	ActivateFn     func(ctx context.Context, id uuid.UUID) error
+	CreateFn           func(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
+	GetByIDFn          func(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error)
+	ListArchivedFn     func(ctx context.Context) ([]*aggregate.Schedule, error)
+	ListFn             func(ctx context.Context) ([]*aggregate.Schedule, error)
+	ArchiveFn          func(ctx context.Context, id uuid.UUID) error
+	UnarchiveFn        func(ctx context.Context, id uuid.UUID) error
+	ActivateFn         func(ctx context.Context, id uuid.UUID) error
 	DeactivateFn       func(ctx context.Context, id uuid.UUID) error
 	GenerateScheduleFn func(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error)
 }
