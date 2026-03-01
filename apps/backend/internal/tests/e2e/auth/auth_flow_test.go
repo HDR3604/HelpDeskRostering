@@ -210,7 +210,7 @@ func (s *AuthE2ETestSuite) registerAndVerify(email, password, role string) authD
 	s.T().Helper()
 
 	// Register
-	registerBody := `{"email":"` + email + `","password":"` + password + `","role":"` + role + `"}`
+	registerBody := `{"first_name":"Test","last_name":"User","email":"` + email + `","password":"` + password + `","role":"` + role + `"}`
 	rr := s.doRequest(http.MethodPost, "/api/v1/auth/register", registerBody, "")
 	s.Require().Equal(http.StatusCreated, rr.Code, "register failed: %s", rr.Body.String())
 
@@ -248,7 +248,7 @@ func (s *AuthE2ETestSuite) TestE2E_RegisterVerifyLogin() {
 	role := "admin"
 
 	// 1. Register
-	registerBody := `{"email":"` + email + `","password":"` + password + `","role":"` + role + `"}`
+	registerBody := `{"first_name":"Test","last_name":"User","email":"` + email + `","password":"` + password + `","role":"` + role + `"}`
 	rr := s.doRequest(http.MethodPost, "/api/v1/auth/register", registerBody, "")
 	s.Require().Equal(http.StatusCreated, rr.Code, "expected 201, got %d: %s", rr.Code, rr.Body.String())
 
@@ -303,7 +303,7 @@ func (s *AuthE2ETestSuite) TestE2E_ResendVerification() {
 	password := "StrongP@ss1"
 
 	// 1. Register (captures first email)
-	registerBody := `{"email":"` + email + `","password":"` + password + `","role":"admin"}`
+	registerBody := `{"first_name":"Test","last_name":"User","email":"` + email + `","password":"` + password + `","role":"admin"}`
 	rr := s.doRequest(http.MethodPost, "/api/v1/auth/register", registerBody, "")
 	s.Require().Equal(http.StatusCreated, rr.Code)
 
@@ -444,7 +444,7 @@ func (s *AuthE2ETestSuite) TestE2E_DuplicateRegistration() {
 	password := "StrongP@ss1"
 
 	// 1. First registration -> 201
-	registerBody := `{"email":"` + email + `","password":"` + password + `","role":"admin"}`
+	registerBody := `{"first_name":"Test","last_name":"User","email":"` + email + `","password":"` + password + `","role":"admin"}`
 	rr := s.doRequest(http.MethodPost, "/api/v1/auth/register", registerBody, "")
 	s.Equal(http.StatusCreated, rr.Code, "first register failed: %s", rr.Body.String())
 
