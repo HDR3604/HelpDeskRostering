@@ -1,5 +1,6 @@
 import {
   ACCESS_TOKEN_KEY,
+  AUTH_CHANGE_EVENT,
   REFRESH_TOKEN_KEY,
   STORAGE_PREF_KEY,
 } from "./constants"
@@ -22,6 +23,7 @@ export function setTokens(
   const storage = rememberMe ? localStorage : sessionStorage
   storage.setItem(ACCESS_TOKEN_KEY, accessToken)
   storage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+  window.dispatchEvent(new Event(AUTH_CHANGE_EVENT))
 }
 
 export function getAccessToken(): string | null {

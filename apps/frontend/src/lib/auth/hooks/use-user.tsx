@@ -2,7 +2,11 @@ import * as React from 'react'
 import type { Student } from '@/types/student'
 import { MOCK_STUDENTS } from '@/lib/mock-data'
 import { getTokenPayload } from '../token'
-import { ACCESS_TOKEN_KEY, STORAGE_PREF_KEY } from '../constants'
+import {
+    ACCESS_TOKEN_KEY,
+    AUTH_CHANGE_EVENT,
+    STORAGE_PREF_KEY,
+} from '../constants'
 import type { JwtPayload } from '../types'
 
 // TODO: Remove mock student data once student API is implemented
@@ -39,25 +43,34 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         buildUserValue(getTokenPayload()),
     )
 
-    // Cross-tab sync: when another tab modifies localStorage (login/logout),
-    // re-derive user state or redirect to sign-in if tokens were cleared.
+    // Re-derive user state when tokens change.
+    // "storage" fires cross-tab; AUTH_CHANGE_EVENT fires same-tab.
     React.useEffect(() => {
+        function refresh() {
+            const payload = getTokenPayload()
+            if (!payload) {
+                window.location.href = '/sign-in'
+                return
+            }
+            setValue(buildUserValue(payload))
+        }
+
         function onStorage(e: StorageEvent) {
             if (
                 e.key === ACCESS_TOKEN_KEY ||
                 e.key === STORAGE_PREF_KEY ||
                 e.key === null
             ) {
-                const payload = getTokenPayload()
-                if (!payload) {
-                    window.location.href = '/sign-in'
-                    return
-                }
-                setValue(buildUserValue(payload))
+                refresh()
             }
         }
+
         window.addEventListener('storage', onStorage)
-        return () => window.removeEventListener('storage', onStorage)
+        window.addEventListener(AUTH_CHANGE_EVENT, refresh)
+        return () => {
+            window.removeEventListener('storage', onStorage)
+            window.removeEventListener(AUTH_CHANGE_EVENT, refresh)
+        }
     }, [])
 
     return <UserContext.Provider value={value}>{children}</UserContext.Provider>

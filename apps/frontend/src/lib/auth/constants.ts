@@ -12,3 +12,6 @@ export const TOKEN_EXPIRY_BUFFER_SECONDS = 60
 
 /** URL prefix for auth endpoints (used to skip token refresh on auth requests). */
 export const AUTH_ENDPOINT_PREFIX = "/auth/"
+
+/** Custom event dispatched on same-tab token changes (storage events only fire cross-tab). */
+export const AUTH_CHANGE_EVENT = "auth-change"
