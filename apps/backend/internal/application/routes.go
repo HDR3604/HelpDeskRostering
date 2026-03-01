@@ -46,6 +46,7 @@ func registerRoutes(
 				r.Use(authMiddleware.Permission([]aggregate.Role{aggregate.Role_Admin}))
 
 				scheduleHdl.RegisterAdminRoutes(r)
+				userHdl.RegisterAdminRoutes(r)
 			})
 
 			authHdl.RegisterAuthenticatedRoutes(r)
@@ -53,6 +54,7 @@ func registerRoutes(
 			scheduleGenerationHdl.RegisterRoutes(r)
 			shiftTemplateHdl.RegisterRoutes(r)
 			schedulerConfigHdl.RegisterRoutes(r)
+			userHdl.RegisterRoutes(r)
 		})
 	})
 }

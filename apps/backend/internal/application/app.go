@@ -86,7 +86,6 @@ func NewApp(cfg Config) (*App, error) {
 	userSvc := userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
 	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
 	_ = transcriptsSvc // TODO: inject into domain service when needed
-	//
 
 	authSvc := authService.NewAuthService(
 		logger,

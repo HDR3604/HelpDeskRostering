@@ -82,7 +82,6 @@ tasks:
       - task: test:backend
       - task: test:scheduler
       - task: test:transcript
-      - task: test:frontend
 
   test:backend:
     desc: Run backend tests

@@ -6,8 +6,8 @@ import (
 
 type CreateUserRequest struct {
 	Email    string `json:"email"`
-	Password string `json:"Password"`
-	Role     string `json:"Role"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
 }
 
 type UpdateUserRequest struct {
@@ -17,30 +17,32 @@ type UpdateUserRequest struct {
 }
 
 type UserResponse struct {
-	UserID          string `json:"user_id"`
-	Email           string `json:"email"`
-	Role            string `json:"role"`
-	IsActive        bool   `json:"is_active"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
-	EmailVerifiedAt string `json:"email_verified_at"`
+	UserID          string  `json:"user_id"`
+	Email           string  `json:"email"`
+	Role            string  `json:"role"`
+	IsActive        bool    `json:"is_active"`
+	CreatedAt       string  `json:"created_at"`
+	UpdatedAt       *string `json:"updated_at,omitempty"`
+	EmailVerifiedAt *string `json:"email_verified_at,omitempty"`
 }
 
 func UserToResponse(u *aggregate.User) UserResponse {
 	resp := UserResponse{
-		UserID:    u.ID.String(),
-		Email:     u.Email,
-		Role:      u.ToModel().Role.String(),
-		IsActive:  u.IsActive,
-		CreatedAt: u.CreatedAt.Format("2006-01-02 15:04:02"),
+		UserID:   u.ID.String(),
+		Email:    u.Email,
+		Role:     string(u.Role),
+		IsActive: u.IsActive,
+	}
+	if u.CreatedAt != nil {
+		resp.CreatedAt = u.CreatedAt.Format("2006-01-02 15:04:05")
 	}
 	if u.EmailVerifiedAt != nil {
-		formatted := u.EmailVerifiedAt.Format("2006-01-02 15:04:02")
-		resp.EmailVerifiedAt = formatted
+		formatted := u.EmailVerifiedAt.Format("2006-01-02 15:04:05")
+		resp.EmailVerifiedAt = &formatted
 	}
 	if u.UpdatedAt != nil {
-		formatted := u.UpdatedAt.Format("2006-01-02 15:04:02")
-		resp.UpdatedAt = formatted
+		formatted := u.UpdatedAt.Format("2006-01-02 15:04:05")
+		resp.UpdatedAt = &formatted
 	}
 	return resp
 }
