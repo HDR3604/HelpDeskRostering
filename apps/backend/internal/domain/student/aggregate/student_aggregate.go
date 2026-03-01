@@ -6,12 +6,14 @@ import (
 	"strings"
 	"time"
 
+	studentErrors "github.com/HDR3604/HelpDeskApp/internal/domain/student/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/helpers/validation"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/types"
 )
 
-// TODO: Add rejection email template
+// Availability maps day index ("0"–"4", Mon–Fri) to a slice of hours in 24h format.
+type Availability map[string][]int
 
 type Student struct {
 	StudentID          int32                    `json:"student_id"`
@@ -19,90 +21,172 @@ type Student struct {
 	FirstName          string                   `json:"first_name"`
 	LastName           string                   `json:"last_name"`
 	PhoneNumber        string                   `json:"phone_number"`
-	TranscriptMetadata types.TranscriptMetadata `json:"transcript_metadata"` // transcript metadata contains the relevant extracted information from their provided transcripts. It should follow the below structure: { overall_gpa: float; degree_gpa: float; degree_programme: string; courses: []maps[string]float; current_level: string; }
-	Availability       Availability             `json:"availability"`        // Availability contains a json indicating the availability of a student for each time slot given. The times a represented in 24-hour format. e.g. 8 represents 8 am - 9am { 0: [8...16], . . 4: [8...16] // 24 hr format }
+	TranscriptMetadata types.TranscriptMetadata `json:"transcript_metadata"`
+	Availability       Availability             `json:"availability"`
 	CreatedAt          time.Time                `json:"created_at"`
 	UpdatedAt          *time.Time               `json:"updated_at,omitempty"`
-	DeletedAt          *time.Time               `json:"delete_at,omitempty"`
+	DeletedAt          *time.Time               `json:"deleted_at,omitempty"`
 	AcceptedAt         *time.Time               `json:"accepted_at,omitempty"`
 	RejectedAt         *time.Time               `json:"rejected_at,omitempty"`
-	MinWeeklyHours     float64                  `json:"min_weekly_hours"`           // Minimum hours per week this student should be scheduled (fairness baseline)
-	MaxWeeklyHours     *float64                 `json:"max_weekly_hours,omitempty"` // Maximum hours per week this student can work
+	MinWeeklyHours     float64                  `json:"min_weekly_hours"`
+	MaxWeeklyHours     *float64                 `json:"max_weekly_hours,omitempty"`
 }
 
-type Availability struct {
-}
-
-// Create a student
+// NewStudent creates a new Student from an application submission.
 func NewStudent(emailAddress string, phoneNumber string, transcriptMetadata types.TranscriptMetadata, availability json.RawMessage) (*Student, error) {
-	// Validation
 	emailAddress = strings.TrimSpace(emailAddress)
 	phoneNumber = strings.TrimSpace(phoneNumber)
 
 	if err := validation.ValidateEmail(emailAddress); err != nil {
-
+		return nil, studentErrors.ErrInvalidEmail
 	}
 
 	if err := validation.ValidatePhoneNumber(phoneNumber); err != nil {
-
+		return nil, studentErrors.ErrInvalidPhone
 	}
 
 	if err := validation.ValidateTranscriptMetadata(&transcriptMetadata); err != nil {
-
+		return nil, err
 	}
 
 	if err := validation.ValidateAvailability(availability); err != nil {
-
+		return nil, err
 	}
 
-	var studentAvailability Availability
-	if err := json.Unmarshal(availability, &studentAvailability); err != nil {
-
+	var avail Availability
+	if err := json.Unmarshal(availability, &avail); err != nil {
+		return nil, err
 	}
 
 	studentID, err := strconv.ParseInt(transcriptMetadata.StudentID, 10, 32)
 	if err != nil {
-
+		return nil, studentErrors.ErrInvalidStudentID
 	}
 
-	newStudent := &Student{
-		StudentID:    int32(studentID),
-		EmailAddress: emailAddress,
-		FirstName:    transcriptMetadata.FirstName,
-		LastName:     transcriptMetadata.LastName,
-		PhoneNumber:  phoneNumber,
-		Availability: studentAvailability,
+	return &Student{
+		StudentID:          int32(studentID),
+		EmailAddress:       emailAddress,
+		FirstName:          transcriptMetadata.FirstName,
+		LastName:           transcriptMetadata.LastName,
+		PhoneNumber:        phoneNumber,
+		Availability:       avail,
 		TranscriptMetadata: transcriptMetadata,
-		MinWeeklyHours: 8,
+		MinWeeklyHours:     8,
+	}, nil
+}
+
+func (s *Student) Accept() error {
+	if s.DeletedAt != nil {
+		return studentErrors.ErrDeleted
+	}
+	if s.AcceptedAt != nil {
+		return studentErrors.ErrAlreadyAccepted
+	}
+	now := time.Now()
+	s.AcceptedAt = &now
+	s.RejectedAt = nil
+	s.UpdatedAt = &now
+	return nil
+}
+
+func (s *Student) Reject() error {
+	if s.DeletedAt != nil {
+		return studentErrors.ErrDeleted
+	}
+	if s.RejectedAt != nil {
+		return studentErrors.ErrAlreadyRejected
+	}
+	now := time.Now()
+	s.RejectedAt = &now
+	s.AcceptedAt = nil
+	s.UpdatedAt = &now
+	return nil
+}
+
+func (s *Student) Delete() error {
+	if s.DeletedAt != nil {
+		return studentErrors.ErrDeleted
+	}
+	now := time.Now()
+	s.DeletedAt = &now
+	s.UpdatedAt = &now
+	return nil
+}
+
+func (s *Student) UpdatePhoneNumber(phoneNumber string) error {
+	phoneNumber = strings.TrimSpace(phoneNumber)
+	if err := validation.ValidatePhoneNumber(phoneNumber); err != nil {
+		return studentErrors.ErrInvalidPhone
+	}
+	now := time.Now()
+	s.PhoneNumber = phoneNumber
+	s.UpdatedAt = &now
+	return nil
+}
+
+func (s *Student) UpdateAvailability(availability json.RawMessage) error {
+	if err := validation.ValidateAvailability(availability); err != nil {
+		return err
+	}
+	var avail Availability
+	if err := json.Unmarshal(availability, &avail); err != nil {
+		return err
+	}
+	now := time.Now()
+	s.Availability = avail
+	s.UpdatedAt = &now
+	return nil
+}
+
+// ToModel converts the Student aggregate to the database model.
+func (s *Student) ToModel() *model.Students {
+	transcriptJSON, _ := json.Marshal(s.TranscriptMetadata)
+	availabilityJSON, _ := json.Marshal(s.Availability)
+
+	return &model.Students{
+		StudentID:          s.StudentID,
+		EmailAddress:       s.EmailAddress,
+		FirstName:          s.FirstName,
+		LastName:           s.LastName,
+		PhoneNumber:        s.PhoneNumber,
+		TranscriptMetadata: string(transcriptJSON),
+		Availability:       string(availabilityJSON),
+		CreatedAt:          s.CreatedAt,
+		UpdatedAt:          s.UpdatedAt,
+		DeletedAt:          s.DeletedAt,
+		AcceptedAt:         s.AcceptedAt,
+		RejectedAt:         s.RejectedAt,
+		MinWeeklyHours:     s.MinWeeklyHours,
+		MaxWeeklyHours:     s.MaxWeeklyHours,
+	}
+}
+
+// StudentFromModel converts the database model to a Student aggregate.
+func StudentFromModel(m *model.Students) (*Student, error) {
+	var transcript types.TranscriptMetadata
+	if err := json.Unmarshal([]byte(m.TranscriptMetadata), &transcript); err != nil {
+		return nil, err
 	}
 
-	return newStudent, nil
-}
+	var avail Availability
+	if err := json.Unmarshal([]byte(m.Availability), &avail); err != nil {
+		return nil, err
+	}
 
-func (a *Student) Accept() error {
-	return nil
-}
-
-func (a *Student) Reject() error {
-	return nil
-}
-
-func (a *Student) Delete() error {
-	return nil
-}
-
-func (a *Student) UpdateEmail(email string) error {
-	return nil
-}
-
-func (a *Student) UpdatePhoneNumber(phoneNumber string) error {
-	return nil
-}
-
-func (a *Student) ToModel() *model.Students {
-	return nil
-}
-
-func StudentModelToAggregate() *Student {
-	return nil
+	return &Student{
+		StudentID:          m.StudentID,
+		EmailAddress:       m.EmailAddress,
+		FirstName:          m.FirstName,
+		LastName:           m.LastName,
+		PhoneNumber:        m.PhoneNumber,
+		TranscriptMetadata: transcript,
+		Availability:       avail,
+		CreatedAt:          m.CreatedAt,
+		UpdatedAt:          m.UpdatedAt,
+		DeletedAt:          m.DeletedAt,
+		AcceptedAt:         m.AcceptedAt,
+		RejectedAt:         m.RejectedAt,
+		MinWeeklyHours:     m.MinWeeklyHours,
+		MaxWeeklyHours:     m.MaxWeeklyHours,
+	}, nil
 }

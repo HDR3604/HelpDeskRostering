@@ -100,8 +100,8 @@ func (s *TxManagerTestSuite) TestInSystemTx_SetsInternalRole() {
 func (s *TxManagerTestSuite) TestInAuthTx_RollsBackOnError() {
 	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(s.ctx, `
-			INSERT INTO auth.students (student_id, email_address, first_name, last_name, transcript_metadata, availability)
-			VALUES (88888, 'rollback-auth@test.com', 'Original', 'Name', '{}', '{}')
+			INSERT INTO auth.students (student_id, email_address, first_name, last_name, phone_number, transcript_metadata, availability)
+			VALUES (88888, 'rollback-auth@test.com', 'Original', 'Name', '+18681234567', '{}', '{}')
 		`)
 		return err
 	})
@@ -140,8 +140,8 @@ func (s *TxManagerTestSuite) TestInAuthTx_RollsBackOnError() {
 func (s *TxManagerTestSuite) TestInSystemTx_RollsBackOnError() {
 	txErr := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(s.ctx, `
-			INSERT INTO auth.students (student_id, email_address, first_name, last_name, transcript_metadata, availability)
-			VALUES (99999, 'rollback@test.com', 'Test', 'Rollback', '{}', '{}')
+			INSERT INTO auth.students (student_id, email_address, first_name, last_name, phone_number, transcript_metadata, availability)
+			VALUES (99999, 'rollback@test.com', 'Test', 'Rollback', '+18681234567', '{}', '{}')
 		`)
 		if err != nil {
 			return err

@@ -80,6 +80,7 @@ func NewApp(cfg Config) (*App, error) {
 	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 	bankingDetailsRepository := studentRepo.NewBankingDetailsRepository(logger, cfg.EncryptionKey)
+	studentRepository := studentRepo.NewStudentRepository(logger)
 
 	// Seed default admin (idempotent, skipped if env vars not set)
 	if err := seedDefaultAdmin(context.Background(), cfg, logger, txManager, userRepository); err != nil {
@@ -119,6 +120,7 @@ func NewApp(cfg Config) (*App, error) {
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
 	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository)
+	studentSvc := studentService.NewStudentService(logger, studentRepository, txManager)
 
 	// Handlers
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
@@ -127,7 +129,7 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
-	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc)
+	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc)
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
 
 	// Router

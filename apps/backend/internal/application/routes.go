@@ -39,6 +39,7 @@ func registerRoutes(
 			r.Use(authMiddleware.RateLimit(cfg.RateLimitRPM))
 			authHdl.RegisterRoutes(r)
 			transcriptHdl.RegisterRoutes(r)
+			studentHdl.RegisterPublicRoutes(r)
 		})
 
 		// Protected routes (JWT middleware)
