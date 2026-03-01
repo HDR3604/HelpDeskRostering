@@ -12,7 +12,8 @@ export function SubmissionSuccess() {
                     Thank you for your submission!
                 </h1>
                 <p className="text-muted-foreground leading-relaxed">
-                    Your application has been successfully submitted and is now under review.
+                    Your application has been successfully submitted and is now
+                    under review.
                 </p>
             </div>
 
@@ -21,7 +22,9 @@ export function SubmissionSuccess() {
                 <div className="space-y-1">
                     <p className="text-sm font-medium">Check your inbox</p>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                        We've sent a confirmation email with your application details. You'll receive another email once a decision has been made.
+                        We've sent a confirmation email with your application
+                        details. You'll receive another email once a decision
+                        has been made.
                     </p>
                 </div>
             </div>

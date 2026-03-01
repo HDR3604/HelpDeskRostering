@@ -4,8 +4,10 @@ import { cn } from '@/lib/utils'
 import PhoneInput from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
 
-export interface PhoneInputProps
-    extends Omit<React.ComponentProps<'input'>, 'onChange' | 'value'> {
+export interface PhoneInputProps extends Omit<
+    React.ComponentProps<'input'>,
+    'onChange' | 'value'
+> {
     value?: string
     onChange?: (value: string | undefined) => void
 }
@@ -31,12 +33,12 @@ const PhoneNumberInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
                     '[&_.PhoneInputCountrySelect]:bg-background',
                     '[&_.PhoneInputCountrySelect_option]:text-foreground',
                     '[&_.PhoneInputCountrySelect_option]:bg-background',
-                    className
+                    className,
                 )}
                 {...props}
             />
         )
-    }
+    },
 )
 PhoneNumberInput.displayName = 'PhoneNumberInput'
 

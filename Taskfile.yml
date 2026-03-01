@@ -75,6 +75,47 @@ tasks:
     cmds:
       - docker compose -f {{.COMPOSE_FILE}} logs -f
 
+  # Formatting
+  format:
+    desc: Format all code
+    cmds:
+      - task: format:frontend
+      - task: format:backend
+
+  format:frontend:
+    desc: Format frontend code with Prettier
+    cmds:
+      - pnpm exec prettier --write "apps/frontend/src/**/*.{ts,tsx,css}"
+
+  format:backend:
+    desc: Format backend code with goimports
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - goimports -w .
+
+  format:check:
+    desc: Check formatting (exits non-zero if unformatted)
+    cmds:
+      - task: format:check:frontend
+      - task: format:check:backend
+
+  format:check:frontend:
+    desc: Check frontend formatting
+    cmds:
+      - pnpm exec prettier --check "apps/frontend/src/**/*.{ts,tsx,css}"
+
+  format:check:backend:
+    desc: Check backend formatting
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - cmd: |
+          unformatted=$(goimports -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Unformatted Go files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
   # Testing
   test:
     desc: Run all tests

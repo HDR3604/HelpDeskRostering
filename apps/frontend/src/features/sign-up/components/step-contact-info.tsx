@@ -1,6 +1,9 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { contactSchema, type ContactData } from '@/features/sign-up/lib/sign-up-schemas'
+import {
+    contactSchema,
+    type ContactData,
+} from '@/features/sign-up/lib/sign-up-schemas'
 import {
     Form,
     FormControl,
@@ -21,7 +24,11 @@ interface StepContactInfoProps {
     onBack: () => void
 }
 
-export function StepContactInfo({ defaultValues, onNext, onBack }: StepContactInfoProps) {
+export function StepContactInfo({
+    defaultValues,
+    onNext,
+    onBack,
+}: StepContactInfoProps) {
     const form = useForm<ContactData>({
         resolver: zodResolver(contactSchema),
         defaultValues: {
@@ -37,7 +44,9 @@ export function StepContactInfo({ defaultValues, onNext, onBack }: StepContactIn
                 <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-3 dark:border-blue-900/50 dark:bg-blue-950/20">
                     <Info className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
                     <p className="text-sm text-blue-800 dark:text-blue-300">
-                        This information can&apos;t be extracted from your transcript. We&apos;ll use it to send you shift notifications and updates.
+                        This information can&apos;t be extracted from your
+                        transcript. We&apos;ll use it to send you shift
+                        notifications and updates.
                     </p>
                 </div>
 
@@ -64,7 +73,8 @@ export function StepContactInfo({ defaultValues, onNext, onBack }: StepContactIn
                                     </div>
                                 </FormControl>
                                 <FormDescription>
-                                    Must be your UWI student email ending in @my.uwi.edu
+                                    Must be your UWI student email ending in
+                                    @my.uwi.edu
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>
@@ -90,7 +100,8 @@ export function StepContactInfo({ defaultValues, onNext, onBack }: StepContactIn
                                     />
                                 </FormControl>
                                 <FormDescription>
-                                    Include your country code. Used for urgent shift changes only.
+                                    Include your country code. Used for urgent
+                                    shift changes only.
                                 </FormDescription>
                                 <FormMessage />
                             </FormItem>

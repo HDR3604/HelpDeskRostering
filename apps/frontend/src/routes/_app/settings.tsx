@@ -1,16 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useDocumentTitle } from "@/hooks/use-document-title"
+import { createFileRoute } from '@tanstack/react-router'
+import { useDocumentTitle } from '@/hooks/use-document-title'
 
-export const Route = createFileRoute("/_app/settings")({
-  component: SettingsPage,
+export const Route = createFileRoute('/_app/settings')({
+    component: SettingsPage,
 })
 
 function SettingsPage() {
-  useDocumentTitle("Settings")
-  return (
-    <div className="mx-auto max-w-7xl">
-      <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-      <p className="mt-2 text-muted-foreground">Application settings — coming soon.</p>
-    </div>
-  )
+    useDocumentTitle('Settings')
+    return (
+        <div className="mx-auto max-w-7xl">
+            <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+            <p className="mt-2 text-muted-foreground">
+                Application settings — coming soon.
+            </p>
+        </div>
+    )
 }

@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { verifySchema, type VerifyData } from '@/features/sign-up/lib/sign-up-schemas'
+import {
+    verifySchema,
+    type VerifyData,
+} from '@/features/sign-up/lib/sign-up-schemas'
 import {
     Form,
     FormControl,
@@ -28,7 +31,15 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { ArrowLeft, ArrowRight, Info, Pencil, Plus, Trash2, Check } from 'lucide-react'
+import {
+    ArrowLeft,
+    ArrowRight,
+    Info,
+    Pencil,
+    Plus,
+    Trash2,
+    Check,
+} from 'lucide-react'
 
 interface StepVerifyDetailsProps {
     defaultValues: VerifyData
@@ -54,7 +65,10 @@ function SectionHeader({
                     {title}
                 </h3>
                 {badge !== undefined && badge > 0 && (
-                    <Badge variant="secondary" className="text-[11px] px-1.5 py-0">
+                    <Badge
+                        variant="secondary"
+                        className="text-[11px] px-1.5 py-0"
+                    >
                         {badge}
                     </Badge>
                 )}
@@ -82,7 +96,13 @@ function SectionHeader({
     )
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string | number }) {
+function ReadOnlyField({
+    label,
+    value,
+}: {
+    label: string
+    value: string | number
+}) {
     return (
         <div>
             <span className="text-sm text-muted-foreground">{label}</span>
@@ -91,7 +111,11 @@ function ReadOnlyField({ label, value }: { label: string; value: string | number
     )
 }
 
-export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyDetailsProps) {
+export function StepVerifyDetails({
+    defaultValues,
+    onNext,
+    onBack,
+}: StepVerifyDetailsProps) {
     const [editingPersonal, setEditingPersonal] = useState(false)
     const [editingAcademic, setEditingAcademic] = useState(false)
     const [editingCourses, setEditingCourses] = useState(false)
@@ -115,7 +139,9 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                 <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50/50 px-4 py-3 dark:border-blue-900/50 dark:bg-blue-950/20">
                     <Info className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
                     <p className="text-sm text-blue-800 dark:text-blue-300">
-                        These details were extracted from your transcript. Review them below and click Edit if anything needs correcting.
+                        These details were extracted from your transcript.
+                        Review them below and click Edit if anything needs
+                        correcting.
                     </p>
                 </div>
 
@@ -135,7 +161,11 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                     <FormItem>
                                         <FormLabel>Student ID</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="816012345" maxLength={9} {...field} />
+                                            <Input
+                                                placeholder="816012345"
+                                                maxLength={9}
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -148,7 +178,10 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                     <FormItem>
                                         <FormLabel>First Name</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="John" {...field} />
+                                            <Input
+                                                placeholder="John"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -161,7 +194,10 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                     <FormItem>
                                         <FormLabel>Last Name</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="Doe" {...field} />
+                                            <Input
+                                                placeholder="Doe"
+                                                {...field}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -170,9 +206,18 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-3">
-                            <ReadOnlyField label="Student ID" value={watched.studentId} />
-                            <ReadOnlyField label="First Name" value={watched.firstName} />
-                            <ReadOnlyField label="Last Name" value={watched.lastName} />
+                            <ReadOnlyField
+                                label="Student ID"
+                                value={watched.studentId}
+                            />
+                            <ReadOnlyField
+                                label="First Name"
+                                value={watched.firstName}
+                            />
+                            <ReadOnlyField
+                                label="Last Name"
+                                value={watched.lastName}
+                            />
                         </div>
                     )}
                 </section>
@@ -192,9 +237,14 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                     name="degreeProgramme"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Degree Programme</FormLabel>
+                                            <FormLabel>
+                                                Degree Programme
+                                            </FormLabel>
                                             <FormControl>
-                                                <Input placeholder="BSc Computer Science (Special)" {...field} />
+                                                <Input
+                                                    placeholder="BSc Computer Science (Special)"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -206,18 +256,31 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Current Year</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value}
+                                            >
                                                 <FormControl>
                                                     <SelectTrigger className="w-full">
                                                         <SelectValue placeholder="Select year" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="Year 1">Year 1</SelectItem>
-                                                    <SelectItem value="Year 2">Year 2</SelectItem>
-                                                    <SelectItem value="Year 3">Year 3</SelectItem>
-                                                    <SelectItem value="Year 4">Year 4</SelectItem>
-                                                    <SelectItem value="Year 5">Year 5</SelectItem>
+                                                    <SelectItem value="Year 1">
+                                                        Year 1
+                                                    </SelectItem>
+                                                    <SelectItem value="Year 2">
+                                                        Year 2
+                                                    </SelectItem>
+                                                    <SelectItem value="Year 3">
+                                                        Year 3
+                                                    </SelectItem>
+                                                    <SelectItem value="Year 4">
+                                                        Year 4
+                                                    </SelectItem>
+                                                    <SelectItem value="Year 5">
+                                                        Year 5
+                                                    </SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
@@ -241,7 +304,15 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                     placeholder="3.42"
                                                     {...field}
                                                     onChange={(e) =>
-                                                        field.onChange(e.target.value === '' ? NaN : parseFloat(e.target.value))
+                                                        field.onChange(
+                                                            e.target.value ===
+                                                                ''
+                                                                ? NaN
+                                                                : parseFloat(
+                                                                      e.target
+                                                                          .value,
+                                                                  ),
+                                                        )
                                                     }
                                                 />
                                             </FormControl>
@@ -264,7 +335,15 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                     placeholder="3.56"
                                                     {...field}
                                                     onChange={(e) =>
-                                                        field.onChange(e.target.value === '' ? NaN : parseFloat(e.target.value))
+                                                        field.onChange(
+                                                            e.target.value ===
+                                                                ''
+                                                                ? NaN
+                                                                : parseFloat(
+                                                                      e.target
+                                                                          .value,
+                                                                  ),
+                                                        )
                                                     }
                                                 />
                                             </FormControl>
@@ -276,10 +355,22 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                         </>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
-                            <ReadOnlyField label="Degree Programme" value={watched.degreeProgramme} />
-                            <ReadOnlyField label="Current Year" value={watched.currentYear} />
-                            <ReadOnlyField label="Overall GPA" value={watched.overallGpa} />
-                            <ReadOnlyField label="Degree GPA" value={watched.degreeGpa} />
+                            <ReadOnlyField
+                                label="Degree Programme"
+                                value={watched.degreeProgramme}
+                            />
+                            <ReadOnlyField
+                                label="Current Year"
+                                value={watched.currentYear}
+                            />
+                            <ReadOnlyField
+                                label="Overall GPA"
+                                value={watched.overallGpa}
+                            />
+                            <ReadOnlyField
+                                label="Degree GPA"
+                                value={watched.degreeGpa}
+                            />
                         </div>
                     )}
                 </section>
@@ -306,10 +397,16 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/50">
-                                            <TableHead className="w-12">#</TableHead>
-                                            <TableHead className="w-[130px]">Code</TableHead>
+                                            <TableHead className="w-12">
+                                                #
+                                            </TableHead>
+                                            <TableHead className="w-[130px]">
+                                                Code
+                                            </TableHead>
                                             <TableHead>Name</TableHead>
-                                            <TableHead className="w-[80px]">Grade</TableHead>
+                                            <TableHead className="w-[80px]">
+                                                Grade
+                                            </TableHead>
                                             <TableHead className="w-12" />
                                         </TableRow>
                                     </TableHeader>
@@ -323,7 +420,9 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                         colSpan={5}
                                                         className="text-center text-muted-foreground py-8"
                                                     >
-                                                        No courses added. Click &ldquo;Add Course&rdquo; to begin.
+                                                        No courses added. Click
+                                                        &ldquo;Add Course&rdquo;
+                                                        to begin.
                                                     </TableCell>
                                                 </TableRow>
                                             )}
@@ -334,12 +433,20 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                     </TableCell>
                                                     <TableCell className="w-[130px]">
                                                         <FormField
-                                                            control={form.control}
+                                                            control={
+                                                                form.control
+                                                            }
                                                             name={`courses.${index}.courseCode`}
-                                                            render={({ field }) => (
+                                                            render={({
+                                                                field,
+                                                            }) => (
                                                                 <FormItem className="space-y-0">
                                                                     <FormControl>
-                                                                        <Input placeholder="COMP1600" className="h-8" {...field} />
+                                                                        <Input
+                                                                            placeholder="COMP1600"
+                                                                            className="h-8"
+                                                                            {...field}
+                                                                        />
                                                                     </FormControl>
                                                                     <FormMessage />
                                                                 </FormItem>
@@ -348,12 +455,20 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                     </TableCell>
                                                     <TableCell>
                                                         <FormField
-                                                            control={form.control}
+                                                            control={
+                                                                form.control
+                                                            }
                                                             name={`courses.${index}.courseName`}
-                                                            render={({ field }) => (
+                                                            render={({
+                                                                field,
+                                                            }) => (
                                                                 <FormItem className="space-y-0">
                                                                     <FormControl>
-                                                                        <Input placeholder="Course name" className="h-8" {...field} />
+                                                                        <Input
+                                                                            placeholder="Course name"
+                                                                            className="h-8"
+                                                                            {...field}
+                                                                        />
                                                                     </FormControl>
                                                                     <FormMessage />
                                                                 </FormItem>
@@ -362,12 +477,20 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                     </TableCell>
                                                     <TableCell className="w-[80px]">
                                                         <FormField
-                                                            control={form.control}
+                                                            control={
+                                                                form.control
+                                                            }
                                                             name={`courses.${index}.grade`}
-                                                            render={({ field }) => (
+                                                            render={({
+                                                                field,
+                                                            }) => (
                                                                 <FormItem className="space-y-0">
                                                                     <FormControl>
-                                                                        <Input placeholder="A+" className="h-8" {...field} />
+                                                                        <Input
+                                                                            placeholder="A+"
+                                                                            className="h-8"
+                                                                            {...field}
+                                                                        />
                                                                     </FormControl>
                                                                     <FormMessage />
                                                                 </FormItem>
@@ -380,7 +503,9 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                             variant="ghost"
                                                             size="icon"
                                                             className="size-7 text-muted-foreground hover:text-destructive"
-                                                            onClick={() => remove(index)}
+                                                            onClick={() =>
+                                                                remove(index)
+                                                            }
                                                         >
                                                             <Trash2 className="size-3.5" />
                                                         </Button>
@@ -396,7 +521,13 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => append({ courseCode: '', courseName: '', grade: '' })}
+                                    onClick={() =>
+                                        append({
+                                            courseCode: '',
+                                            courseName: '',
+                                            grade: '',
+                                        })
+                                    }
                                 >
                                     <Plus className="size-4" />
                                     Add Course
@@ -409,10 +540,16 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-muted/50">
-                                        <TableHead className="w-12">#</TableHead>
-                                        <TableHead className="w-[120px]">Code</TableHead>
+                                        <TableHead className="w-12">
+                                            #
+                                        </TableHead>
+                                        <TableHead className="w-[120px]">
+                                            Code
+                                        </TableHead>
                                         <TableHead>Name</TableHead>
-                                        <TableHead className="w-[70px]">Grade</TableHead>
+                                        <TableHead className="w-[70px]">
+                                            Grade
+                                        </TableHead>
                                     </TableRow>
                                 </TableHeader>
                             </Table>
@@ -425,7 +562,9 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                     colSpan={4}
                                                     className="text-center text-muted-foreground py-8"
                                                 >
-                                                    No courses found. Click &ldquo;Edit&rdquo; to add courses.
+                                                    No courses found. Click
+                                                    &ldquo;Edit&rdquo; to add
+                                                    courses.
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
@@ -435,13 +574,22 @@ export function StepVerifyDetails({ defaultValues, onNext, onBack }: StepVerifyD
                                                         {i + 1}
                                                     </TableCell>
                                                     <TableCell className="w-[120px] font-medium">
-                                                        {watched.courses[i]?.courseCode}
+                                                        {
+                                                            watched.courses[i]
+                                                                ?.courseCode
+                                                        }
                                                     </TableCell>
                                                     <TableCell className="text-muted-foreground">
-                                                        {watched.courses[i]?.courseName}
+                                                        {
+                                                            watched.courses[i]
+                                                                ?.courseName
+                                                        }
                                                     </TableCell>
                                                     <TableCell className="w-[70px]">
-                                                        {watched.courses[i]?.grade}
+                                                        {
+                                                            watched.courses[i]
+                                                                ?.grade
+                                                        }
                                                     </TableCell>
                                                 </TableRow>
                                             ))

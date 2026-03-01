@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, ArrowRight, Mail, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react'
+import {
+    ArrowLeft,
+    ArrowRight,
+    Mail,
+    CheckCircle2,
+    RefreshCw,
+    Loader2,
+} from 'lucide-react'
 
 const RESEND_COOLDOWN_SECONDS = 30
 
@@ -55,19 +62,27 @@ export function StepEmailVerify({
 
                 {isVerified ? (
                     <div className="space-y-1.5">
-                        <p className="text-base font-semibold">Email verified</p>
+                        <p className="text-base font-semibold">
+                            Email verified
+                        </p>
                         <p className="text-sm text-muted-foreground">
-                            <span className="font-medium text-foreground">{email}</span>{' '}
+                            <span className="font-medium text-foreground">
+                                {email}
+                            </span>{' '}
                             has been verified. You can continue.
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-1.5">
-                        <p className="text-base font-semibold">Check your inbox</p>
+                        <p className="text-base font-semibold">
+                            Check your inbox
+                        </p>
                         <p className="text-sm text-muted-foreground max-w-sm">
                             We sent a verification link to{' '}
-                            <span className="font-medium text-foreground">{email}</span>.
-                            Click the link in the email to continue.
+                            <span className="font-medium text-foreground">
+                                {email}
+                            </span>
+                            . Click the link in the email to continue.
                         </p>
                     </div>
                 )}
@@ -104,11 +119,7 @@ export function StepEmailVerify({
                     Back
                 </Button>
                 <div className="flex-1" />
-                <Button
-                    type="button"
-                    disabled={!isVerified}
-                    onClick={onNext}
-                >
+                <Button type="button" disabled={!isVerified} onClick={onNext}>
                     Continue
                     <ArrowRight className="size-4" />
                 </Button>
