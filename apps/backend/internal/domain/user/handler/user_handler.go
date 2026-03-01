@@ -202,6 +202,9 @@ func (h *UserHandler) handleUserError(w http.ResponseWriter, err error) {
 	case errors.Is(err, userErrors.ErrCreateUserFailed):
 		writeError(w, http.StatusInternalServerError, "failed to create user")
 
+	case errors.Is(err, userErrors.ErrMissingAuthContext):
+		writeError(w, http.StatusUnauthorized, "authentication required")
+
 	default:
 		h.logger.Error("unhandled service error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal server error")

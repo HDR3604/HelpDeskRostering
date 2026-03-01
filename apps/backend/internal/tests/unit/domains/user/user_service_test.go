@@ -9,6 +9,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	userErrors "github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	"github.com/HDR3604/HelpDeskApp/internal/tests/mocks"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
@@ -29,7 +30,10 @@ func TestUserServiceTestSuite(t *testing.T) {
 func (s *UserServiceTestSuite) SetupTest() {
 	s.repo = &mocks.MockUserRepository{}
 	s.service = service.NewUserService(zap.NewNop(), &mocks.StubTxManager{}, s.repo)
-	s.ctx = context.Background()
+	s.ctx = database.WithAuthContext(context.Background(), database.AuthContext{
+		UserID: uuid.New().String(),
+		Role:   "admin",
+	})
 }
 
 // --- Helpers ---
