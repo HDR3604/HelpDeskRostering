@@ -128,7 +128,7 @@ func NewApp(cfg Config) (*App, error) {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-  registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
 
 	app := &App{
 		config: cfg,
