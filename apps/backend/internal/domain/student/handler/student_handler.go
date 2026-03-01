@@ -1,15 +1,22 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
+	"github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
 	studentErrors "github.com/HDR3604/HelpDeskApp/internal/domain/student/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/handler/dtos"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
+	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/templates"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
+	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -18,13 +25,26 @@ type StudentHandler struct {
 	logger         *zap.Logger
 	bankingService service.BankingDetailsServiceInterface
 	studentService service.StudentServiceInterface
+	emailSender    emailInterfaces.EmailSenderInterface
+	fromEmail      string
+	frontendURL    string
 }
 
-func NewStudentHandler(logger *zap.Logger, bankingSvc service.BankingDetailsServiceInterface, studentSvc service.StudentServiceInterface) *StudentHandler {
+func NewStudentHandler(
+	logger *zap.Logger,
+	bankingSvc service.BankingDetailsServiceInterface,
+	studentSvc service.StudentServiceInterface,
+	emailSender emailInterfaces.EmailSenderInterface,
+	fromEmail string,
+	frontendURL string,
+) *StudentHandler {
 	return &StudentHandler{
 		logger:         logger,
 		bankingService: bankingSvc,
 		studentService: studentSvc,
+		emailSender:    emailSender,
+		fromEmail:      fromEmail,
+		frontendURL:    frontendURL,
 	}
 }
 
@@ -78,6 +98,9 @@ func (h *StudentHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Send thank-you email (fire-and-forget)
+	go h.sendApplicationEmail(context.WithoutCancel(r.Context()), student, templates.TemplateID_ThankYou, "Thank You for Your Application - DCIT Help Desk")
+
 	writeJSON(w, http.StatusCreated, dtos.StudentToResponse(student))
 }
 
@@ -122,6 +145,9 @@ func (h *StudentHandler) Accept(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Send acceptance email (fire-and-forget)
+	go h.sendAcceptedEmail(context.WithoutCancel(r.Context()), student)
+
 	writeJSON(w, http.StatusOK, dtos.StudentToResponse(student))
 }
 
@@ -137,6 +163,9 @@ func (h *StudentHandler) Reject(w http.ResponseWriter, r *http.Request) {
 		h.handleStudentError(w, err)
 		return
 	}
+
+	// Send rejection email (fire-and-forget)
+	go h.sendApplicationEmail(context.WithoutCancel(r.Context()), student, templates.TemplateID_ApplicationRejected, "Application Update - DCIT Help Desk")
 
 	writeJSON(w, http.StatusOK, dtos.StudentToResponse(student))
 }
@@ -275,8 +304,57 @@ func (h *StudentHandler) UpsertBankingDetails(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, dtos.BankingDetailsToResponse(bankingDetails))
 }
 
-// --- Helpers ---
+// --- Email helpers ---
 
+// sendApplicationEmail sends a simple template email (thank-you, rejection) to a student.
+func (h *StudentHandler) sendApplicationEmail(ctx context.Context, student *aggregate.Student, templateID templates.TemplateID, subject string) {
+	studentName := fmt.Sprintf("%s %s", student.FirstName, student.LastName)
+	_, err := h.emailSender.Send(ctx, emailDtos.SendEmailRequest{
+		From:    h.fromEmail,
+		To:      []string{student.EmailAddress},
+		Subject: subject,
+		Template: &types.EmailTemplate{
+			ID: templateID,
+			Variables: map[string]any{
+				"STUDENT_NAME":  studentName,
+				"CONTACT_EMAIL": h.fromEmail,
+			},
+		},
+	})
+	if err != nil {
+		h.logger.Error("failed to send application email",
+			zap.String("template", templateID),
+			zap.String("email", student.EmailAddress),
+			zap.Error(err),
+		)
+	}
+}
+
+// sendAcceptedEmail sends the welcome/acceptance email with onboarding URL.
+func (h *StudentHandler) sendAcceptedEmail(ctx context.Context, student *aggregate.Student) {
+	studentName := fmt.Sprintf("%s %s", student.FirstName, student.LastName)
+	_, err := h.emailSender.Send(ctx, emailDtos.SendEmailRequest{
+		From:    h.fromEmail,
+		To:      []string{student.EmailAddress},
+		Subject: "Welcome to the DCIT Help Desk!",
+		Template: &types.EmailTemplate{
+			ID: templates.TemplateID_Welcome,
+			Variables: map[string]any{
+				"STUDENT_NAME":   studentName,
+				"ONBOARDING_URL": h.frontendURL,
+				"CONTACT_EMAIL":  h.fromEmail,
+			},
+		},
+	})
+	if err != nil {
+		h.logger.Error("failed to send accepted email",
+			zap.String("email", student.EmailAddress),
+			zap.Error(err),
+		)
+	}
+}
+
+// --- Helpers ---
 func (h *StudentHandler) parseID(r *http.Request) (int32, error) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 32)

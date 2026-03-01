@@ -36,7 +36,7 @@ func TestScheduleHandlerTestSuite(t *testing.T) {
 
 func (s *ScheduleHandlerTestSuite) SetupTest() {
 	s.mockSvc = &mocks.MockScheduleService{}
-	hdl := handler.NewScheduleHandler(zap.NewNop(), s.mockSvc)
+	hdl := handler.NewScheduleHandler(zap.NewNop(), s.mockSvc, nil, nil, nil, "")
 	s.router = chi.NewRouter()
 	s.router.Route("/api/v1", func(r chi.Router) {
 		// Admin-only routes (behind permission middleware)

@@ -134,7 +134,7 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
-	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc)
+	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc, emailSenderSvc, cfg.FromEmail, cfg.FrontendURL)
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
 	verificationHdl := verificationHandler.NewVerificationHandler(logger, verificationSvc)
 
