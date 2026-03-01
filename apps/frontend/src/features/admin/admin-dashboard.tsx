@@ -15,7 +15,6 @@ import { MiniWeeklySchedule } from './components/mini-weekly-schedule'
 import { HoursWorkedChart } from './components/hours-worked-chart'
 import { MissedShiftsChart } from './components/missed-shifts-chart'
 import {
-    MOCK_STUDENTS,
     MOCK_ACTIVE_SCHEDULE,
     MOCK_SHIFT_TEMPLATES,
     STUDENT_NAME_MAP,
@@ -24,11 +23,26 @@ import {
 } from '@/lib/mock-data'
 import { getApplicationStatus } from '@/types/student'
 import type { Student } from '@/types/student'
+import {
+    useStudents,
+    useAcceptStudent,
+    useRejectStudent,
+} from '@/lib/queries/students'
 
 const TOAST_DURATION = 5000
 
 export function AdminDashboard() {
-    const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
+    const studentsQuery = useStudents()
+    const students = studentsQuery.data ?? []
+
+    const acceptMutation = useAcceptStudent()
+    const rejectMutation = useRejectStudent()
+
+    // Optimistic local state overlay — tracks pending undo-able changes
+    const [optimisticUpdates, setOptimisticUpdates] = useState<
+        Map<number, { accepted_at: string | null; rejected_at: string | null }>
+    >(new Map())
+
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
         null,
     )
@@ -38,6 +52,15 @@ export function AdminDashboard() {
     const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(
         new Map(),
     )
+
+    // Merge server data with optimistic updates
+    const displayStudents = useMemo(() => {
+        if (optimisticUpdates.size === 0) return students
+        return students.map((s) => {
+            const update = optimisticUpdates.get(s.student_id)
+            return update ? { ...s, ...update } : s
+        })
+    }, [students, optimisticUpdates])
 
     function toggleStudent(name: string) {
         setSelectedStudents((prev) => {
@@ -74,13 +97,13 @@ export function AdminDashboard() {
     const { pendingCount, acceptedCount } = useMemo(() => {
         let pending = 0
         let accepted = 0
-        for (const s of students) {
+        for (const s of displayStudents) {
             const status = getApplicationStatus(s)
             if (status === 'pending') pending++
             else if (status === 'accepted') accepted++
         }
         return { pendingCount: pending, acceptedCount: accepted }
-    }, [students])
+    }, [displayStudents])
 
     const scheduledThisWeekCount = useMemo(
         () =>
@@ -99,8 +122,18 @@ export function AdminDashboard() {
 
         const timer = setTimeout(() => {
             pendingTimers.current.delete(studentId)
-            // TODO: fire API call — PATCH /api/v1/students/:id/{action}
-            console.log(`[commit] ${action} student ${studentId}`)
+            // Clear the optimistic update — server data will take over after refetch
+            setOptimisticUpdates((prev) => {
+                const next = new Map(prev)
+                next.delete(studentId)
+                return next
+            })
+
+            if (action === 'accept') {
+                acceptMutation.mutate(studentId)
+            } else {
+                rejectMutation.mutate(studentId)
+            }
         }, TOAST_DURATION)
 
         pendingTimers.current.set(studentId, timer)
@@ -112,86 +145,58 @@ export function AdminDashboard() {
             clearTimeout(timer)
             pendingTimers.current.delete(studentId)
         }
+        // Remove optimistic update to revert to server state
+        setOptimisticUpdates((prev) => {
+            const next = new Map(prev)
+            next.delete(studentId)
+            return next
+        })
     }
 
     function handleAccept(studentId: number) {
-        const prev = students.find((s) => s.student_id === studentId)
+        const prev = displayStudents.find((s) => s.student_id === studentId)
         if (!prev) return
-        const snapshot = {
-            accepted_at: prev.accepted_at,
-            rejected_at: prev.rejected_at,
-        }
-        setStudents((s) =>
-            s.map((st) =>
-                st.student_id === studentId
-                    ? {
-                          ...st,
-                          accepted_at: new Date().toISOString(),
-                          rejected_at: null,
-                      }
-                    : st,
-            ),
-        )
+
+        // Apply optimistic update
+        setOptimisticUpdates((m) => {
+            const next = new Map(m)
+            next.set(studentId, {
+                accepted_at: new Date().toISOString(),
+                rejected_at: null,
+            })
+            return next
+        })
+
         scheduleCommit(studentId, 'accept')
         toast.success(`${prev.first_name} ${prev.last_name} accepted`, {
             duration: TOAST_DURATION,
             action: {
                 label: 'Undo',
-                onClick: () => {
-                    cancelCommit(studentId)
-                    setStudents((s) =>
-                        s.map((st) =>
-                            st.student_id === studentId
-                                ? {
-                                      ...st,
-                                      accepted_at: snapshot.accepted_at,
-                                      rejected_at: snapshot.rejected_at,
-                                  }
-                                : st,
-                        ),
-                    )
-                },
+                onClick: () => cancelCommit(studentId),
             },
         })
     }
 
     function handleReject(studentId: number) {
-        const prev = students.find((s) => s.student_id === studentId)
+        const prev = displayStudents.find((s) => s.student_id === studentId)
         if (!prev) return
-        const snapshot = {
-            accepted_at: prev.accepted_at,
-            rejected_at: prev.rejected_at,
-        }
-        setStudents((s) =>
-            s.map((st) =>
-                st.student_id === studentId
-                    ? {
-                          ...st,
-                          rejected_at: new Date().toISOString(),
-                          accepted_at: null,
-                      }
-                    : st,
-            ),
-        )
+
+        // Apply optimistic update
+        setOptimisticUpdates((m) => {
+            const next = new Map(m)
+            next.set(studentId, {
+                rejected_at: new Date().toISOString(),
+                accepted_at: null,
+            })
+            return next
+        })
+
         scheduleCommit(studentId, 'reject')
         toast.error(`${prev.first_name} ${prev.last_name} rejected`, {
             duration: TOAST_DURATION,
             action: {
                 label: 'Undo',
-                onClick: () => {
-                    cancelCommit(studentId)
-                    setStudents((s) =>
-                        s.map((st) =>
-                            st.student_id === studentId
-                                ? {
-                                      ...st,
-                                      accepted_at: snapshot.accepted_at,
-                                      rejected_at: snapshot.rejected_at,
-                                  }
-                                : st,
-                        ),
-                    )
-                },
+                onClick: () => cancelCommit(studentId),
             },
         })
     }
@@ -213,16 +218,15 @@ export function AdminDashboard() {
                 pendingCount={pendingCount}
                 acceptedCount={acceptedCount}
                 scheduledThisWeekCount={scheduledThisWeekCount}
-                totalCount={students.length}
+                totalCount={displayStudents.length}
             />
 
             <StudentApplicationsTable
-                students={students}
+                students={displayStudents}
                 onAccept={handleAccept}
                 onReject={handleReject}
                 onSync={async () => {
-                    await new Promise((r) => setTimeout(r, 800))
-                    setStudents([...MOCK_STUDENTS])
+                    await studentsQuery.refetch()
                 }}
                 onViewTranscript={setTranscriptStudent}
             />

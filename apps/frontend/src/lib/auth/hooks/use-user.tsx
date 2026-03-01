@@ -1,6 +1,4 @@
 import * as React from 'react'
-import type { Student } from '@/types/student'
-import { MOCK_STUDENTS } from '@/lib/mock-data'
 import { getTokenPayload } from '../token'
 import {
     ACCESS_TOKEN_KEY,
@@ -9,20 +7,11 @@ import {
 } from '../constants'
 import type { JwtPayload } from '../types'
 
-// TODO: Remove mock student data once student API is implemented
-const MOCK_CURRENT_STUDENT = MOCK_STUDENTS.find(
-    (s) => s.student_id === 816012345,
-)!
-
 type UserContextValue = {
     role: JwtPayload['role']
     firstName: string | null
     lastName: string | null
     email: string | null
-    /** @deprecated Mock data — will be replaced by API call */
-    currentStudent: Student
-    /** @deprecated Mock data — will be replaced by API call */
-    currentStudentId: string
 }
 
 const UserContext = React.createContext<UserContextValue | null>(null)
@@ -33,8 +22,6 @@ function buildUserValue(payload: JwtPayload | null): UserContextValue {
         firstName: payload?.first_name ?? null,
         lastName: payload?.last_name ?? null,
         email: payload?.email ?? null,
-        currentStudent: MOCK_CURRENT_STUDENT,
-        currentStudentId: String(MOCK_CURRENT_STUDENT.student_id),
     }
 }
 

@@ -8,6 +8,7 @@ import {
     mockSendVerificationEmail,
     mockCheckVerificationStatus,
 } from '@/features/sign-up/lib/mock-verification'
+import { useApplyAsStudent } from '@/lib/queries/students'
 import type {
     VerifyData,
     ContactData,
@@ -56,7 +57,7 @@ function SignUpPage() {
 
     const [step, setStep] = useState(0)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const applyMutation = useApplyAsStudent()
 
     // Collected data
     const [transcript, setTranscript] = useState<File | null>(null)
@@ -141,16 +142,31 @@ function SignUpPage() {
     async function handleSubmit() {
         if (!transcript || !verifyData || !contactData || !availability) return
 
-        setIsSubmitting(true)
-        try {
-            // TODO: replace with real API call to submit student application
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-            setStep(6)
-        } catch {
-            toast.error('Something went wrong. Please try again.')
-        } finally {
-            setIsSubmitting(false)
-        }
+        await applyMutation.mutateAsync(
+            {
+                student_id: verifyData.studentId,
+                first_name: verifyData.firstName,
+                last_name: verifyData.lastName,
+                email: contactData.email,
+                phone_number: contactData.phoneNumber,
+                degree_programme: verifyData.degreeProgramme,
+                current_year: parseInt(
+                    verifyData.currentYear.replace(/\D/g, ''),
+                    10,
+                ),
+                overall_gpa: verifyData.overallGpa,
+                degree_gpa: verifyData.degreeGpa,
+                courses: verifyData.courses.map((c) => ({
+                    code: c.courseCode,
+                    title: c.courseName,
+                    grade: c.grade,
+                })),
+                availability,
+            },
+            {
+                onSuccess: () => setStep(6),
+            },
+        )
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -263,7 +279,7 @@ function SignUpPage() {
                             onGoToStep={setStep}
                             onBack={() => setStep(4)}
                             onSubmit={handleSubmit}
-                            isSubmitting={isSubmitting}
+                            isSubmitting={applyMutation.isPending}
                         />
                     )}
 

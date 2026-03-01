@@ -1,16 +1,20 @@
 export interface CourseResult {
     code: string
-    name: string
+    title: string
     grade: string | null
-    credits: number
 }
 
 export interface TranscriptMetadata {
-    overall_gpa: number
-    degree_gpa: number
-    degree_programme: string
+    first_name: string
+    last_name: string
+    student_id: string
+    current_programme: string
+    major: string
+    current_term: string
+    current_year: number
+    overall_gpa: number | null
+    degree_gpa: number | null
     courses: CourseResult[]
-    current_level: number
 }
 
 export interface Student {
@@ -18,15 +22,16 @@ export interface Student {
     email_address: string
     first_name: string
     last_name: string
-    phone_number: string | null
+    phone_number: string
     transcript_metadata: TranscriptMetadata
-    availability: Record<number, number[]>
+    availability: Record<string, number[]>
     created_at: string
     updated_at: string | null
     accepted_at: string | null
     rejected_at: string | null
     min_weekly_hours: number
     max_weekly_hours: number | null
+    status: string
 }
 
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected'

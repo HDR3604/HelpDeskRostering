@@ -7,7 +7,7 @@ import { ErrorState } from '@/components/layout/error-state'
 import type { ScheduleResponse } from '@/types/schedule'
 import { useSchedule, scheduleKeys } from '@/lib/queries/schedules'
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
-import { MOCK_STUDENTS } from '@/lib/mock-data'
+import { useStudents } from '@/lib/queries/students'
 import { ScheduleEditor } from '@/features/admin/schedule/schedule-editor'
 import { ScheduleEditorSkeleton } from '@/features/admin/skeletons/schedule-editor-skeleton'
 
@@ -23,10 +23,15 @@ function ScheduleEditorPage() {
 
     const scheduleQuery = useSchedule(scheduleId)
     const shiftTemplatesQuery = useShiftTemplates()
+    const studentsQuery = useStudents()
 
     const schedule = scheduleQuery.data
     const shiftTemplates = shiftTemplatesQuery.data ?? []
-    const isLoading = scheduleQuery.isLoading || shiftTemplatesQuery.isLoading
+    const students = studentsQuery.data ?? []
+    const isLoading =
+        scheduleQuery.isLoading ||
+        shiftTemplatesQuery.isLoading ||
+        studentsQuery.isLoading
     const isNotFound =
         scheduleQuery.error &&
         (
@@ -34,7 +39,8 @@ function ScheduleEditorPage() {
                 response?: { status?: number }
             }
         )?.response?.status === 404
-    const error = scheduleQuery.error || shiftTemplatesQuery.error
+    const error =
+        scheduleQuery.error || shiftTemplatesQuery.error || studentsQuery.error
 
     useDocumentTitle(schedule?.title ?? 'Schedule')
 
@@ -82,7 +88,7 @@ function ScheduleEditorPage() {
                 key={scheduleId}
                 schedule={schedule}
                 shiftTemplates={shiftTemplates}
-                students={MOCK_STUDENTS}
+                students={students}
                 onSave={handleSave}
                 onBack={handleBack}
             />

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { CalendarX } from 'lucide-react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
@@ -15,9 +15,9 @@ import {
 } from '@/lib/queries/schedules'
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
 import { useSchedulerConfigs } from '@/lib/queries/scheduler-configs'
+import { useStudents } from '@/lib/queries/students'
 import {
-    MOCK_STUDENTS,
-    STUDENT_NAME_MAP,
+    buildStudentNameMap,
     MOCK_HOURS_WORKED,
     MOCK_MISSED_SHIFTS,
     MOCK_HOURS_TREND,
@@ -49,10 +49,16 @@ function ScheduleListPage() {
     const schedulesQuery = useSchedules()
     const shiftTemplatesQuery = useShiftTemplates()
     const configsQuery = useSchedulerConfigs()
+    const studentsQuery = useStudents()
 
     const schedules = schedulesQuery.data ?? []
     const shiftTemplates = shiftTemplatesQuery.data ?? []
     const configs = configsQuery.data ?? []
+    const students = studentsQuery.data ?? []
+    const studentNames = useMemo(
+        () => buildStudentNameMap(students),
+        [students],
+    )
 
     // Mutations
     const createMutation = useCreateSchedule()
@@ -81,9 +87,13 @@ function ScheduleListPage() {
     const isLoading =
         schedulesQuery.isLoading ||
         shiftTemplatesQuery.isLoading ||
-        configsQuery.isLoading
+        configsQuery.isLoading ||
+        studentsQuery.isLoading
     const error =
-        schedulesQuery.error || shiftTemplatesQuery.error || configsQuery.error
+        schedulesQuery.error ||
+        shiftTemplatesQuery.error ||
+        configsQuery.error ||
+        studentsQuery.error
 
     if (isLoading) return <ScheduleListSkeleton />
     if (error)
@@ -127,7 +137,7 @@ function ScheduleListPage() {
             <ScheduleListView
                 schedules={schedules}
                 shiftTemplates={shiftTemplates}
-                studentNames={STUDENT_NAME_MAP}
+                studentNames={studentNames}
                 hoursWorked={MOCK_HOURS_WORKED}
                 missedShifts={MOCK_MISSED_SHIFTS}
                 hoursTrend={MOCK_HOURS_TREND}
@@ -155,7 +165,7 @@ function ScheduleListPage() {
                     <CreateScheduleDialog
                         open={createDialogOpen}
                         onOpenChange={setCreateDialogOpen}
-                        students={MOCK_STUDENTS}
+                        students={students}
                         configs={configs}
                         onCreated={(mockSchedule) =>
                             createMutation.mutate(

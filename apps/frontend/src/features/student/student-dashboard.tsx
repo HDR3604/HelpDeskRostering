@@ -1,9 +1,10 @@
-import { useUser } from '@/lib/auth'
+import { Loader2 } from 'lucide-react'
 import {
     MOCK_ACTIVE_SCHEDULE,
     MOCK_SHIFT_TEMPLATES,
     MOCK_TIME_LOGS,
 } from '@/lib/mock-data'
+import { useMyStudentProfile } from '@/lib/queries/students'
 import { getApplicationStatus } from '@/types/student'
 import { ApplicationStatusBanner } from './components/application-status-banner'
 import { StudentSummaryCards } from './components/student-summary-cards'
@@ -12,15 +13,34 @@ import { WeekSummaryCard } from './components/week-summary-card'
 import { StudentWeeklySchedule } from './components/student-weekly-schedule'
 
 export function StudentDashboard() {
-    const { currentStudent, currentStudentId } = useUser()
+    const profileQuery = useMyStudentProfile()
+    const student = profileQuery.data
+
+    if (profileQuery.isLoading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    if (!student) {
+        return (
+            <div className="mx-auto max-w-7xl py-10 text-center text-muted-foreground">
+                No student profile found. Please apply first.
+            </div>
+        )
+    }
+
+    const studentId = String(student.student_id)
 
     const myAssignments = (
         Array.isArray(MOCK_ACTIVE_SCHEDULE.assignments)
             ? MOCK_ACTIVE_SCHEDULE.assignments
             : []
-    ).filter((a) => a.assistant_id === currentStudentId)
+    ).filter((a) => a.assistant_id === studentId)
 
-    const isAccepted = getApplicationStatus(currentStudent) === 'accepted'
+    const isAccepted = getApplicationStatus(student) === 'accepted'
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -30,15 +50,15 @@ export function StudentDashboard() {
                     My Dashboard
                 </h1>
                 <p className="mt-1 text-muted-foreground">
-                    Welcome back, {currentStudent.first_name}. Here is your
-                    helpdesk overview.
+                    Welcome back, {student.first_name}. Here is your helpdesk
+                    overview.
                 </p>
             </div>
 
-            <ApplicationStatusBanner student={currentStudent} />
+            <ApplicationStatusBanner student={student} />
 
             <StudentSummaryCards
-                student={currentStudent}
+                student={student}
                 assignments={myAssignments}
                 shiftTemplates={MOCK_SHIFT_TEMPLATES}
                 timeLogs={MOCK_TIME_LOGS}
