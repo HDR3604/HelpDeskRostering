@@ -17,6 +17,7 @@ type Config struct {
 	VerificationTokenTTL int // seconds
 	FrontendURL          string
 	FromEmail            string
+	EncryptionKey        string
 }
 
 func LoadConfig() (Config, error) {
@@ -78,6 +79,12 @@ func LoadConfig() (Config, error) {
 	cfg.FromEmail = os.Getenv("FROM_EMAIL")
 	if cfg.FromEmail == "" {
 		cfg.FromEmail = "noreply@uwi.edu"
+	}
+
+	// Encryption
+	cfg.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
+	if cfg.EncryptionKey == "" {
+		return Config{}, fmt.Errorf("ENCRYPTION_KEY environment variable is required")
 	}
 
 	return cfg, nil
