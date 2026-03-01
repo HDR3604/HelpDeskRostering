@@ -58,7 +58,9 @@ export function SignInComponent() {
         setError('')
         try {
             await loginUser(values.email, values.password, values.remember)
-            navigate({ to: redirectTo || '/' })
+            const safe =
+                redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
+            navigate({ to: safe ? redirectTo : '/' })
         } catch (err: unknown) {
             if (!isAxiosError(err)) {
                 setError('Something went wrong. Please try again later.')

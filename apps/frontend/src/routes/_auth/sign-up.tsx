@@ -143,26 +143,8 @@ function SignUpPage() {
 
         setIsSubmitting(true)
         try {
+            // TODO: replace with real API call to submit student application
             await new Promise((resolve) => setTimeout(resolve, 2000))
-
-            const payload = {
-                student_id: parseInt(verifyData.studentId),
-                email_address: contactData.email,
-                first_name: verifyData.firstName,
-                last_name: verifyData.lastName,
-                phone_number: contactData.phoneNumber,
-                transcript_metadata: {
-                    overall_gpa: verifyData.overallGpa,
-                    degree_gpa: verifyData.degreeGpa,
-                    degree_programme: verifyData.degreeProgramme,
-                    courses: verifyData.courses.map((c) => ({
-                        [c.courseCode]: c.grade,
-                    })),
-                    current_level: verifyData.currentYear,
-                },
-                availability,
-            }
-            console.log('Submission payload:', JSON.stringify(payload, null, 2))
             setStep(6)
         } catch {
             toast.error('Something went wrong. Please try again.')
