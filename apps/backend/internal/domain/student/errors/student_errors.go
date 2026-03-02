@@ -11,5 +11,6 @@ var (
 	ErrInvalidAccountType     = errors.New("invalid account type (must be 'chequeing' or 'savings')")
 	ErrInvalidAccountNumber   = errors.New("invalid account number (must be 7-16 digits, numeric only)")
 	ErrMissingAuthContext     = errors.New("missing authentication context")
+	ErrInvalidAuthContext     = errors.New("invalid authentication context data")
 	ErrNotAuthorized          = errors.New("not authorized to perform this action")
 )

@@ -9,6 +9,8 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
 )
 
+var accountNumberRegex = regexp.MustCompile(`^\d{7,16}$`)
+
 type BankAccountType string
 
 const (
@@ -47,7 +49,7 @@ func NewBankingDetails(
 		return nil, errors.ErrInvalidAccountType
 	}
 
-	if !regexp.MustCompile(`^\d{7,16}$`).MatchString(accountNumber) {
+	if !accountNumberRegex.MatchString(accountNumber) {
 		return nil, errors.ErrInvalidAccountNumber
 	}
 

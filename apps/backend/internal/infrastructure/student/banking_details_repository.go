@@ -28,19 +28,10 @@ type BankingDetailsRepository struct {
 func NewBankingDetailsRepository(logger *zap.Logger, encryptionKey string) repository.BankingDetailsRepositoryInterface {
 	keyBytes, err := hex.DecodeString(encryptionKey)
 	if err != nil {
-
-		keyBytes = make([]byte, 32)
-		copy(keyBytes, []byte(encryptionKey))
+		logger.Fatal("ENCRYPTION_KEY is not valid hex", zap.Error(err))
 	}
 	if len(keyBytes) != 32 {
-
-		if len(keyBytes) < 32 {
-			padded := make([]byte, 32)
-			copy(padded, keyBytes)
-			keyBytes = padded
-		} else {
-			keyBytes = keyBytes[:32]
-		}
+		logger.Fatal("ENCRYPTION_KEY must decode to exactly 32 bytes", zap.Int("got", len(keyBytes)))
 	}
 
 	return &BankingDetailsRepository{
@@ -61,8 +52,8 @@ func (r *BankingDetailsRepository) Upsert(
 	}
 
 	query := `
-		INSERT INTO auth.banking_details (student_id, bank_name, branch_name, account_type, account_number, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		INSERT INTO auth.banking_details (student_id, bank_name, branch_name, account_type, account_number, created_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
 		ON CONFLICT (student_id) DO UPDATE
 		SET bank_name = $2, branch_name = $3, account_type = $4, account_number = $5, updated_at = NOW()
 		RETURNING student_id, bank_name, branch_name, account_type, account_number, created_at, updated_at

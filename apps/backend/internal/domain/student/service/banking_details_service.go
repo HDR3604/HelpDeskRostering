@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
@@ -54,27 +55,36 @@ func (s *BankingDetailsService) getAuthContext(ctx context.Context) (database.Au
 	return authCtx, nil
 }
 
-func (s *BankingDetailsService) GetMyBankingDetails(ctx context.Context) (*aggregate.BankingDetails, error) {
+func (s *BankingDetailsService) getMyStudentID(ctx context.Context) (int32, database.AuthContext, error) {
 	authCtx, err := s.getAuthContext(ctx)
 	if err != nil {
-		return nil, err
+		return 0, authCtx, err
 	}
 
 	if authCtx.StudentID == nil {
 		s.logger.Error("student ID is nil in auth context")
-		return nil, studentErrors.ErrNotAuthorized
+		return 0, authCtx, studentErrors.ErrNotAuthorized
 	}
 
-	studentID, err := strconv.ParseInt(*authCtx.StudentID, 10, 32)
+	id, err := strconv.ParseInt(*authCtx.StudentID, 10, 32)
 	if err != nil {
 		s.logger.Error("invalid student ID in auth context", zap.String("student_id", *authCtx.StudentID), zap.Error(err))
-		return nil, studentErrors.ErrMissingAuthContext
+		return 0, authCtx, fmt.Errorf("%w: %w", studentErrors.ErrInvalidAuthContext, err)
+	}
+
+	return int32(id), authCtx, nil
+}
+
+func (s *BankingDetailsService) GetMyBankingDetails(ctx context.Context) (*aggregate.BankingDetails, error) {
+	studentID, authCtx, err := s.getMyStudentID(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	var result *aggregate.BankingDetails
 	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
-		result, txErr = s.repo.GetByStudentID(ctx, tx, int32(studentID))
+		result, txErr = s.repo.GetByStudentID(ctx, tx, studentID)
 		return txErr
 	})
 
@@ -82,25 +92,14 @@ func (s *BankingDetailsService) GetMyBankingDetails(ctx context.Context) (*aggre
 }
 
 func (s *BankingDetailsService) UpsertMyBankingDetails(ctx context.Context, input UpsertBankingDetailsInput) (*aggregate.BankingDetails, error) {
-	authCtx, err := s.getAuthContext(ctx)
+	studentID, authCtx, err := s.getMyStudentID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if authCtx.StudentID == nil {
-		s.logger.Error("student ID is nil in auth context")
-		return nil, studentErrors.ErrNotAuthorized
-	}
-
-	studentID, err := strconv.ParseInt(*authCtx.StudentID, 10, 32)
-	if err != nil {
-		s.logger.Error("invalid student ID in auth context", zap.String("student_id", *authCtx.StudentID), zap.Error(err))
-		return nil, studentErrors.ErrMissingAuthContext
-	}
-
 	// Validate input
 	bankingDetails, err := aggregate.NewBankingDetails(
-		int32(studentID),
+		studentID,
 		input.BankName,
 		input.BranchName,
 		input.AccountType,

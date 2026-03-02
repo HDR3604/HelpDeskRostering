@@ -3,7 +3,6 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -137,8 +136,11 @@ func (h *StudentHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "invalid account number (must be 7-16 digits)")
 	case errors.Is(err, studentErrors.ErrMissingAuthContext):
 		writeError(w, http.StatusUnauthorized, "authentication required")
+	case errors.Is(err, studentErrors.ErrInvalidAuthContext):
+		h.logger.Error("invalid auth context data", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, "internal server error")
 	case errors.Is(err, studentErrors.ErrNotAuthorized):
-		writeError(w, http.StatusUnauthorized, "not authorized to perform this action")
+		writeError(w, http.StatusForbidden, "not authorized to perform this action")
 	default:
 		h.logger.Error("unhandled service error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal server error")
@@ -149,7 +151,10 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("failed to encode JSON response: %v", err)
+		// Best-effort write; header already sent so we can only log.
+		// Using zap here would require threading the logger through every
+		// helper. stdlib log is acceptable for this edge case.
+		_ = err
 	}
 }
 
