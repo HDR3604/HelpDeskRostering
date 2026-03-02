@@ -24,9 +24,8 @@ export async function listArchivedSchedules(): Promise<ScheduleResponse[]> {
 
 export async function getActiveSchedule(): Promise<ScheduleResponse | null> {
     try {
-        const { data } = await apiClient.get<ScheduleResponse>(
-            '/schedules/active',
-        )
+        const { data } =
+            await apiClient.get<ScheduleResponse>('/schedules/active')
         return normalize(data)
     } catch (err) {
         if (isAxiosError(err) && err.response?.status === 404) return null

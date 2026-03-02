@@ -391,9 +391,10 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Parse assignments from the schedule's JSON
+	// The scheduler stores assistant_id and shift_id as strings.
 	type assignmentEntry struct {
-		AssistantID int32     `json:"assistant_id"`
-		ShiftID     uuid.UUID `json:"shift_id"`
+		AssistantID string `json:"assistant_id"`
+		ShiftID     string `json:"shift_id"`
 	}
 	var assignments []assignmentEntry
 	if err := json.Unmarshal(schedule.Assignments, &assignments); err != nil {
@@ -409,9 +410,9 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 
 	// Collect unique assistant IDs and their shift IDs
 	type studentShifts struct {
-		shiftIDs []uuid.UUID
+		shiftIDs []string
 	}
-	studentShiftMap := make(map[int32]*studentShifts)
+	studentShiftMap := make(map[string]*studentShifts)
 	for _, a := range assignments {
 		ss, ok := studentShiftMap[a.AssistantID]
 		if !ok {
@@ -429,10 +430,10 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Build studentID -> student map
-	studentMap := make(map[int32]*studentAggregate.Student, len(students))
+	// Build studentID -> student map (keyed by string to match assignment format)
+	studentMap := make(map[string]*studentAggregate.Student, len(students))
 	for _, s := range students {
-		studentMap[s.StudentID] = s
+		studentMap[fmt.Sprintf("%d", s.StudentID)] = s
 	}
 
 	// Get all shift templates
@@ -443,10 +444,10 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Build shiftID -> template map
-	shiftMap := make(map[uuid.UUID]*aggregate.ShiftTemplate, len(shiftTemplates))
+	// Build shiftID -> template map (keyed by string UUID to match assignment format)
+	shiftMap := make(map[string]*aggregate.ShiftTemplate, len(shiftTemplates))
 	for _, t := range shiftTemplates {
-		shiftMap[t.ID] = t
+		shiftMap[t.ID.String()] = t
 	}
 
 	// Build email batch
@@ -456,7 +457,7 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 	for studentID, ss := range studentShiftMap {
 		student, ok := studentMap[studentID]
 		if !ok {
-			h.logger.Warn("student not found for assignment", zap.Int32("student_id", studentID))
+			h.logger.Warn("student not found for assignment", zap.String("student_id", studentID))
 			continue
 		}
 
@@ -465,7 +466,7 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 		for _, shiftID := range ss.shiftIDs {
 			tpl, ok := shiftMap[shiftID]
 			if !ok {
-				h.logger.Warn("shift template not found", zap.String("shift_id", shiftID.String()))
+				h.logger.Warn("shift template not found", zap.String("shift_id", shiftID))
 				continue
 			}
 
@@ -499,7 +500,7 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 		html, err := templates.Render(tmpl)
 		if err != nil {
 			h.logger.Error("failed to render email template",
-				zap.Int32("student_id", studentID),
+				zap.String("student_id", studentID),
 				zap.Error(err),
 			)
 			continue
