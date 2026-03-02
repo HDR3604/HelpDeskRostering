@@ -16,6 +16,7 @@ var _ service.ScheduleServiceInterface = (*MockScheduleService)(nil)
 type MockScheduleService struct {
 	CreateFn           func(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
 	GetByIDFn          func(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error)
+	GetActiveFn        func(ctx context.Context) (*aggregate.Schedule, error)
 	ListArchivedFn     func(ctx context.Context) ([]*aggregate.Schedule, error)
 	ListFn             func(ctx context.Context) ([]*aggregate.Schedule, error)
 	ArchiveFn          func(ctx context.Context, id uuid.UUID) error
@@ -32,6 +33,10 @@ func (m *MockScheduleService) Create(ctx context.Context, schedule *aggregate.Sc
 
 func (m *MockScheduleService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error) {
 	return m.GetByIDFn(ctx, id)
+}
+
+func (m *MockScheduleService) GetActive(ctx context.Context) (*aggregate.Schedule, error) {
+	return m.GetActiveFn(ctx)
 }
 
 func (m *MockScheduleService) ListArchived(ctx context.Context) ([]*aggregate.Schedule, error) {

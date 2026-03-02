@@ -56,6 +56,7 @@ func registerRoutes(
 			// Any authenticated user
 			authHdl.RegisterAuthenticatedRoutes(r)
 			scheduleHdl.RegisterRoutes(r)
+			shiftTemplateHdl.RegisterReadRoutes(r)
 			studentHdl.RegisterRoutes(r)
 
 			// Admin-only routes

@@ -55,6 +55,7 @@ func NewScheduleHandler(
 }
 
 func (h *ScheduleHandler) RegisterRoutes(r chi.Router) {
+	r.Get("/schedules/active", h.GetActive)
 	r.Get("/schedules/{id}", h.GetByID)
 }
 
@@ -263,6 +264,16 @@ func studentToAssistant(s *studentAggregate.Student) schedulerTypes.Assistant {
 		MaxHours:     maxHours,
 		CostPerHour:  0,
 	}
+}
+
+func (h *ScheduleHandler) GetActive(w http.ResponseWriter, r *http.Request) {
+	schedule, err := h.service.GetActive(r.Context())
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.ScheduleToResponse(schedule))
 }
 
 func (h *ScheduleHandler) GetByID(w http.ResponseWriter, r *http.Request) {

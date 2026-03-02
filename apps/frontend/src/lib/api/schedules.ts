@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios'
 import { apiClient } from '@/lib/api-client'
 import type { Assignment, ScheduleResponse } from '@/types/schedule'
 
@@ -19,6 +20,18 @@ export async function listArchivedSchedules(): Promise<ScheduleResponse[]> {
         '/schedules/archived',
     )
     return (data ?? []).map(normalize)
+}
+
+export async function getActiveSchedule(): Promise<ScheduleResponse | null> {
+    try {
+        const { data } = await apiClient.get<ScheduleResponse>(
+            '/schedules/active',
+        )
+        return normalize(data)
+    } catch (err) {
+        if (isAxiosError(err) && err.response?.status === 404) return null
+        throw err
+    }
 }
 
 export async function getSchedule(id: string): Promise<ScheduleResponse> {

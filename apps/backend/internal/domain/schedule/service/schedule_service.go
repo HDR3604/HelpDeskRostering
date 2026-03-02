@@ -31,6 +31,7 @@ type GenerateScheduleParams struct {
 type ScheduleServiceInterface interface {
 	Create(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error)
+	GetActive(ctx context.Context) (*aggregate.Schedule, error)
 	ListArchived(ctx context.Context) ([]*aggregate.Schedule, error)
 	List(ctx context.Context) ([]*aggregate.Schedule, error)
 	Archive(ctx context.Context, id uuid.UUID) error
@@ -126,6 +127,31 @@ func (s *ScheduleService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate
 	})
 	if err != nil {
 		s.logger.Error("failed to get schedule", zap.String("schedule_id", id.String()), zap.Error(err))
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (s *ScheduleService) GetActive(ctx context.Context) (*aggregate.Schedule, error) {
+	s.logger.Debug("getting active schedule")
+
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result *aggregate.Schedule
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repository.GetActive(ctx, tx)
+		return txErr
+	})
+	if err != nil {
+		if errors.Is(err, scheduleErrors.ErrNotFound) {
+			return nil, err
+		}
+		s.logger.Error("failed to get active schedule", zap.Error(err))
 		return nil, err
 	}
 

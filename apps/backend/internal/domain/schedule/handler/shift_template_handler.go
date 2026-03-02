@@ -27,6 +27,10 @@ func NewShiftTemplateHandler(logger *zap.Logger, service service.ShiftTemplateSe
 	}
 }
 
+func (h *ShiftTemplateHandler) RegisterReadRoutes(r chi.Router) {
+	r.Get("/shift-templates", h.List)
+}
+
 func (h *ShiftTemplateHandler) RegisterRoutes(r chi.Router) {
 	r.Route("/shift-templates", func(r chi.Router) {
 		r.Post("/", h.Create)

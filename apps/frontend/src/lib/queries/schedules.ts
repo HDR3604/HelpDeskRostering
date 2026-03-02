@@ -11,6 +11,7 @@ import {
     listSchedules,
     listArchivedSchedules,
     getSchedule,
+    getActiveSchedule,
     createSchedule,
     archiveSchedule,
     unarchiveSchedule,
@@ -29,6 +30,7 @@ export const scheduleKeys = {
         [...scheduleKeys.lists(), filter] as const,
     details: () => [...scheduleKeys.all(), 'detail'] as const,
     detail: (id: string) => [...scheduleKeys.details(), id] as const,
+    active: () => [...scheduleKeys.all(), 'active'] as const,
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -105,6 +107,14 @@ export function useSchedule(id: string) {
             return queryClient.getQueryState(scheduleKeys.list('all'))
                 ?.dataUpdatedAt
         },
+    })
+}
+
+export function useActiveSchedule() {
+    return useQuery({
+        queryKey: scheduleKeys.active(),
+        queryFn: getActiveSchedule,
+        staleTime: 30_000,
     })
 }
 
