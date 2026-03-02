@@ -42,6 +42,7 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 		table.Users.Password,
 		table.Users.Role,
 		table.Users.IsActive,
+		table.Users.EmailVerifiedAt,
 	).VALUES(
 		userModel.UserID,
 		userModel.EmailAddress,
@@ -50,6 +51,7 @@ func (r *UserRepository) Create(ctx context.Context, tx *sql.Tx, user *aggregate
 		userModel.Password,
 		userModel.Role,
 		userModel.IsActive,
+		userModel.EmailVerifiedAt,
 	).RETURNING(table.Users.AllColumns)
 
 	var createdUser model.Users

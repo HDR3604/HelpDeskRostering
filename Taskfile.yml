@@ -220,7 +220,7 @@ tasks:
       - pnpm db:studio
 
   db:reset:
-    desc: Drop and recreate the database, run migrations, start services and seed
+    desc: Drop and recreate the database, run migrations, and start services
     cmds:
       - docker compose -f {{.COMPOSE_FILE}} down -v
       - task: db:start
@@ -237,7 +237,6 @@ tasks:
         done
         echo "Timed out waiting for backend."
         exit 1
-      - task: db:seed
 
   db:seed:
     desc: Seed the database with dev data (requires backend to be running)
