@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { WEEKDAYS_SHORT, getTodayWeekdayIndex } from '@/lib/constants'
-import { formatHour } from '@/lib/format'
+import { formatHour, formatDateRange } from '@/lib/format'
 import { STUDENT_COLORS } from './types'
 
 const ScheduleTables = lazy(() =>
@@ -214,11 +214,33 @@ export function ScheduleListView({
                         </p>
                     </div>
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <HoursWorkedChart data={hoursWorked} />
-                        <AttendanceChart data={missedShifts} />
-                        <div className="lg:col-span-2">
-                            <HoursTrendChart data={hoursTrend} />
-                        </div>
+                        <HoursWorkedChart
+                            data={hoursWorked}
+                            description={
+                                activeSchedule?.effective_from
+                                    ? formatDateRange(
+                                          activeSchedule.effective_from,
+                                          activeSchedule.effective_to ?? null,
+                                      )
+                                    : undefined
+                            }
+                        />
+                        <AttendanceChart
+                            data={missedShifts}
+                            description={
+                                activeSchedule?.effective_from
+                                    ? formatDateRange(
+                                          activeSchedule.effective_from,
+                                          activeSchedule.effective_to ?? null,
+                                      )
+                                    : undefined
+                            }
+                        />
+                        {hoursTrend.length > 0 && (
+                            <div className="lg:col-span-2">
+                                <HoursTrendChart data={hoursTrend} />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

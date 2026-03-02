@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,7 @@ import {
     ChevronDown,
     ChevronUp,
     CalendarDays,
+    ExternalLink,
     Users,
     Layers,
 } from 'lucide-react'
@@ -96,14 +98,32 @@ export function MiniWeeklySchedule({
             <CardHeader className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
-                        <CardTitle>{schedule.title}</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <CardTitle>{schedule.title}</CardTitle>
+                            <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+                                Active
+                            </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">
                             Active schedule overview
                         </p>
                     </div>
-                    <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
-                        Active
-                    </Badge>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        asChild
+                    >
+                        <Link
+                            to="/schedule/$scheduleId"
+                            params={{
+                                scheduleId: schedule.schedule_id,
+                            }}
+                        >
+                            Edit
+                            <ExternalLink className="ml-1 h-3 w-3" />
+                        </Link>
+                    </Button>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     {stats.map((s) => (

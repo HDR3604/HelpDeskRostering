@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
@@ -11,6 +11,7 @@ import {
     TimerOff,
 } from 'lucide-react'
 
+import { isAuthenticated } from '@/lib/auth'
 import { ErrorState } from '@/components/layout/error-state'
 import { StepSetPassword } from '@/features/onboarding/components/step-set-password'
 import {
@@ -26,6 +27,11 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute('/_auth/onboarding')({
     validateSearch: searchSchema,
+    beforeLoad: () => {
+        if (isAuthenticated()) {
+            throw redirect({ to: '/' })
+        }
+    },
     component: OnboardingPage,
 })
 

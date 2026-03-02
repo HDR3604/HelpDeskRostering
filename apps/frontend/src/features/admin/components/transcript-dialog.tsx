@@ -90,7 +90,7 @@ export function TranscriptDialog({
                             <p className="text-sm font-semibold">
                                 {(t.overall_gpa ?? 0).toFixed(2)}{' '}
                                 <span className="text-xs font-normal text-muted-foreground">
-                                    / 4.0
+                                    / 4.3
                                 </span>
                             </p>
                         </div>

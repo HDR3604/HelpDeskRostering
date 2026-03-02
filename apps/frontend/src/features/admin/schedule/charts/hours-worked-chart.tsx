@@ -20,8 +20,10 @@ const chartConfig = {
 
 export function HoursWorkedChart({
     data,
+    description,
 }: {
     data: { name: string; hours: number; fill: string }[]
+    description?: string
 }) {
     const sorted = useMemo(
         () => [...data].sort((a, b) => b.hours - a.hours),
@@ -31,8 +33,10 @@ export function HoursWorkedChart({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Hours Worked</CardTitle>
-                <CardDescription>Week of Feb 17 – 21</CardDescription>
+                <CardTitle>Hours Assigned</CardTitle>
+                <CardDescription>
+                    {description ?? 'Current schedule period'}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer

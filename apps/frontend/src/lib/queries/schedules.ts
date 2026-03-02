@@ -35,8 +35,9 @@ export const scheduleKeys = {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function invalidateLists(queryClient: QueryClient) {
-    return queryClient.invalidateQueries({ queryKey: scheduleKeys.lists() })
+function invalidateSchedules(queryClient: QueryClient) {
+    queryClient.invalidateQueries({ queryKey: scheduleKeys.lists() })
+    queryClient.invalidateQueries({ queryKey: scheduleKeys.active() })
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -55,7 +56,7 @@ function handleTransitionError(
         toast.error(`Cannot ${action}`, {
             description: getErrorMessage(error, 'Invalid state transition.'),
         })
-        invalidateLists(queryClient)
+        invalidateSchedules(queryClient)
     } else {
         toast.error(`Failed to ${action}`, {
             description: 'Something went wrong. Please try again.',
@@ -165,7 +166,7 @@ export function useArchiveSchedule() {
     return useMutation({
         mutationFn: archiveSchedule,
         onSuccess: () => {
-            invalidateLists(queryClient)
+            invalidateSchedules(queryClient)
         },
         onError: (error) =>
             handleTransitionError(error, queryClient, 'archive'),
@@ -178,7 +179,7 @@ export function useUnarchiveSchedule() {
     return useMutation({
         mutationFn: unarchiveSchedule,
         onSuccess: () => {
-            invalidateLists(queryClient)
+            invalidateSchedules(queryClient)
         },
         onError: (error) =>
             handleTransitionError(error, queryClient, 'unarchive'),
@@ -191,7 +192,7 @@ export function useActivateSchedule() {
     return useMutation({
         mutationFn: activateSchedule,
         onSuccess: () => {
-            invalidateLists(queryClient)
+            invalidateSchedules(queryClient)
         },
         onError: (error) =>
             handleTransitionError(error, queryClient, 'activate'),
@@ -204,7 +205,7 @@ export function useDeactivateSchedule() {
     return useMutation({
         mutationFn: deactivateSchedule,
         onSuccess: () => {
-            invalidateLists(queryClient)
+            invalidateSchedules(queryClient)
         },
         onError: (error) =>
             handleTransitionError(error, queryClient, 'deactivate'),
@@ -232,7 +233,7 @@ export function useSaveScheduleAssignments(scheduleId: string) {
                 scheduleKeys.detail(scheduleId),
                 updated,
             )
-            invalidateLists(queryClient)
+            invalidateSchedules(queryClient)
             toast.success('Schedule saved')
         },
         onError: () =>

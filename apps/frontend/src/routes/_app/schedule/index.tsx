@@ -18,12 +18,7 @@ import {
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
 import { useSchedulerConfigs } from '@/lib/queries/scheduler-configs'
 import { useStudents } from '@/lib/queries/students'
-import {
-    buildStudentNameMap,
-    MOCK_HOURS_WORKED,
-    MOCK_MISSED_SHIFTS,
-    MOCK_HOURS_TREND,
-} from '@/lib/mock-data'
+import { buildStudentNameMap } from '@/lib/mock-data'
 import { ScheduleListView } from '@/features/admin/schedule/schedule-list-view'
 import { ScheduleListSkeleton } from '@/features/admin/skeletons/schedule-list-skeleton'
 import { RenameScheduleDialog } from '@/features/admin/schedule/components/rename-schedule-dialog'
@@ -62,6 +57,44 @@ function ScheduleListPage() {
         () => buildStudentNameMap(students),
         [students],
     )
+
+    const activeSchedule = schedules.find((s) => s.status === 'active') ?? null
+    const assignments = useMemo(
+        () =>
+            Array.isArray(activeSchedule?.assignments)
+                ? activeSchedule.assignments
+                : [],
+        [activeSchedule],
+    )
+
+    const hoursAssigned = useMemo(() => {
+        const counts: Record<string, number> = {}
+        for (const a of assignments) {
+            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
+        }
+        return Object.entries(counts)
+            .map(([id, hours], i) => ({
+                name: studentNames[id] || id,
+                hours,
+                fill: `var(--chart-${(i % 5) + 1})`,
+            }))
+            .sort((a, b) => b.hours - a.hours)
+    }, [assignments, studentNames])
+
+    const shiftAttendance = useMemo(() => {
+        const counts: Record<string, number> = {}
+        for (const a of assignments) {
+            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
+        }
+        return Object.entries(counts)
+            .map(([id, total], i) => ({
+                name: studentNames[id] || id,
+                missed: 0, // no time logs yet
+                total,
+                fill: `var(--chart-${(i % 5) + 1})`,
+            }))
+            .sort((a, b) => b.total - a.total)
+    }, [assignments, studentNames])
 
     // Mutations
     const renameMutation = useRenameSchedule()
@@ -141,9 +174,9 @@ function ScheduleListPage() {
                 schedules={schedules}
                 shiftTemplates={shiftTemplates}
                 studentNames={studentNames}
-                hoursWorked={MOCK_HOURS_WORKED}
-                missedShifts={MOCK_MISSED_SHIFTS}
-                hoursTrend={MOCK_HOURS_TREND}
+                hoursWorked={hoursAssigned}
+                missedShifts={shiftAttendance}
+                hoursTrend={[]}
                 onCreateNew={() => setCreateDialogOpen(true)}
                 creatingSchedule={createDialogOpen}
                 onOpenSchedule={handleOpenSchedule}
