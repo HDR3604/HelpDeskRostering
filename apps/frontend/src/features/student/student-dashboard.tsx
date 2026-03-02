@@ -1,16 +1,7 @@
-import { Loader2 } from 'lucide-react'
-import {
-    MOCK_ACTIVE_SCHEDULE,
-    MOCK_SHIFT_TEMPLATES,
-    MOCK_TIME_LOGS,
-} from '@/lib/mock-data'
+import { CalendarDays, Clock, Loader2 } from 'lucide-react'
 import { useMyStudentProfile } from '@/lib/queries/students'
 import { getApplicationStatus } from '@/types/student'
 import { ApplicationStatusBanner } from './components/application-status-banner'
-import { StudentSummaryCards } from './components/student-summary-cards'
-import { NextShiftCard } from './components/next-shift-card'
-import { WeekSummaryCard } from './components/week-summary-card'
-import { StudentWeeklySchedule } from './components/student-weekly-schedule'
 
 export function StudentDashboard() {
     const profileQuery = useMyStudentProfile()
@@ -25,22 +16,10 @@ export function StudentDashboard() {
     }
 
     if (!student) {
-        return (
-            <div className="mx-auto max-w-7xl py-10 text-center text-muted-foreground">
-                No student profile found. Please apply first.
-            </div>
-        )
+        return null
     }
 
-    const studentId = String(student.student_id)
-
-    const myAssignments = (
-        Array.isArray(MOCK_ACTIVE_SCHEDULE.assignments)
-            ? MOCK_ACTIVE_SCHEDULE.assignments
-            : []
-    ).filter((a) => a.assistant_id === studentId)
-
-    const isAccepted = getApplicationStatus(student) === 'accepted'
+    const status = getApplicationStatus(student)
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -50,47 +29,29 @@ export function StudentDashboard() {
                     My Dashboard
                 </h1>
                 <p className="mt-1 text-muted-foreground">
-                    Welcome back, {student.first_name}. Here is your helpdesk
-                    overview.
+                    Welcome back, {student.first_name}.
                 </p>
             </div>
 
             <ApplicationStatusBanner student={student} />
 
-            <StudentSummaryCards
-                student={student}
-                assignments={myAssignments}
-                shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                timeLogs={MOCK_TIME_LOGS}
-            />
-
-            {isAccepted && myAssignments.length > 0 && (
-                <div className="space-y-4">
-                    <div>
-                        <h2 className="text-lg font-semibold">
-                            This Week's Schedule
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            {MOCK_ACTIVE_SCHEDULE.title}
-                        </p>
+            {status === 'accepted' && (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-24 text-center">
+                    <div className="relative">
+                        <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
+                            <CalendarDays className="size-8 text-primary" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border-2 border-background bg-muted">
+                            <Clock className="size-3.5 text-muted-foreground" />
+                        </div>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <NextShiftCard
-                            assignments={myAssignments}
-                            shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                        />
-                        <WeekSummaryCard
-                            assignments={myAssignments}
-                            schedule={MOCK_ACTIVE_SCHEDULE}
-                        />
-                    </div>
-
-                    <StudentWeeklySchedule
-                        assignments={myAssignments}
-                        shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                        schedule={MOCK_ACTIVE_SCHEDULE}
-                    />
+                    <h2 className="mt-6 text-lg font-semibold">
+                        No schedule assigned yet
+                    </h2>
+                    <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                        Your shifts, schedules, and time logs will appear here
+                        once an administrator assigns you to a roster.
+                    </p>
                 </div>
             )}
         </div>

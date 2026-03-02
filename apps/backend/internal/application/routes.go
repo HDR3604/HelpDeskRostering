@@ -53,22 +53,23 @@ func registerRoutes(
 				r.Use(authMiddleware.JWTAuth(authSvc))
 			}
 
+			// Any authenticated user
+			authHdl.RegisterAuthenticatedRoutes(r)
+			scheduleHdl.RegisterRoutes(r)
+			studentHdl.RegisterRoutes(r)
+
+			// Admin-only routes
 			r.Group(func(r chi.Router) {
-				// Admin Routes
 				r.Use(authMiddleware.Permission([]aggregate.Role{aggregate.Role_Admin}))
 
 				scheduleHdl.RegisterAdminRoutes(r)
+				scheduleGenerationHdl.RegisterRoutes(r)
+				shiftTemplateHdl.RegisterRoutes(r)
+				schedulerConfigHdl.RegisterRoutes(r)
 				studentHdl.RegisterAdminRoutes(r)
 				userHdl.RegisterAdminRoutes(r)
+				userHdl.RegisterRoutes(r)
 			})
-
-			authHdl.RegisterAuthenticatedRoutes(r)
-			scheduleHdl.RegisterRoutes(r)
-			scheduleGenerationHdl.RegisterRoutes(r)
-			shiftTemplateHdl.RegisterRoutes(r)
-			schedulerConfigHdl.RegisterRoutes(r)
-			studentHdl.RegisterRoutes(r)
-			userHdl.RegisterRoutes(r)
 		})
 	})
 }

@@ -5,7 +5,6 @@ import {
     Calendar,
     Settings,
     GraduationCap,
-    ClipboardList,
     Plus,
     ChevronRight,
     LogOut,
@@ -26,7 +25,6 @@ import {
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
@@ -65,7 +63,7 @@ export function AppSidebar() {
             ? `${firstName[0]}${lastName[0]}`.toUpperCase()
             : (email ?? '').slice(0, 2).toUpperCase()
 
-    const { data: schedules } = useSchedules()
+    const { data: schedules } = useSchedules({ enabled: isAdmin })
 
     const recentSchedules = useMemo(
         () =>
@@ -331,19 +329,6 @@ export function AppSidebar() {
                                             <span>My Schedule</span>
                                         </Link>
                                     </SidebarMenuButton>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={currentPath === '/onboarding'}
-                                        tooltip="Onboarding"
-                                    >
-                                        <Link to="/onboarding">
-                                            <ClipboardList />
-                                            <span>Onboarding</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                    <SidebarMenuBadge>New</SidebarMenuBadge>
                                 </SidebarMenuItem>
                                 <SidebarMenuItem>
                                     <SidebarMenuButton

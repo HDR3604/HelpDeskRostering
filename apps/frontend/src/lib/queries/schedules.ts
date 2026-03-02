@@ -63,11 +63,12 @@ function handleTransitionError(
 
 // ── Query Hooks ──────────────────────────────────────────────────────
 
-export function useSchedules() {
+export function useSchedules(options?: { enabled?: boolean }) {
     const queryClient = useQueryClient()
 
     return useQuery({
         queryKey: scheduleKeys.list('all'),
+        enabled: options?.enabled,
         queryFn: async () => {
             const [active, archived] = await Promise.all([
                 listSchedules(),

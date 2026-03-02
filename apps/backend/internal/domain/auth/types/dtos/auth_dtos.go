@@ -49,6 +49,10 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+type ValidateOnboardingTokenRequest struct {
+	Token string `json:"token"`
+}
+
 type CompleteOnboardingRequest struct {
 	Token    string `json:"token"`
 	Password string `json:"password"`

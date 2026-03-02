@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
@@ -19,6 +21,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
 	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
 	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
+	schedulerTypes "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -138,6 +141,11 @@ func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if len(req.StudentIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "at least one student_id is required")
+		return
+	}
+
 	configID, err := uuid.Parse(req.ConfigID)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid config_id")
@@ -160,12 +168,31 @@ func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Reques
 		effectiveTo = &parsed
 	}
 
+	// Fetch students by ID and convert to scheduler assistants
+	assistants := make([]schedulerTypes.Assistant, 0, len(req.StudentIDs))
+	for _, sid := range req.StudentIDs {
+		studentID, err := strconv.ParseInt(sid, 10, 32)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, fmt.Sprintf("invalid student_id: %s", sid))
+			return
+		}
+
+		student, err := h.studentSvc.GetByID(r.Context(), int32(studentID))
+		if err != nil {
+			h.logger.Warn("failed to fetch student", zap.String("student_id", sid), zap.Error(err))
+			writeError(w, http.StatusUnprocessableEntity, fmt.Sprintf("student not found: %s", sid))
+			return
+		}
+
+		assistants = append(assistants, studentToAssistant(student))
+	}
+
 	params := service.GenerateScheduleParams{
 		ConfigID:      configID,
 		Title:         req.Title,
 		EffectiveFrom: effectiveFrom,
 		EffectiveTo:   effectiveTo,
-		Assistants:    req.Assistants,
+		Assistants:    assistants,
 	}
 
 	schedule, err := h.service.GenerateSchedule(r.Context(), params)
@@ -175,6 +202,67 @@ func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Reques
 	}
 
 	writeJSON(w, http.StatusCreated, dtos.ScheduleToResponse(schedule))
+}
+
+// studentToAssistant converts a Student aggregate into a scheduler Assistant.
+func studentToAssistant(s *studentAggregate.Student) schedulerTypes.Assistant {
+	// Collect course codes from transcript
+	courses := make([]string, len(s.TranscriptMetadata.Courses))
+	for i, c := range s.TranscriptMetadata.Courses {
+		courses[i] = c.Code
+	}
+
+	// Convert availability: map[string][]int → []AvailabilityWindow
+	// Each key is a day index ("0"–"4"), values are available hours (e.g. [9,10,11,14,15]).
+	// Contiguous hours are grouped into windows: [9,10,11] → {start: "09:00:00", end: "12:00:00"}.
+	var windows []schedulerTypes.AvailabilityWindow
+	for dayStr, hours := range s.Availability {
+		day, err := strconv.Atoi(dayStr)
+		if err != nil {
+			continue
+		}
+		if len(hours) == 0 {
+			continue
+		}
+		sorted := make([]int, len(hours))
+		copy(sorted, hours)
+		sort.Ints(sorted)
+
+		start := sorted[0]
+		end := sorted[0] + 1
+		for i := 1; i < len(sorted); i++ {
+			if sorted[i] == end {
+				end = sorted[i] + 1
+			} else {
+				windows = append(windows, schedulerTypes.AvailabilityWindow{
+					DayOfWeek: day,
+					Start:     fmt.Sprintf("%02d:00:00", start),
+					End:       fmt.Sprintf("%02d:00:00", end),
+				})
+				start = sorted[i]
+				end = sorted[i] + 1
+			}
+		}
+		windows = append(windows, schedulerTypes.AvailabilityWindow{
+			DayOfWeek: day,
+			Start:     fmt.Sprintf("%02d:00:00", start),
+			End:       fmt.Sprintf("%02d:00:00", end),
+		})
+	}
+
+	maxHours := float32(40)
+	if s.MaxWeeklyHours != nil {
+		maxHours = float32(*s.MaxWeeklyHours)
+	}
+
+	return schedulerTypes.Assistant{
+		ID:           strconv.Itoa(int(s.StudentID)),
+		Courses:      courses,
+		Availability: windows,
+		MinHours:     float32(s.MinWeeklyHours),
+		MaxHours:     maxHours,
+		CostPerHour:  0,
+	}
 }
 
 func (h *ScheduleHandler) GetByID(w http.ResponseWriter, r *http.Request) {

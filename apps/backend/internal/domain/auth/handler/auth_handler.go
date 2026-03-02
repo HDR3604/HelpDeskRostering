@@ -39,6 +39,7 @@ func (h *AuthHandler) RegisterRoutes(r chi.Router) {
 		r.Post("/resend-verification", h.ResendVerification)
 		r.Post("/forgot-password", h.ForgotPassword)
 		r.Post("/reset-password", h.ResetPassword)
+		r.Post("/validate-onboarding-token", h.ValidateOnboardingToken)
 		r.Post("/complete-onboarding", h.CompleteOnboarding)
 	})
 }
@@ -218,6 +219,26 @@ func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, dtos.MessageResponse{Message: "password has been reset successfully"})
+}
+
+func (h *AuthHandler) ValidateOnboardingToken(w http.ResponseWriter, r *http.Request) {
+	var req dtos.ValidateOnboardingTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Token == "" {
+		writeError(w, http.StatusBadRequest, "token is required")
+		return
+	}
+
+	if err := h.service.ValidateOnboardingToken(r.Context(), req.Token); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.MessageResponse{Message: "token is valid"})
 }
 
 func (h *AuthHandler) CompleteOnboarding(w http.ResponseWriter, r *http.Request) {

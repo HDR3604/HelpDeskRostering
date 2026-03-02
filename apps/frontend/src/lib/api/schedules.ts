@@ -35,6 +35,20 @@ export async function createSchedule(req: {
     return normalize(data)
 }
 
+export async function generateSchedule(req: {
+    config_id: string
+    title: string
+    effective_from: string
+    effective_to?: string | null
+    student_ids: string[]
+}): Promise<ScheduleResponse> {
+    const { data } = await apiClient.post<ScheduleResponse>(
+        '/schedules/generate',
+        req,
+    )
+    return normalize(data)
+}
+
 export async function archiveSchedule(id: string): Promise<void> {
     await apiClient.patch(`/schedules/${id}/archive`)
 }

@@ -116,11 +116,7 @@ export function CreateScheduleDialog({
 
     const selectedConfig = configs.find((c) => c.id === configId)
 
-    const { status, schedule } = useGenerationStatus(
-        generationId,
-        students,
-        formValues,
-    )
+    const { status, schedule } = useGenerationStatus(generationId, formValues)
 
     const isLocked =
         status !== null &&

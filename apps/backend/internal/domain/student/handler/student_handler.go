@@ -14,6 +14,7 @@ import (
 	studentErrors "github.com/HDR3604/HelpDeskApp/internal/domain/student/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/handler/dtos"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/templates"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
@@ -183,13 +184,13 @@ func (h *StudentHandler) Reject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StudentHandler) GetMe(w http.ResponseWriter, r *http.Request) {
-	email := r.URL.Query().Get("email")
-	if email == "" {
-		writeError(w, http.StatusBadRequest, "email query parameter required")
+	studentID, err := h.studentIDFromContext(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
 
-	student, err := h.studentService.GetByEmail(r.Context(), email)
+	student, err := h.studentService.GetByID(r.Context(), studentID)
 	if err != nil {
 		h.handleStudentError(w, err)
 		return
@@ -199,15 +200,9 @@ func (h *StudentHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *StudentHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
-	email := r.URL.Query().Get("email")
-	if email == "" {
-		writeError(w, http.StatusBadRequest, "email query parameter required")
-		return
-	}
-
-	student, err := h.studentService.GetByEmail(r.Context(), email)
+	studentID, err := h.studentIDFromContext(r)
 	if err != nil {
-		h.handleStudentError(w, err)
+		writeError(w, http.StatusUnauthorized, "authentication required")
 		return
 	}
 
@@ -218,7 +213,7 @@ func (h *StudentHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.studentService.Update(r.Context(), student.StudentID, service.UpdateStudentInput{
+	updated, err := h.studentService.Update(r.Context(), studentID, service.UpdateStudentInput{
 		PhoneNumber:    req.PhoneNumber,
 		Availability:   req.Availability,
 		MinWeeklyHours: req.MinWeeklyHours,
@@ -316,8 +311,20 @@ func (h *StudentHandler) UpsertBankingDetails(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, dtos.BankingDetailsToResponse(bankingDetails))
 }
 
-// --- Email helpers ---
+// studentIDFromContext extracts the student ID (int32) from the JWT auth context.
+func (h *StudentHandler) studentIDFromContext(r *http.Request) (int32, error) {
+	ac, ok := database.GetAuthContextFromContext(r.Context())
+	if !ok || ac.StudentID == nil {
+		return 0, fmt.Errorf("missing student ID in auth context")
+	}
+	id, err := strconv.ParseInt(*ac.StudentID, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid student ID: %w", err)
+	}
+	return int32(id), nil
+}
 
+// --- Email helpers ---
 // sendApplicationEmail sends a simple template email (thank-you, rejection) to a student.
 func (h *StudentHandler) sendApplicationEmail(ctx context.Context, student *aggregate.Student, templateID templates.TemplateID, subject string) {
 	studentName := fmt.Sprintf("%s %s", student.FirstName, student.LastName)

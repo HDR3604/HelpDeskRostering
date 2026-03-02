@@ -2,17 +2,18 @@ import { lazy, Suspense, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { CalendarX } from 'lucide-react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import type { ScheduleResponse } from '@/types/schedule'
 import {
     useSchedules,
-    useCreateSchedule,
     useRenameSchedule,
     useArchiveSchedule,
     useUnarchiveSchedule,
     useActivateSchedule,
     useDeactivateSchedule,
     useNotifyStudents,
+    scheduleKeys,
 } from '@/lib/queries/schedules'
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
 import { useSchedulerConfigs } from '@/lib/queries/scheduler-configs'
@@ -45,6 +46,7 @@ export const Route = createFileRoute('/_app/schedule/')({
 function ScheduleListPage() {
     useDocumentTitle('Schedule')
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
     // Queries
     const schedulesQuery = useSchedules()
@@ -62,7 +64,6 @@ function ScheduleListPage() {
     )
 
     // Mutations
-    const createMutation = useCreateSchedule()
     const renameMutation = useRenameSchedule()
     const archiveMutation = useArchiveSchedule()
     const unarchiveMutation = useUnarchiveSchedule()
@@ -169,26 +170,18 @@ function ScheduleListPage() {
                         onOpenChange={setCreateDialogOpen}
                         students={students}
                         configs={configs}
-                        onCreated={(mockSchedule) =>
-                            createMutation.mutate(
-                                {
-                                    title: mockSchedule.title,
-                                    effective_from: mockSchedule.effective_from,
-                                    effective_to: mockSchedule.effective_to,
+                        onCreated={(created) => {
+                            queryClient.invalidateQueries({
+                                queryKey: scheduleKeys.lists(),
+                            })
+                            setCreateDialogOpen(false)
+                            navigate({
+                                to: '/schedule/$scheduleId',
+                                params: {
+                                    scheduleId: created.schedule_id,
                                 },
-                                {
-                                    onSuccess: (created: ScheduleResponse) => {
-                                        setCreateDialogOpen(false)
-                                        navigate({
-                                            to: '/schedule/$scheduleId',
-                                            params: {
-                                                scheduleId: created.schedule_id,
-                                            },
-                                        })
-                                    },
-                                },
-                            )
-                        }
+                            })
+                        }}
                     />
                 </Suspense>
             )}

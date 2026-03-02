@@ -46,6 +46,7 @@ type AuthServiceInterface interface {
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, rawToken, newPassword string) error
 	InitiateOnboarding(ctx context.Context, email, firstName, lastName string) (rawToken string, err error)
+	ValidateOnboardingToken(ctx context.Context, rawToken string) error
 	CompleteOnboarding(ctx context.Context, rawToken, password string) (accessToken, refreshToken string, err error)
 	ValidateAccessToken(tokenString string) (*Claims, error)
 	CleanupStaleTokens(ctx context.Context) error
@@ -633,6 +634,30 @@ func (s *AuthService) InitiateOnboarding(ctx context.Context, email, firstName, 
 	}
 
 	return rawToken, nil
+}
+
+func (s *AuthService) ValidateOnboardingToken(ctx context.Context, rawToken string) error {
+	tokenHash, err := aggregate.HashToken(rawToken)
+	if err != nil {
+		return fmt.Errorf("failed to hash token: %w", err)
+	}
+
+	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		token, err := s.authTokenRepo.GetByTokenHash(ctx, tx, tokenHash, aggregate.AuthTokenType_Onboarding)
+		if err != nil {
+			return err // ErrOnboardingTokenInvalid from repo
+		}
+
+		if token.IsUsed() {
+			return authErrors.ErrOnboardingTokenUsed
+		}
+
+		if token.IsExpired() {
+			return authErrors.ErrOnboardingTokenExpired
+		}
+
+		return nil
+	})
 }
 
 func (s *AuthService) CompleteOnboarding(ctx context.Context, rawToken, password string) (string, string, error) {

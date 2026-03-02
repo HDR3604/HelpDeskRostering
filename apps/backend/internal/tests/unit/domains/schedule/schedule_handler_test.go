@@ -13,9 +13,11 @@ import (
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	studentAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
 	userAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
+	transcriptTypes "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/types"
 	"github.com/HDR3604/HelpDeskApp/internal/middleware"
 	"github.com/HDR3604/HelpDeskApp/internal/tests/mocks"
 	"github.com/go-chi/chi/v5"
@@ -26,8 +28,9 @@ import (
 
 type ScheduleHandlerTestSuite struct {
 	suite.Suite
-	mockSvc *mocks.MockScheduleService
-	router  *chi.Mux
+	mockSvc        *mocks.MockScheduleService
+	mockStudentSvc *mocks.MockStudentService
+	router         *chi.Mux
 }
 
 func TestScheduleHandlerTestSuite(t *testing.T) {
@@ -36,7 +39,8 @@ func TestScheduleHandlerTestSuite(t *testing.T) {
 
 func (s *ScheduleHandlerTestSuite) SetupTest() {
 	s.mockSvc = &mocks.MockScheduleService{}
-	hdl := handler.NewScheduleHandler(zap.NewNop(), s.mockSvc, nil, nil, nil, "")
+	s.mockStudentSvc = &mocks.MockStudentService{}
+	hdl := handler.NewScheduleHandler(zap.NewNop(), s.mockSvc, s.mockStudentSvc, nil, nil, "")
 	s.router = chi.NewRouter()
 	s.router.Route("/api/v1", func(r chi.Router) {
 		// Admin-only routes (behind permission middleware)
@@ -48,6 +52,21 @@ func (s *ScheduleHandlerTestSuite) SetupTest() {
 		// Authenticated routes (any role)
 		hdl.RegisterRoutes(r)
 	})
+}
+
+func testStudent() *studentAggregate.Student {
+	return &studentAggregate.Student{
+		StudentID:    100,
+		EmailAddress: "test@example.com",
+		FirstName:    "Test",
+		LastName:     "Student",
+		PhoneNumber:  "1234567890",
+		Availability: studentAggregate.Availability{"1": {8, 9, 10, 11}},
+		TranscriptMetadata: transcriptTypes.TranscriptMetadata{
+			Courses: []transcriptTypes.CourseResult{{Code: "CS101"}},
+		},
+		MinWeeklyHours: 4,
+	}
 }
 
 // adminContext returns an AuthContext with admin role for injecting into test requests.
@@ -318,11 +337,23 @@ func (s *ScheduleHandlerTestSuite) generatedSchedule() *aggregate.Schedule {
 	}
 }
 
+func (s *ScheduleHandlerTestSuite) setupStudentMock() {
+	s.mockStudentSvc.GetByIDFn = func(_ context.Context, studentID int32) (*studentAggregate.Student, error) {
+		if studentID == 100 {
+			return testStudent(), nil
+		}
+		return nil, context.DeadlineExceeded
+	}
+}
+
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Success() {
+	s.setupStudentMock()
 	expected := s.generatedSchedule()
 	s.mockSvc.GenerateScheduleFn = func(_ context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error) {
 		s.Equal("Generated Schedule", params.Title)
 		s.Equal("2025-09-01", params.EffectiveFrom.Format("2006-01-02"))
+		s.Len(params.Assistants, 1)
+		s.Equal("100", params.Assistants[0].ID)
 		return expected, nil
 	}
 
@@ -330,7 +361,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Success() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Generated Schedule",
 		"effective_from": "2025-09-01",
-		"assistants": [{"id": "a1", "courses": ["CS101"], "min_hours": 4, "max_hours": 10, "cost_per_hour": 20}]
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusCreated, rr.Code)
@@ -348,12 +379,23 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidBody() {
 	s.Equal(http.StatusBadRequest, rr.Code)
 }
 
+func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_EmptyStudentIDs() {
+	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
+		"config_id": "44444444-4444-4444-4444-444444444444",
+		"title": "Test",
+		"effective_from": "2025-09-01",
+		"student_ids": []
+	}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidConfigID() {
 	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
 		"config_id": "not-a-uuid",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"assistants": []
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusBadRequest, rr.Code)
@@ -364,13 +406,14 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidDateFormat() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "Sept 1",
-		"assistants": []
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusBadRequest, rr.Code)
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_SchedulerUnavailable() {
+	s.setupStudentMock()
 	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
 		return nil, schedulerErrors.ErrSchedulerUnavailable
 	}
@@ -379,13 +422,14 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_SchedulerUnavailable() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"assistants": []
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusBadGateway, rr.Code)
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Infeasible() {
+	s.setupStudentMock()
 	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
 		return nil, schedulerErrors.ErrInfeasible
 	}
@@ -394,7 +438,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Infeasible() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"assistants": []
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusUnprocessableEntity, rr.Code)
@@ -405,13 +449,14 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Unauthorized() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"assistants": []
+		"student_ids": ["100"]
 	}`, nil)
 
 	s.Equal(http.StatusForbidden, rr.Code)
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_NoActiveShiftTemplates() {
+	s.setupStudentMock()
 	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
 		return nil, scheduleErrors.ErrNoActiveShiftTemplates
 	}
@@ -420,13 +465,14 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_NoActiveShiftTemplates()
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"assistants": []
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusUnprocessableEntity, rr.Code)
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_ConfigNotFound() {
+	s.setupStudentMock()
 	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
 		return nil, scheduleErrors.ErrSchedulerConfigNotFound
 	}
@@ -435,7 +481,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_ConfigNotFound() {
 		"config_id": "44444444-4444-4444-4444-444444444444",
 		"title": "Test",
 		"effective_from": "2025-09-01",
-		"assistants": []
+		"student_ids": ["100"]
 	}`)
 
 	s.Equal(http.StatusNotFound, rr.Code)

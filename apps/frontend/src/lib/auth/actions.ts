@@ -18,6 +18,10 @@ export async function loginUser(
     return payload
 }
 
+export async function validateOnboardingToken(token: string): Promise<void> {
+    await authHttpClient.post('/auth/validate-onboarding-token', { token })
+}
+
 export async function completeOnboarding(
     token: string,
     password: string,

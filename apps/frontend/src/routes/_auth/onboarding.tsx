@@ -3,12 +3,22 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
-import { AlertCircle, GraduationCap } from 'lucide-react'
+import {
+    AlertCircle,
+    GraduationCap,
+    Loader2,
+    ShieldX,
+    TimerOff,
+} from 'lucide-react'
 
 import { ErrorState } from '@/components/layout/error-state'
 import { StepSetPassword } from '@/features/onboarding/components/step-set-password'
+import {
+    BankingDetailsForm,
+    type BankingDetailsValues,
+} from '@/features/student/components/banking-details-form'
 import type { PasswordData } from '@/features/onboarding/lib/onboarding-schemas'
-import { completeOnboarding } from '@/lib/auth/actions'
+import { completeOnboarding, validateOnboardingToken } from '@/lib/auth/actions'
 
 const searchSchema = z.object({
     token: z.string().catch(''),
@@ -19,19 +29,123 @@ export const Route = createFileRoute('/_auth/onboarding')({
     component: OnboardingPage,
 })
 
+const STEPS = [
+    {
+        title: 'Set your password',
+        description: 'Create a secure password for your account.',
+    },
+    {
+        title: 'Banking details',
+        description: 'We need this to process your salary payments.',
+    },
+] as const
+
+function resolveTokenError(msg: string): {
+    icon: React.ReactNode
+    title: string
+    description: string
+} | null {
+    switch (msg) {
+        case 'invalid onboarding token':
+            return {
+                icon: <ShieldX />,
+                title: 'Invalid onboarding link',
+                description:
+                    'This onboarding link is not valid. Please check your email for the correct link or contact an administrator.',
+            }
+        case 'onboarding token has expired':
+            return {
+                icon: <TimerOff />,
+                title: 'Link expired',
+                description:
+                    'This onboarding link has expired. Please contact an administrator to get a new one.',
+            }
+        case 'onboarding token has already been used':
+            return {
+                icon: <AlertCircle />,
+                title: 'Already completed',
+                description:
+                    'This onboarding link has already been used. You can sign in with the password you set during onboarding.',
+            }
+        default:
+            return null
+    }
+}
+
 function OnboardingPage() {
     const { token } = Route.useSearch()
     const navigate = useNavigate()
-    const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-    if (!token) {
+    const [step, setStep] = React.useState(0)
+    const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [isValidating, setIsValidating] = React.useState(true)
+    const [tokenError, setTokenError] = React.useState<{
+        icon: React.ReactNode
+        title: string
+        description: string
+    } | null>(null)
+
+    React.useEffect(() => {
+        if (!token) {
+            setIsValidating(false)
+            return
+        }
+
+        let cancelled = false
+        ;(async () => {
+            try {
+                await validateOnboardingToken(token)
+            } catch (error) {
+                if (cancelled) return
+                if (isAxiosError(error) && error.response?.data?.error) {
+                    const resolved = resolveTokenError(
+                        error.response.data.error,
+                    )
+                    setTokenError(
+                        resolved ?? {
+                            icon: <AlertCircle />,
+                            title: 'Something went wrong',
+                            description:
+                                'We could not validate your onboarding link. Please try again later.',
+                        },
+                    )
+                } else {
+                    setTokenError({
+                        icon: <AlertCircle />,
+                        title: 'Something went wrong',
+                        description:
+                            'We could not validate your onboarding link. Please try again later.',
+                    })
+                }
+            } finally {
+                if (!cancelled) setIsValidating(false)
+            }
+        })()
+
+        return () => {
+            cancelled = true
+        }
+    }, [token])
+
+    if (!token || tokenError) {
         return (
             <div className="flex min-h-screen items-center justify-center px-4">
                 <ErrorState
-                    icon={<AlertCircle />}
-                    title="Invalid onboarding link"
-                    description="This link is missing a valid token. Please check your email for the correct onboarding link."
+                    icon={tokenError?.icon ?? <AlertCircle />}
+                    title={tokenError?.title ?? 'Invalid onboarding link'}
+                    description={
+                        tokenError?.description ??
+                        'This link is missing a valid token. Please check your email for the correct onboarding link.'
+                    }
                 />
+            </div>
+        )
+    }
+
+    if (isValidating) {
+        return (
+            <div className="flex min-h-screen items-center justify-center">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
         )
     }
@@ -40,11 +154,16 @@ function OnboardingPage() {
         setIsSubmitting(true)
         try {
             await completeOnboarding(token, data.password)
-            toast.success('Onboarding complete! Welcome aboard.')
-            navigate({ to: '/' })
+            setStep(1)
         } catch (error) {
             if (isAxiosError(error) && error.response?.data?.error) {
-                toast.error(error.response.data.error)
+                const msg = error.response.data.error as string
+                const resolved = resolveTokenError(msg)
+                if (resolved) {
+                    setTokenError(resolved)
+                } else {
+                    toast.error(msg)
+                }
             } else {
                 toast.error('Something went wrong. Please try again.')
             }
@@ -52,6 +171,15 @@ function OnboardingPage() {
             setIsSubmitting(false)
         }
     }
+
+    async function handleBankingSubmit(_values: BankingDetailsValues) {
+        // Banking persistence is handled on a separate ticket.
+        // For now, just complete onboarding and navigate to dashboard.
+        toast.success('Onboarding complete! Welcome aboard.')
+        navigate({ to: '/' })
+    }
+
+    const currentStep = STEPS[step]
 
     return (
         <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
@@ -69,21 +197,47 @@ function OnboardingPage() {
                     </div>
                 </div>
 
-                {/* Step heading */}
-                <div className="space-y-2">
-                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                        Set your password
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Create a secure password for your account.
+                {/* Progress bar */}
+                <div className="space-y-3">
+                    <div className="flex gap-1.5">
+                        {STEPS.map((_, i) => (
+                            <div
+                                key={i}
+                                className={`h-1.5 flex-1 rounded-full transition-colors ${
+                                    i <= step ? 'bg-primary' : 'bg-muted'
+                                }`}
+                            />
+                        ))}
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                        Step {step + 1} of {STEPS.length}
                     </p>
                 </div>
 
-                {/* Password form */}
-                <StepSetPassword
-                    onNext={handlePasswordSubmit}
-                    isSubmitting={isSubmitting}
-                />
+                {/* Step heading */}
+                <div className="space-y-2">
+                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                        {currentStep.title}
+                    </h1>
+                    <p className="text-muted-foreground">
+                        {currentStep.description}
+                    </p>
+                </div>
+
+                {/* Step content */}
+                {step === 0 && (
+                    <StepSetPassword
+                        onNext={handlePasswordSubmit}
+                        isSubmitting={isSubmitting}
+                    />
+                )}
+                {step === 1 && (
+                    <BankingDetailsForm
+                        embedded
+                        onSubmit={handleBankingSubmit}
+                        submitLabel="Complete Onboarding"
+                    />
+                )}
             </div>
         </div>
     )
