@@ -9,13 +9,13 @@ set -eu
 # Requires DATABASE_URL to be set (or sourced from .env.local).
 #
 # Dokploy (inside backend container terminal):
-#   ./seed_admin.sh Admin User admin@example.com 'MyP@ssw0rd!'
+#   ./seed_admin.sh Admin User admin@example.com 'YourPassword'
 #
 # Docker exec (from host):
 #   docker exec -e SEED_ADMIN_FIRST_NAME='Admin' \
 #               -e SEED_ADMIN_LAST_NAME='User' \
 #               -e SEED_ADMIN_EMAIL='admin@example.com' \
-#               -e SEED_ADMIN_PASSWORD='MyP@ssw0rd!' \
+#               -e SEED_ADMIN_PASSWORD='YourPassword' \
 #               <backend-container> ./seed-admin
 
 if [ $# -lt 4 ]; then

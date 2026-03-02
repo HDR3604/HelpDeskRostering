@@ -149,8 +149,17 @@ func NewApp(cfg Config) (*App, error) {
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
-		MaxAge:           300,
+		MaxAge:           3600,
 	}))
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	registerRoutes(r, cfg, authHdl, authSvc, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl)
 

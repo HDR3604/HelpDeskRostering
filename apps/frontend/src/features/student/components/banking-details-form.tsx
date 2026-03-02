@@ -154,7 +154,6 @@ export function BankingDetailsForm({
         if (externalOnSubmit) {
             externalOnSubmit(values)
         } else {
-            console.log('Banking details submitted:', values)
             toast.success('Banking details saved successfully')
         }
     }
