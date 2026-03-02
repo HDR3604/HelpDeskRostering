@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import {
+    InputOTP,
+    InputOTPGroup,
+    InputOTPSlot,
+    InputOTPSeparator,
+} from '@/components/ui/input-otp'
 import {
     ArrowLeft,
     ArrowRight,
@@ -38,7 +43,6 @@ export function StepEmailVerify({
 }: StepEmailVerifyProps) {
     const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS)
     const [code, setCode] = useState('')
-    const inputRef = useRef<HTMLInputElement>(null)
 
     const startCooldown = useCallback(() => {
         setCooldown(RESEND_COOLDOWN_SECONDS)
@@ -52,10 +56,6 @@ export function StepEmailVerify({
         return () => clearInterval(timer)
     }, [cooldown])
 
-    useEffect(() => {
-        if (!isVerified) inputRef.current?.focus()
-    }, [isVerified])
-
     function handleResend() {
         onResend()
         setCode('')
@@ -63,17 +63,9 @@ export function StepEmailVerify({
     }
 
     function handleCodeChange(value: string) {
-        const digits = value.replace(/\D/g, '').slice(0, CODE_LENGTH)
-        setCode(digits)
-        if (digits.length === CODE_LENGTH) {
-            onVerify(digits)
-        }
-    }
-
-    function handleSubmit(e: React.FormEvent) {
-        e.preventDefault()
-        if (code.length === CODE_LENGTH && !isVerifying) {
-            onVerify(code)
+        setCode(value)
+        if (value.length === CODE_LENGTH) {
+            onVerify(value)
         }
     }
 
@@ -116,43 +108,38 @@ export function StepEmailVerify({
                             </p>
                         </div>
 
-                        <form
-                            onSubmit={handleSubmit}
-                            className="flex flex-col items-center gap-3 w-full max-w-xs"
-                        >
-                            <Input
-                                ref={inputRef}
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete="one-time-code"
-                                placeholder="000000"
-                                value={code}
-                                onChange={(e) =>
-                                    handleCodeChange(e.target.value)
-                                }
-                                disabled={isVerifying}
+                        <div className="flex flex-col items-center gap-3">
+                            <InputOTP
                                 maxLength={CODE_LENGTH}
-                                className="text-center text-2xl font-mono tracking-[0.5em] h-14"
-                            />
+                                value={code}
+                                onChange={handleCodeChange}
+                                disabled={isVerifying}
+                                autoFocus
+                            >
+                                <InputOTPGroup>
+                                    <InputOTPSlot index={0} />
+                                    <InputOTPSlot index={1} />
+                                    <InputOTPSlot index={2} />
+                                </InputOTPGroup>
+                                <InputOTPSeparator />
+                                <InputOTPGroup>
+                                    <InputOTPSlot index={3} />
+                                    <InputOTPSlot index={4} />
+                                    <InputOTPSlot index={5} />
+                                </InputOTPGroup>
+                            </InputOTP>
+                            {isVerifying && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                    Verifying...
+                                </div>
+                            )}
                             {error && (
                                 <p className="text-sm text-destructive">
                                     {error}
                                 </p>
                             )}
-                            <Button
-                                type="submit"
-                                size="sm"
-                                disabled={
-                                    code.length !== CODE_LENGTH || isVerifying
-                                }
-                                className="w-full"
-                            >
-                                {isVerifying && (
-                                    <Loader2 className="size-3.5 animate-spin" />
-                                )}
-                                Verify
-                            </Button>
-                        </form>
+                        </div>
 
                         <div className="flex flex-col items-center gap-2 pt-1">
                             <Button
