@@ -92,7 +92,7 @@ tasks:
     desc: Format backend code with goimports
     dir: "{{.BACKEND_DIR}}"
     cmds:
-      - go run golang.org/x/tools/cmd/goimports@latest -w .
+      - go run golang.org/x/tools/cmd/goimports@v0.31.0 -w .
 
   format:check:
     desc: Check formatting (exits non-zero if unformatted)
@@ -111,7 +111,7 @@ tasks:
     dir: "{{.BACKEND_DIR}}"
     cmds:
       - cmd: |
-          unformatted=$(go run golang.org/x/tools/cmd/goimports@latest -l .)
+          unformatted=$(go run golang.org/x/tools/cmd/goimports@v0.31.0 -l .)
           if [ -n "$unformatted" ]; then
             echo "Unformatted Go files:"
             echo "$unformatted"

@@ -51,34 +51,34 @@ func (r *BankingDetailsRepository) Upsert(
 		return nil, fmt.Errorf("failed to encrypt account number: %w", err)
 	}
 
-	query := `
-		INSERT INTO auth.banking_details (student_id, bank_name, branch_name, account_type, account_number, created_at)
-		VALUES ($1, $2, $3, $4, $5, NOW())
-		ON CONFLICT (student_id) DO UPDATE
-		SET bank_name = $2, branch_name = $3, account_type = $4, account_number = $5, updated_at = NOW()
-		RETURNING student_id, bank_name, branch_name, account_type, account_number, created_at, updated_at
-	`
-
-	row := tx.QueryRowContext(
-		ctx,
-		query,
-		bankingDetails.StudentID,
-		bankingDetails.BankName,
-		bankingDetails.BranchName,
-		string(bankingDetails.AccountType),
-		[]byte(encryptedAccountNumber),
-	)
+	stmt := table.BankingDetails.
+		INSERT(
+			table.BankingDetails.StudentID,
+			table.BankingDetails.BankName,
+			table.BankingDetails.BranchName,
+			table.BankingDetails.AccountType,
+			table.BankingDetails.AccountNumber,
+		).
+		VALUES(
+			bankingDetails.StudentID,
+			bankingDetails.BankName,
+			bankingDetails.BranchName,
+			string(bankingDetails.AccountType),
+			[]byte(encryptedAccountNumber),
+		).
+		ON_CONFLICT(table.BankingDetails.StudentID).
+		DO_UPDATE(
+			postgres.SET(
+				table.BankingDetails.BankName.SET(table.BankingDetails.EXCLUDED.BankName),
+				table.BankingDetails.BranchName.SET(table.BankingDetails.EXCLUDED.BranchName),
+				table.BankingDetails.AccountType.SET(table.BankingDetails.EXCLUDED.AccountType),
+				table.BankingDetails.AccountNumber.SET(table.BankingDetails.EXCLUDED.AccountNumber),
+			),
+		).
+		RETURNING(table.BankingDetails.AllColumns)
 
 	var result model.BankingDetails
-	err = row.Scan(
-		&result.StudentID,
-		&result.BankName,
-		&result.BranchName,
-		&result.AccountType,
-		&result.AccountNumber,
-		&result.CreatedAt,
-		&result.UpdatedAt,
-	)
+	err = stmt.QueryContext(ctx, tx, &result)
 	if err != nil {
 		r.logger.Error("failed to upsert banking details", zap.Error(err))
 		return nil, fmt.Errorf("failed to upsert banking details: %w", err)

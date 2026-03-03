@@ -100,11 +100,11 @@ func LoadConfig() (Config, error) {
 	if cfg.EncryptionKey == "" {
 		return Config{}, fmt.Errorf("ENCRYPTION_KEY environment variable is required")
 	}
-	
-  if len(cfg.EncryptionKey) != 64 {
+
+	if len(cfg.EncryptionKey) != 64 {
 		return Config{}, fmt.Errorf("ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)")
 	}
-  
+
 	if _, err := hex.DecodeString(cfg.EncryptionKey); err != nil {
 		return Config{}, fmt.Errorf("ENCRYPTION_KEY must be valid hex: %w", err)
 	}

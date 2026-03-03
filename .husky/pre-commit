@@ -1,2 +1,2 @@
-task format:check
-task test:backend:unit
+task format
+task test:backend

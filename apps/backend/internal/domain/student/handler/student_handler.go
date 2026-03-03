@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -26,16 +27,13 @@ func NewStudentHandler(logger *zap.Logger, service service.BankingDetailsService
 }
 
 func (h *StudentHandler) RegisterRoutes(r chi.Router) {
-	r.Route("/students", func(r chi.Router) {
-		r.Route("/me", func(r chi.Router) {
-			r.Get("/banking-details", h.GetMyBankingDetails)
-			r.Put("/banking-details", h.UpsertMyBankingDetails)
-		})
-		r.Route("/{studentID}", func(r chi.Router) {
-			r.Get("/banking-details", h.GetBankingDetails)
-			r.Put("/banking-details", h.UpsertBankingDetails)
-		})
-	})
+	r.Get("/students/me/banking-details", h.GetMyBankingDetails)
+	r.Put("/students/me/banking-details", h.UpsertMyBankingDetails)
+}
+
+func (h *StudentHandler) RegisterAdminRoutes(r chi.Router) {
+	r.Get("/students/{studentID}/banking-details", h.GetBankingDetails)
+	r.Put("/students/{studentID}/banking-details", h.UpsertBankingDetails)
 }
 
 func (h *StudentHandler) GetMyBankingDetails(w http.ResponseWriter, r *http.Request) {
@@ -151,10 +149,7 @@ func writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Best-effort write; header already sent so we can only log.
-		// Using zap here would require threading the logger through every
-		// helper. stdlib log is acceptable for this edge case.
-		_ = err
+		log.Printf("failed to encode JSON response: %v", err)
 	}
 }
 
