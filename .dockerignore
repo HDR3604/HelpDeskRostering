@@ -1,0 +1,10 @@
+node_modules
+.git
+data
+apps/frontend/node_modules
+apps/frontend/dist
+apps/scheduler/.venv
+apps/transcripts/.venv
+*.md
+.env*
+!.env

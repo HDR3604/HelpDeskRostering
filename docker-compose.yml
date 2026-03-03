@@ -2,8 +2,8 @@ name: help-desk-rostering
 services:
   backend:
     build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/backend/Dockerfile
     expose:
       - "8080"
     env_file:

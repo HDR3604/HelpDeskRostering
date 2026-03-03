@@ -1,13 +1,19 @@
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
 # Download dependencies first (better caching)
-COPY go.mod go.sum ./
+COPY apps/backend/go.mod apps/backend/go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY . .
+COPY apps/backend/ .
+
+# Copy migrations from repo root
+COPY migrations/ ./migrations/
+
+# Install goose for migrations
+RUN go install github.com/pressly/goose/v3/cmd/goose@v3.27.0
 
 # Build binaries with optimizations
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o server ./cmd/server
@@ -27,9 +33,14 @@ WORKDIR /app
 # Copy binaries
 COPY --from=builder /app/server .
 COPY --from=builder /app/seed-admin .
+COPY --from=builder /go/bin/goose .
 
-# Copy migrations if they exist
+# Copy migrations
 COPY --from=builder /app/migrations* ./migrations/
+
+# Copy entrypoint script
+COPY apps/backend/entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 # Set ownership to non-root user
 RUN chown -R appuser:appgroup /app
@@ -39,4 +50,5 @@ USER appuser
 
 EXPOSE 8080
 
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["./server"]
