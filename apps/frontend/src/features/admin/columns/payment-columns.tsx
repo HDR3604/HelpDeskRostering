@@ -79,7 +79,7 @@ export function getPaymentColumns(
                     <p className="text-xs text-muted-foreground">
                         {
                             row.original.student.transcript_metadata
-                                .degree_programme
+                                .current_programme
                         }
                     </p>
                 </div>
