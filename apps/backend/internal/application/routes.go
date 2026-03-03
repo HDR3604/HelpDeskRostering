@@ -32,8 +32,11 @@ func registerRoutes(
 	})
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Public auth routes (no JWT middleware)
-		authHdl.RegisterRoutes(r)
+		// Public auth routes — rate limited by IP
+		r.Group(func(r chi.Router) {
+			r.Use(authMiddleware.RateLimit(cfg.RateLimitRPM))
+			authHdl.RegisterRoutes(r)
+		})
 
 		// Protected routes (JWT middleware)
 		r.Group(func(r chi.Router) {
