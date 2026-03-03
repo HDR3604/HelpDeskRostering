@@ -11,6 +11,7 @@ import {
     ChevronRight,
     LogOut,
     ChevronsUpDown,
+    UserSearch,
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { useUser } from '@/hooks/use-user'
