@@ -224,11 +224,6 @@ export function AppSidebar() {
                                                 <span>Applications</span>
                                             </Link>
                                         </SidebarMenuButton>
-                                        {pendingCount > 0 && (
-                                            <SidebarMenuBadge>
-                                                {pendingCount}
-                                            </SidebarMenuBadge>
-                                        )}
                                     </SidebarMenuItem>
                                     {/* Assistants — collapsible with submenu */}
                                     <Collapsible

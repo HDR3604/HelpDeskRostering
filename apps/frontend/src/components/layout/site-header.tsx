@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Search, Settings, LogOut } from 'lucide-react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -104,20 +104,22 @@ export function SiteHeader() {
                     {crumbs.map((crumb, i) => {
                         const isLast = i === crumbs.length - 1
                         return (
-                            <BreadcrumbItem key={crumb.label + i}>
+                            <React.Fragment key={crumb.label + i}>
                                 {i > 0 && <BreadcrumbSeparator />}
-                                {isLast ? (
-                                    <BreadcrumbPage>
-                                        {crumb.label}
-                                    </BreadcrumbPage>
-                                ) : (
-                                    <BreadcrumbLink asChild>
-                                        <Link to={crumb.to!}>
+                                <BreadcrumbItem>
+                                    {isLast ? (
+                                        <BreadcrumbPage>
                                             {crumb.label}
-                                        </Link>
-                                    </BreadcrumbLink>
-                                )}
-                            </BreadcrumbItem>
+                                        </BreadcrumbPage>
+                                    ) : (
+                                        <BreadcrumbLink asChild>
+                                            <Link to={crumb.to!}>
+                                                {crumb.label}
+                                            </Link>
+                                        </BreadcrumbLink>
+                                    )}
+                                </BreadcrumbItem>
+                            </React.Fragment>
                         )
                     })}
                 </BreadcrumbList>
