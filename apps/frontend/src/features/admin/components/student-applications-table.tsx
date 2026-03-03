@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/card'
 import { RefreshCw, LoaderCircle, ArrowRight } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
+import { cn } from '@/lib/utils'
 import { DataTable } from '@/components/ui/data-table'
-import { getStudentColumns } from '../columns/student-columns'
+import { getStudentColumns } from '../columns/application-columns'
 import type { Student } from '@/types/student'
 import { getApplicationStatus, type ApplicationStatus } from '@/types/student'
 
@@ -77,7 +78,7 @@ export function StudentApplicationsTable({
                 <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                            <CardTitle>Student Applications</CardTitle>
+                            <CardTitle>Applications</CardTitle>
                             {pendingCount > 0 && (
                                 <Badge className="bg-amber-500/15 text-amber-500 hover:bg-amber-500/15">
                                     {pendingCount} pending
@@ -85,7 +86,7 @@ export function StudentApplicationsTable({
                             )}
                         </div>
                         <CardDescription>
-                            Review and manage helpdesk assistant applications
+                            Review transcripts and accept or reject applicants
                         </CardDescription>
                     </div>
                     <Button
@@ -95,7 +96,12 @@ export function StudentApplicationsTable({
                         disabled={syncing}
                         onClick={handleSync}
                     >
-                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                        <RefreshCw
+                            className={cn(
+                                'h-3.5 w-3.5',
+                                syncing && 'animate-spin',
+                            )}
+                        />
                         Sync
                     </Button>
                 </div>
@@ -109,7 +115,9 @@ export function StudentApplicationsTable({
                 <DataTable
                     columns={columns}
                     data={sorted}
-                    pageSize={999}
+                    searchPlaceholder="Search by name, ID, or email"
+                    globalFilter
+                    pageSize={5}
                     emptyMessage="No applications yet."
                 />
                 <div className="mt-4 flex justify-center">

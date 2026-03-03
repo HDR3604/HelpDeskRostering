@@ -8,11 +8,15 @@ export const Route = createFileRoute('/_app/settings')({
 function SettingsPage() {
     useDocumentTitle('Settings')
     return (
-        <div className="mx-auto max-w-7xl">
-            <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-            <p className="mt-2 text-muted-foreground">
-                Application settings — coming soon.
-            </p>
+        <div className="mx-auto max-w-7xl space-y-6">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Settings
+                </h1>
+                <p className="mt-1 text-muted-foreground">
+                    Application settings — coming soon.
+                </p>
+            </div>
         </div>
     )
 }

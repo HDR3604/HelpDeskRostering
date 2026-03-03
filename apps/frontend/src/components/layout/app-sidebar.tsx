@@ -11,6 +11,7 @@ import {
     ChevronRight,
     LogOut,
     ChevronsUpDown,
+    UserSearch,
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { useUser } from '@/hooks/use-user'
@@ -54,6 +55,8 @@ export function AppSidebar() {
     const currentPath = router.location.pathname
     const navigate = useNavigate()
     const { role, setRole, currentStudent } = useUser()
+
+    const isOnAssistants = currentPath.startsWith('/assistants')
 
     const isAdmin = role === 'admin'
     const userName = isAdmin
@@ -142,27 +145,6 @@ export function AppSidebar() {
                             </SidebarGroupAction>
                             <SidebarGroupContent>
                                 <SidebarMenu>
-                                    {/* Applications */}
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            asChild
-                                            isActive={
-                                                currentPath === '/applications'
-                                            }
-                                            tooltip="Applications"
-                                        >
-                                            <Link to="/applications">
-                                                <FileText />
-                                                <span>Applications</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                        {pendingCount > 0 && (
-                                            <SidebarMenuBadge>
-                                                {pendingCount}
-                                            </SidebarMenuBadge>
-                                        )}
-                                    </SidebarMenuItem>
-
                                     {/* Schedule — collapsible with submenu */}
                                     <Collapsible
                                         defaultOpen={currentPath.startsWith(
@@ -230,6 +212,88 @@ export function AppSidebar() {
                                                             </SidebarMenuSubItem>
                                                         ),
                                                     )}
+                                                </SidebarMenuSub>
+                                            </CollapsibleContent>
+                                        </SidebarMenuItem>
+                                    </Collapsible>
+                                    {/* Applications */}
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={
+                                                currentPath === '/applications'
+                                            }
+                                            tooltip="Applications"
+                                        >
+                                            <Link to="/applications">
+                                                <FileText />
+                                                <span>Applications</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                        {pendingCount > 0 && (
+                                            <SidebarMenuBadge>
+                                                {pendingCount}
+                                            </SidebarMenuBadge>
+                                        )}
+                                    </SidebarMenuItem>
+                                    {/* Assistants — collapsible with submenu */}
+                                    <Collapsible
+                                        defaultOpen={isOnAssistants}
+                                        className="group/collapsible"
+                                    >
+                                        <SidebarMenuItem>
+                                            <CollapsibleTrigger asChild>
+                                                <SidebarMenuButton
+                                                    tooltip="Assistants"
+                                                    isActive={isOnAssistants}
+                                                >
+                                                    <UserSearch />
+                                                    <span>Assistants</span>
+                                                    <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                                                </SidebarMenuButton>
+                                            </CollapsibleTrigger>
+                                            <CollapsibleContent>
+                                                <SidebarMenuSub className="gap-1.5 py-1">
+                                                    <SidebarMenuSubItem>
+                                                        <SidebarMenuSubButton
+                                                            asChild
+                                                            isActive={
+                                                                isOnAssistants &&
+                                                                !currentPath.endsWith(
+                                                                    '/payments',
+                                                                )
+                                                            }
+                                                            className="h-8"
+                                                        >
+                                                            <Link to="/assistants">
+                                                                <span>
+                                                                    Team
+                                                                </span>
+                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">
+                                                                    1
+                                                                </kbd>
+                                                            </Link>
+                                                        </SidebarMenuSubButton>
+                                                    </SidebarMenuSubItem>
+                                                    <SidebarMenuSubItem>
+                                                        <SidebarMenuSubButton
+                                                            asChild
+                                                            isActive={
+                                                                currentPath ===
+                                                                '/assistants/payments'
+                                                            }
+                                                            className="h-8"
+                                                        >
+                                                            <Link to="/assistants/payments">
+                                                                <span>
+                                                                    Payroll
+                                                                </span>
+                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">
+                                                                    2
+                                                                </kbd>
+                                                            </Link>
+                                                        </SidebarMenuSubButton>
+                                                    </SidebarMenuSubItem>
                                                 </SidebarMenuSub>
                                             </CollapsibleContent>
                                         </SidebarMenuItem>

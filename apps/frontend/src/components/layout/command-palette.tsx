@@ -6,6 +6,8 @@ import {
     Calendar,
     Settings,
     ClipboardList,
+    UserSearch,
+    DollarSign,
 } from 'lucide-react'
 import { useUser } from '@/hooks/use-user'
 import {
@@ -21,6 +23,7 @@ import {
 interface NavItem {
     label: string
     to: string
+    search?: Record<string, string>
     icon: React.ComponentType<{ className?: string }>
     shortcut?: string
     keywords?: string[]
@@ -47,6 +50,18 @@ const ADMIN_PAGES: NavItem[] = [
         icon: Calendar,
         shortcut: 'S',
         keywords: ['roster', 'shifts'],
+    },
+    {
+        label: 'Assistants — Team',
+        to: '/assistants',
+        icon: UserSearch,
+        keywords: ['assistants', 'team', 'roster', 'students'],
+    },
+    {
+        label: 'Assistants — Payroll',
+        to: '/assistants/payments',
+        icon: DollarSign,
+        keywords: ['payroll', 'payments', 'salary', 'hours'],
     },
     {
         label: 'Settings',
@@ -99,9 +114,9 @@ export function CommandPalette() {
         return () => window.removeEventListener('keydown', onKeyDown)
     }, [])
 
-    function handleSelect(to: string) {
+    function handleSelect(item: NavItem) {
         setOpen(false)
-        navigate({ to })
+        navigate({ to: item.to, search: item.search })
     }
 
     return (
@@ -118,9 +133,9 @@ export function CommandPalette() {
                 <CommandGroup heading="Pages">
                     {pages.map((page) => (
                         <CommandItem
-                            key={page.to}
+                            key={`${page.to}${page.search ? JSON.stringify(page.search) : ''}`}
                             value={`${page.label} ${page.keywords?.join(' ') ?? ''}`}
-                            onSelect={() => handleSelect(page.to)}
+                            onSelect={() => handleSelect(page)}
                         >
                             <page.icon className="size-4" />
                             <span>{page.label}</span>

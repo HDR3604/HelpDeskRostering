@@ -8,6 +8,7 @@ import {
     useReactTable,
     type ColumnDef,
     type ColumnFiltersState,
+    type RowSelectionState,
     type SortingState,
 } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
@@ -35,6 +36,9 @@ interface DataTableProps<TData, TValue> {
     emptyMessage?: string
     toolbarSlot?: ReactNode
     columnFilters?: ColumnFiltersState
+    enableRowSelection?: boolean
+    rowSelection?: RowSelectionState
+    onRowSelectionChange?: (selection: RowSelectionState) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -48,10 +52,18 @@ export function DataTable<TData, TValue>({
     emptyMessage = 'No results.',
     toolbarSlot,
     columnFilters = EMPTY_COLUMN_FILTERS,
+    enableRowSelection,
+    rowSelection: controlledRowSelection,
+    onRowSelectionChange,
 }: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = useState<SortingState>([])
     const [columnFilter, setColumnFilter] = useState('')
     const [globalFilterValue, setGlobalFilterValue] = useState('')
+    const [internalRowSelection, setInternalRowSelection] =
+        useState<RowSelectionState>({})
+
+    const rowSelection = controlledRowSelection ?? internalRowSelection
+    const setRowSelection = onRowSelectionChange ?? setInternalRowSelection
 
     const showSearch = !!searchPlaceholder
 
@@ -64,9 +76,16 @@ export function DataTable<TData, TValue>({
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         globalFilterFn: 'includesString',
+        enableRowSelection: !!enableRowSelection,
+        onRowSelectionChange: (updater) => {
+            const next =
+                typeof updater === 'function' ? updater(rowSelection) : updater
+            setRowSelection(next)
+        },
         state: {
             sorting,
             columnFilters,
+            rowSelection,
             ...(useGlobalFilter ? { globalFilter: globalFilterValue } : {}),
         },
         initialState: {
@@ -131,6 +150,9 @@ export function DataTable<TData, TValue>({
                         table.getRowModel().rows.map((row) => (
                             <TableRow
                                 key={row.id}
+                                data-state={
+                                    row.getIsSelected() ? 'selected' : undefined
+                                }
                                 className={
                                     onRowClick ? 'cursor-pointer' : undefined
                                 }

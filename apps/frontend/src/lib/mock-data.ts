@@ -12,6 +12,7 @@ export const MOCK_STUDENTS: Student[] = [
         email_address: 'jane.doe@my.uwi.edu',
         first_name: 'Jane',
         last_name: 'Doe',
+        phone_number: '868-555-0101',
         transcript_metadata: {
             overall_gpa: 3.72,
             degree_gpa: 3.85,
@@ -58,6 +59,7 @@ export const MOCK_STUDENTS: Student[] = [
         email_address: 'mark.smith@my.uwi.edu',
         first_name: 'Mark',
         last_name: 'Smith',
+        phone_number: '868-555-0202',
         transcript_metadata: {
             overall_gpa: 3.45,
             degree_gpa: 3.5,
@@ -103,6 +105,7 @@ export const MOCK_STUDENTS: Student[] = [
         email_address: 'aisha.kumar@my.uwi.edu',
         first_name: 'Aisha',
         last_name: 'Kumar',
+        phone_number: '868-555-0303',
         transcript_metadata: {
             overall_gpa: 3.91,
             degree_gpa: 3.95,
@@ -154,6 +157,7 @@ export const MOCK_STUDENTS: Student[] = [
         email_address: 'carlos.perez@my.uwi.edu',
         first_name: 'Carlos',
         last_name: 'Perez',
+        phone_number: null,
         transcript_metadata: {
             overall_gpa: 2.89,
             degree_gpa: 2.95,
@@ -211,6 +215,7 @@ export const MOCK_STUDENTS: Student[] = [
         email_address: 'tanya.williams@my.uwi.edu',
         first_name: 'Tanya',
         last_name: 'Williams',
+        phone_number: '868-555-0505',
         transcript_metadata: {
             overall_gpa: 3.6,
             degree_gpa: 3.7,
@@ -246,7 +251,7 @@ export const MOCK_STUDENTS: Student[] = [
         },
         created_at: '2026-02-12T14:20:00Z',
         updated_at: null,
-        accepted_at: '2026-02-14T09:00:00Z',
+        accepted_at: new Date().toISOString(),
         rejected_at: null,
         min_weekly_hours: 6,
         max_weekly_hours: 12,
@@ -256,6 +261,7 @@ export const MOCK_STUDENTS: Student[] = [
         email_address: 'devon.baptiste@my.uwi.edu',
         first_name: 'Devon',
         last_name: 'Baptiste',
+        phone_number: '868-555-0606',
         transcript_metadata: {
             overall_gpa: 3.2,
             degree_gpa: 3.3,
@@ -704,15 +710,6 @@ export function buildStudentNameMap(
     return map
 }
 
-// Colors for schedule legend (uses chart CSS variables)
-export const SCHEDULE_COLORS: string[] = [
-    'var(--chart-1)',
-    'var(--chart-2)',
-    'var(--chart-3)',
-    'var(--chart-4)',
-    'var(--chart-5)',
-]
-
 // --- Chart Data (derived from time_logs + assignments in production) ---
 
 // Hours worked this week per accepted student (from time_logs: entry_at → exit_at)
@@ -790,4 +787,14 @@ export const MOCK_TIME_LOGS: TimeLog[] = [
         latitude: 10.643,
         distance_meters: 10.1,
     },
+]
+
+// semesters for deactivated students page
+export const MOCK_SEMESTERS = [
+    { name: 'Jane Doe', semester: 1 },
+    { name: 'Mark Smith', semester: 2 },
+    { name: 'Aisha Kumar', semester: 1 },
+    { name: 'Carlos Perez', semester: 3 },
+    { name: 'Tanya Williams', semester: 2 },
+    { name: 'Devon Baptiste', semester: 1 },
 ]
