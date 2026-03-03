@@ -98,6 +98,28 @@ Base URL: `http://localhost:8080/api/v1`
 | `PATCH` | `/scheduler-configs/{id}/set-default` | Set config as default |
 
 
+### Students (public)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/students` | Submit student application |
+
+### Students (admin)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/students` | List students (optional `?status=pending\|accepted\|rejected`) |
+| `GET` | `/students/{id}` | Get student by ID |
+| `PATCH` | `/students/{id}/accept` | Accept application |
+| `PATCH` | `/students/{id}/reject` | Reject application |
+
+### Students (authenticated)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/students/me` | Get own student profile |
+| `PUT` | `/students/me` | Update own profile (phone, availability, hours) |
+
 ### Users
 
 | Method | Path | Description |
@@ -123,11 +145,13 @@ Base URL: `http://localhost:8080/api/v1`
     ├── domain/               # Business logic (DDD)
     │   ├── auth/             # Authentication (JWT, email verification)
     │   ├── schedule/         # Schedules, generations, shifts, configs
+    │   ├── student/          # Student applications, accept/reject workflow
     │   └── user/             # User accounts, roles
     ├── infrastructure/       # External dependencies
     │   ├── database/         # Transaction manager (InAuthTx / InSystemTx)
     │   ├── auth/             # Token repository implementations
     │   ├── user/             # User repository implementation
+    │   ├── student/          # Student repository implementation
     │   ├── schedule/         # Schedule repository implementations
     │   ├── email/            # Mailpit + Resend email senders
     │   ├── scheduler/        # HTTP client to scheduler service

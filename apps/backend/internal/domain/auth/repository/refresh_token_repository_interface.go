@@ -15,4 +15,5 @@ type RefreshTokenRepositoryInterface interface {
 	RevokeByID(ctx context.Context, tx *sql.Tx, tokenID uuid.UUID, replacedBy *uuid.UUID) error
 	RevokeAllByUserID(ctx context.Context, tx *sql.Tx, userID uuid.UUID) error
 	DeleteExpired(ctx context.Context, tx *sql.Tx, beforeTime time.Time) (int64, error)
+	DeleteRevokedBefore(ctx context.Context, tx *sql.Tx, beforeTime time.Time) (int64, error)
 }

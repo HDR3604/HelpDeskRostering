@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react'
-import type {
-    ScheduleResponse,
-    GenerationStatusUpdate,
-    Assignment,
-} from '@/types/schedule'
-import type { Student } from '@/types/student'
-import { MOCK_SHIFT_TEMPLATES } from '@/lib/mock-data'
-import { autoGenerate } from '../auto-generate'
+import { isAxiosError } from 'axios'
+import type { ScheduleResponse, GenerationStatusUpdate } from '@/types/schedule'
+import { generateSchedule } from '@/lib/api/schedules'
 
 interface GenerationFormValues {
     title: string
@@ -16,12 +11,8 @@ interface GenerationFormValues {
     studentIds: string[]
 }
 
-/** Probability (0-1) that a mock generation will fail */
-const MOCK_FAIL_RATE = 0.15
-
 export function useGenerationStatus(
     generationId: string | null,
-    students: Student[],
     formValues: GenerationFormValues | null,
 ): {
     status: GenerationStatusUpdate | null
@@ -37,9 +28,10 @@ export function useGenerationStatus(
             return
         }
 
-        const timers: ReturnType<typeof setTimeout>[] = []
-
-        const willFail = Math.random() < MOCK_FAIL_RATE
+        const abort = new AbortController()
+        const startTime = Date.now()
+        const MIN_ANIMATION_MS = 2500
+        const pendingTimers: ReturnType<typeof setTimeout>[] = []
 
         const base: GenerationStatusUpdate = {
             id: generationId,
@@ -51,14 +43,15 @@ export function useGenerationStatus(
             progress: 0,
         }
 
-        // Immediately pending
+        // Show pending immediately
         setStatus({ ...base })
 
-        // After 800ms: running
-        timers.push(
+        // Transition to running after a brief delay
+        pendingTimers.push(
             setTimeout(() => {
+                if (abort.signal.aborted) return
                 setStatus((prev) =>
-                    prev
+                    prev && prev.status === 'pending'
                         ? {
                               ...prev,
                               status: 'running',
@@ -67,55 +60,86 @@ export function useGenerationStatus(
                           }
                         : prev,
                 )
-            }, 800),
+            }, 500),
         )
 
-        // Outcome after generation delay
-        const finishDelay = 2500 + Math.random() * 1500 // 2.5–4s
-        const runDuration = finishDelay - 800 // time spent in "running" state
+        // Animate progress while waiting for the API
+        const progressTimer = setInterval(() => {
+            if (abort.signal.aborted) return
+            setStatus((prev) => {
+                if (!prev || prev.status !== 'running') return prev
+                const next = Math.min(prev.progress + 8, 90)
+                return { ...prev, progress: next }
+            })
+        }, 1500)
 
-        // Intermediate progress updates
-        timers.push(
-            setTimeout(
-                () => {
-                    setStatus((prev) =>
-                        prev && prev.status === 'running'
-                            ? { ...prev, progress: 30 }
-                            : prev,
-                    )
-                },
-                800 + runDuration * 0.3,
-            ),
-        )
-        timers.push(
-            setTimeout(
-                () => {
-                    setStatus((prev) =>
-                        prev && prev.status === 'running'
-                            ? { ...prev, progress: 60 }
-                            : prev,
-                    )
-                },
-                800 + runDuration * 0.6,
-            ),
-        )
-        timers.push(
-            setTimeout(
-                () => {
-                    setStatus((prev) =>
-                        prev && prev.status === 'running'
-                            ? { ...prev, progress: 85 }
-                            : prev,
-                    )
-                },
-                800 + runDuration * 0.85,
-            ),
-        )
+        // Defer final status until minimum animation time has elapsed
+        function applyAfterMinDelay(fn: () => void) {
+            const elapsed = Date.now() - startTime
+            const remaining = Math.max(0, MIN_ANIMATION_MS - elapsed)
+            if (remaining === 0) {
+                fn()
+            } else {
+                // Force running state if still pending so the user sees progress
+                setStatus((prev) =>
+                    prev && prev.status === 'pending'
+                        ? {
+                              ...prev,
+                              status: 'running',
+                              started_at: new Date().toISOString(),
+                              progress: 5,
+                          }
+                        : prev,
+                )
+                pendingTimers.push(
+                    setTimeout(() => {
+                        if (abort.signal.aborted) return
+                        fn()
+                    }, remaining),
+                )
+            }
+        }
 
-        timers.push(
-            setTimeout(() => {
-                if (willFail) {
-                    const isInfeasible = Math.random() < 0.5
+        // Fire the real API call
+        generateSchedule({
+            config_id: formValues.configId,
+            title: formValues.title,
+            effective_from: formValues.effectiveFrom,
+            effective_to: formValues.effectiveTo || null,
+            student_ids: formValues.studentIds,
+        })
+            .then((created) => {
+                if (abort.signal.aborted) return
+                applyAfterMinDelay(() => {
+                    setStatus((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  status: 'completed',
+                                  schedule_id: created.schedule_id,
+                                  completed_at: new Date().toISOString(),
+                                  progress: 100,
+                              }
+                            : prev,
+                    )
+                    setSchedule(created)
+                })
+            })
+            .catch((err) => {
+                if (abort.signal.aborted) return
+                const isInfeasible =
+                    isAxiosError(err) &&
+                    err.response?.status === 422 &&
+                    (err.response.data?.error as string)
+                        ?.toLowerCase()
+                        .includes('feasible')
+
+                const errorMessage =
+                    isAxiosError(err) && err.response?.data?.error
+                        ? err.response.data.error
+                        : 'An unexpected error occurred during schedule generation.'
+
+                applyAfterMinDelay(() => {
                     setStatus((prev) =>
                         prev
                             ? {
@@ -124,82 +148,20 @@ export function useGenerationStatus(
                                       ? 'infeasible'
                                       : 'failed',
                                   completed_at: new Date().toISOString(),
-                                  error_message: isInfeasible
-                                      ? 'Could not find a feasible schedule with the given constraints.'
-                                      : 'An unexpected error occurred during schedule generation.',
+                                  error_message: errorMessage,
                                   progress: 0,
                               }
                             : prev,
                     )
-                    return
-                }
-
-                const scheduleId = `sched-${Date.now()}`
-
-                // Run autoGenerate with the selected students
-                const selectedStudents = students.filter((s) =>
-                    formValues.studentIds.includes(String(s.student_id)),
-                )
-                const assignmentsByShift = autoGenerate(
-                    MOCK_SHIFT_TEMPLATES,
-                    selectedStudents,
-                )
-
-                // Convert to Assignment[]
-                const shiftMap = new Map(
-                    MOCK_SHIFT_TEMPLATES.map((s) => [s.id, s]),
-                )
-                const assignments: Assignment[] = []
-                for (const [shiftId, studentIds] of Object.entries(
-                    assignmentsByShift,
-                )) {
-                    const shift = shiftMap.get(shiftId)
-                    if (!shift) continue
-                    for (const studentId of studentIds) {
-                        assignments.push({
-                            assistant_id: studentId,
-                            shift_id: shiftId,
-                            day_of_week: shift.day_of_week,
-                            start: shift.start_time + ':00',
-                            end: shift.end_time + ':00',
-                        })
-                    }
-                }
-
-                const newSchedule: ScheduleResponse = {
-                    schedule_id: scheduleId,
-                    title: formValues.title,
-                    is_active: false,
-                    assignments,
-                    created_at: new Date().toISOString(),
-                    created_by: 'admin-001',
-                    updated_at: null,
-                    archived_at: null,
-                    effective_from: formValues.effectiveFrom,
-                    effective_to: formValues.effectiveTo,
-                    generation_id: generationId,
-                    config_id: formValues.configId,
-                }
-
-                setStatus((prev) =>
-                    prev
-                        ? {
-                              ...prev,
-                              status: 'completed',
-                              schedule_id: scheduleId,
-                              completed_at: new Date().toISOString(),
-                              progress: 100,
-                          }
-                        : prev,
-                )
-                setSchedule(newSchedule)
-            }, finishDelay),
-        )
+                })
+            })
 
         return () => {
-            for (const t of timers) clearTimeout(t)
+            abort.abort()
+            pendingTimers.forEach(clearTimeout)
+            clearInterval(progressTimer)
         }
-    }, [generationId, students, formValues])
+    }, [generationId, formValues])
 
     return { status, schedule }
 }

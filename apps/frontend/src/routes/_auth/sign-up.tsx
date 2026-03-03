@@ -1,13 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
+import { isAxiosError } from 'axios'
 import { useDocumentTitle } from '@/hooks/use-document-title'
-import { simulateTranscriptExtraction } from '@/features/sign-up/lib/mock-transcript'
+import { extractTranscript } from '@/features/sign-up/lib/extract-transcript'
 import {
-    mockSendVerificationEmail,
-    mockCheckVerificationStatus,
-} from '@/features/sign-up/lib/mock-verification'
+    sendVerificationCode,
+    verifyVerificationCode,
+} from '@/lib/api/verification'
+import { useApplyAsStudent } from '@/lib/queries/students'
 import type {
     VerifyData,
     ContactData,
@@ -56,7 +58,7 @@ function SignUpPage() {
 
     const [step, setStep] = useState(0)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+    const applyMutation = useApplyAsStudent()
 
     // Collected data
     const [transcript, setTranscript] = useState<File | null>(null)
@@ -64,6 +66,8 @@ function SignUpPage() {
     const [contactData, setContactData] = useState<ContactData | null>(null)
     const [isEmailVerified, setIsEmailVerified] = useState(false)
     const [isSendingVerification, setIsSendingVerification] = useState(false)
+    const [isVerifyingCode, setIsVerifyingCode] = useState(false)
+    const [verifyError, setVerifyError] = useState<string | null>(null)
     const [availability, setAvailability] = useState<Record<
         string,
         number[]
@@ -78,7 +82,7 @@ function SignUpPage() {
         setTranscript(file)
         setIsProcessing(true)
         try {
-            const extracted = await simulateTranscriptExtraction(file)
+            const extracted = await extractTranscript(file)
             if (!verifyData) {
                 setVerifyData(extracted)
             }
@@ -99,7 +103,7 @@ function SignUpPage() {
         setContactData(data)
         setIsSendingVerification(true)
         try {
-            await mockSendVerificationEmail(data.email)
+            await sendVerificationCode(data.email)
         } catch {
             toast.error('Failed to send verification email. Please try again.')
         } finally {
@@ -111,9 +115,10 @@ function SignUpPage() {
     async function handleResendVerification() {
         if (!contactData) return
         setIsSendingVerification(true)
+        setVerifyError(null)
         try {
-            await mockSendVerificationEmail(contactData.email)
-            toast.success('Verification email resent.')
+            await sendVerificationCode(contactData.email)
+            toast.success('Verification code resent.')
         } catch {
             toast.error('Failed to resend. Please try again.')
         } finally {
@@ -121,17 +126,23 @@ function SignUpPage() {
         }
     }
 
-    // Poll for email verification while on the verify step
-    useEffect(() => {
-        if (step !== 3 || isEmailVerified || !contactData) return
-        const interval = setInterval(async () => {
-            const verified = await mockCheckVerificationStatus(
-                contactData.email,
-            )
-            if (verified) setIsEmailVerified(true)
-        }, 2_000)
-        return () => clearInterval(interval)
-    }, [step, isEmailVerified, contactData])
+    async function handleVerifyCode(code: string) {
+        if (!contactData) return
+        setIsVerifyingCode(true)
+        setVerifyError(null)
+        try {
+            await verifyVerificationCode(contactData.email, code)
+            setIsEmailVerified(true)
+        } catch (err) {
+            if (isAxiosError(err) && err.response?.data?.error) {
+                setVerifyError(err.response.data.error)
+            } else {
+                setVerifyError('Invalid or expired code. Please try again.')
+            }
+        } finally {
+            setIsVerifyingCode(false)
+        }
+    }
 
     function handleAvailabilityNext(avail: Record<string, number[]>) {
         setAvailability(avail)
@@ -141,34 +152,31 @@ function SignUpPage() {
     async function handleSubmit() {
         if (!transcript || !verifyData || !contactData || !availability) return
 
-        setIsSubmitting(true)
-        try {
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-
-            const payload = {
-                student_id: parseInt(verifyData.studentId),
-                email_address: contactData.email,
+        await applyMutation.mutateAsync(
+            {
+                student_id: verifyData.studentId,
                 first_name: verifyData.firstName,
                 last_name: verifyData.lastName,
+                email: contactData.email,
                 phone_number: contactData.phoneNumber,
-                transcript_metadata: {
-                    overall_gpa: verifyData.overallGpa,
-                    degree_gpa: verifyData.degreeGpa,
-                    degree_programme: verifyData.degreeProgramme,
-                    courses: verifyData.courses.map((c) => ({
-                        [c.courseCode]: c.grade,
-                    })),
-                    current_level: verifyData.currentYear,
-                },
+                degree_programme: verifyData.degreeProgramme,
+                current_year: parseInt(
+                    verifyData.currentYear.replace(/\D/g, ''),
+                    10,
+                ),
+                overall_gpa: verifyData.overallGpa,
+                degree_gpa: verifyData.degreeGpa,
+                courses: verifyData.courses.map((c) => ({
+                    code: c.courseCode,
+                    title: c.courseName,
+                    grade: c.grade,
+                })),
                 availability,
-            }
-            console.log('Submission payload:', JSON.stringify(payload, null, 2))
-            setStep(6)
-        } catch {
-            toast.error('Something went wrong. Please try again.')
-        } finally {
-            setIsSubmitting(false)
-        }
+            },
+            {
+                onSuccess: () => setStep(6),
+            },
+        )
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -254,6 +262,9 @@ function SignUpPage() {
                         email={contactData.email}
                         isVerified={isEmailVerified}
                         isSending={isSendingVerification}
+                        isVerifying={isVerifyingCode}
+                        error={verifyError}
+                        onVerify={handleVerifyCode}
                         onResend={handleResendVerification}
                         onBack={() => setStep(2)}
                         onNext={() => setStep(4)}
@@ -281,7 +292,7 @@ function SignUpPage() {
                             onGoToStep={setStep}
                             onBack={() => setStep(4)}
                             onSubmit={handleSubmit}
-                            isSubmitting={isSubmitting}
+                            isSubmitting={applyMutation.isPending}
                         />
                     )}
 

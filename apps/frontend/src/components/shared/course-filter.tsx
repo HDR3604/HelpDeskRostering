@@ -71,7 +71,7 @@ export function CourseFilter({
             const matchesSearch =
                 search === '' ||
                 c.code.toLowerCase().includes(search.toLowerCase()) ||
-                c.name.toLowerCase().includes(search.toLowerCase())
+                c.title.toLowerCase().includes(search.toLowerCase())
 
             const matchesGrade =
                 gradeFilter === 'All' ||
@@ -111,18 +111,15 @@ export function CourseFilter({
                     <TableHeader>
                         <TableRow>
                             <TableHead>Code</TableHead>
-                            <TableHead>Name</TableHead>
+                            <TableHead>Title</TableHead>
                             <TableHead>Grade</TableHead>
-                            <TableHead className="text-right">
-                                Credits
-                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filtered.length === 0 ? (
                             <TableRow>
                                 <TableCell
-                                    colSpan={4}
+                                    colSpan={3}
                                     className="text-center text-sm text-muted-foreground"
                                 >
                                     No courses found
@@ -135,7 +132,7 @@ export function CourseFilter({
                                         {course.code}
                                     </TableCell>
                                     <TableCell className="text-sm">
-                                        {course.name}
+                                        {course.title}
                                     </TableCell>
                                     <TableCell>
                                         {course.grade ? (
@@ -147,9 +144,6 @@ export function CourseFilter({
                                                 In Progress
                                             </span>
                                         )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        {course.credits}
                                     </TableCell>
                                 </TableRow>
                             ))

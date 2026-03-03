@@ -129,3 +129,24 @@ func (r *RefreshTokenRepository) DeleteExpired(ctx context.Context, tx *sql.Tx, 
 
 	return rowsAffected, nil
 }
+
+func (r *RefreshTokenRepository) DeleteRevokedBefore(ctx context.Context, tx *sql.Tx, beforeTime time.Time) (int64, error) {
+	stmt := table.RefreshTokens.DELETE().
+		WHERE(
+			table.RefreshTokens.RevokedAt.IS_NOT_NULL().
+				AND(table.RefreshTokens.RevokedAt.LT(postgres.TimestampzT(beforeTime))),
+		)
+
+	result, err := stmt.ExecContext(ctx, tx)
+	if err != nil {
+		r.logger.Error("failed to delete revoked refresh tokens", zap.Error(err))
+		return 0, fmt.Errorf("failed to delete revoked refresh tokens: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return rowsAffected, nil
+}

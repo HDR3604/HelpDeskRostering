@@ -23,8 +23,10 @@ const chartConfig = {
 
 export function AttendanceChart({
     data,
+    description,
 }: {
     data: { name: string; missed: number; total: number; fill: string }[]
+    description?: string
 }) {
     const stacked = useMemo(
         () =>
@@ -41,7 +43,9 @@ export function AttendanceChart({
         <Card>
             <CardHeader>
                 <CardTitle>Shift Attendance</CardTitle>
-                <CardDescription>Week of Feb 17 – 21</CardDescription>
+                <CardDescription>
+                    {description ?? 'Current schedule period'}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer

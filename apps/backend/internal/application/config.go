@@ -17,9 +17,14 @@ type Config struct {
 	RefreshTokenTTL      int // seconds
 	VerificationTokenTTL int // seconds
 	RateLimitRPM         int // requests per minute per IP
+	OnboardingTokenTTL   int // seconds
 	FrontendURL          string
 	FromEmail            string
 	EncryptionKey        string
+	SeedAdminFirstName   string
+	SeedAdminLastName    string
+	SeedAdminEmail       string
+	SeedAdminPassword    string
 }
 
 func LoadConfig() (Config, error) {
@@ -85,6 +90,13 @@ func LoadConfig() (Config, error) {
 		cfg.RateLimitRPM = parsed
 	}
 
+	cfg.OnboardingTokenTTL = 604800 // 7 days
+	if v := os.Getenv("ONBOARDING_TOKEN_TTL"); v != "" {
+		if parsed, err := strconv.Atoi(v); err == nil {
+			cfg.OnboardingTokenTTL = parsed
+		}
+	}
+
 	cfg.FrontendURL = os.Getenv("FRONTEND_URL")
 	if cfg.FrontendURL == "" {
 		cfg.FrontendURL = "http://localhost:5173"
@@ -108,6 +120,11 @@ func LoadConfig() (Config, error) {
 	if _, err := hex.DecodeString(cfg.EncryptionKey); err != nil {
 		return Config{}, fmt.Errorf("ENCRYPTION_KEY must be valid hex: %w", err)
 	}
+
+	cfg.SeedAdminFirstName = os.Getenv("SEED_ADMIN_FIRST_NAME")
+	cfg.SeedAdminLastName = os.Getenv("SEED_ADMIN_LAST_NAME")
+	cfg.SeedAdminEmail = os.Getenv("SEED_ADMIN_EMAIL")
+	cfg.SeedAdminPassword = os.Getenv("SEED_ADMIN_PASSWORD")
 
 	return cfg, nil
 }

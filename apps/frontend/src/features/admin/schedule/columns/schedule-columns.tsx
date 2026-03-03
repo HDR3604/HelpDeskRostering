@@ -63,7 +63,11 @@ export function getScheduleColumns({
             id: 'students',
             header: () => <div className="text-center">Students</div>,
             accessorFn: (row) =>
-                new Set(row.assignments.map((a) => a.assistant_id)).size,
+                new Set(
+                    (Array.isArray(row.assignments) ? row.assignments : []).map(
+                        (a) => a.assistant_id,
+                    ),
+                ).size,
             cell: ({ getValue }) => (
                 <div className="text-center">{getValue<number>()}</div>
             ),
@@ -71,27 +75,40 @@ export function getScheduleColumns({
         {
             id: 'assignments',
             header: () => <div className="text-center">Assignments</div>,
-            accessorFn: (row) => row.assignments.length,
+            accessorFn: (row) =>
+                (Array.isArray(row.assignments) ? row.assignments : []).length,
             cell: ({ getValue }) => (
                 <div className="text-center">{getValue<number>()}</div>
             ),
         },
         {
             id: 'status',
-            accessorFn: (row) => (row.archived_at ? 'archived' : 'inactive'),
+            accessorFn: (row) => row.status,
             header: 'Status',
             cell: ({ row }) => {
-                const archived = !!row.original.archived_at
+                const status = row.original.status
+                const config = {
+                    draft: {
+                        label: 'Draft',
+                        className:
+                            'bg-yellow-500/15 text-yellow-600 hover:bg-yellow-500/15',
+                    },
+                    active: {
+                        label: 'Active',
+                        className:
+                            'bg-green-500/15 text-green-600 hover:bg-green-500/15',
+                    },
+                    archived: {
+                        label: 'Archived',
+                        className:
+                            'bg-muted text-muted-foreground hover:bg-muted',
+                    },
+                }[status] ?? {
+                    label: status,
+                    className: 'bg-muted text-muted-foreground hover:bg-muted',
+                }
                 return (
-                    <Badge
-                        className={
-                            archived
-                                ? 'bg-muted text-muted-foreground hover:bg-muted'
-                                : 'bg-blue-500/15 text-blue-500 hover:bg-blue-500/15'
-                        }
-                    >
-                        {archived ? 'Archived' : 'Inactive'}
-                    </Badge>
+                    <Badge className={config.className}>{config.label}</Badge>
                 )
             },
         },
@@ -145,7 +162,7 @@ export function getScheduleColumns({
                                     Download
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                {!schedule.is_active && (
+                                {schedule.status === 'draft' && (
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.stopPropagation()
@@ -156,7 +173,7 @@ export function getScheduleColumns({
                                         Set Active
                                     </DropdownMenuItem>
                                 )}
-                                {!schedule.archived_at && (
+                                {schedule.status === 'draft' && (
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.stopPropagation()
@@ -167,7 +184,7 @@ export function getScheduleColumns({
                                         Archive
                                     </DropdownMenuItem>
                                 )}
-                                {schedule.archived_at && (
+                                {schedule.status === 'archived' && (
                                     <DropdownMenuItem
                                         onClick={(e) => {
                                             e.stopPropagation()

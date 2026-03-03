@@ -8,16 +8,20 @@ import (
 )
 
 type MockAuthService struct {
-	LoginFn               func(ctx context.Context, email, password string) (string, string, error)
-	RefreshFn             func(ctx context.Context, rawRefreshToken string) (string, string, error)
-	LogoutFn              func(ctx context.Context, rawRefreshToken string) error
-	RegisterFn            func(ctx context.Context, email, password, role string) (*userAggregate.User, error)
-	ChangePasswordFn      func(ctx context.Context, userID, currentPassword, newPassword string) error
-	VerifyEmailFn         func(ctx context.Context, rawToken string) error
-	ResendVerificationFn  func(ctx context.Context, email string) error
-	ForgotPasswordFn      func(ctx context.Context, email string) error
-	ResetPasswordFn       func(ctx context.Context, rawToken, newPassword string) error
-	ValidateAccessTokenFn func(tokenString string) (*service.Claims, error)
+	LoginFn                   func(ctx context.Context, email, password string) (string, string, error)
+	RefreshFn                 func(ctx context.Context, rawRefreshToken string) (string, string, error)
+	LogoutFn                  func(ctx context.Context, rawRefreshToken string) error
+	RegisterFn                func(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error)
+	ChangePasswordFn          func(ctx context.Context, userID, currentPassword, newPassword string) error
+	VerifyEmailFn             func(ctx context.Context, rawToken string) error
+	ResendVerificationFn      func(ctx context.Context, email string) error
+	ForgotPasswordFn          func(ctx context.Context, email string) error
+	ResetPasswordFn           func(ctx context.Context, rawToken, newPassword string) error
+	InitiateOnboardingFn      func(ctx context.Context, email, firstName, lastName string) (string, error)
+	ValidateOnboardingTokenFn func(ctx context.Context, rawToken string) error
+	CompleteOnboardingFn      func(ctx context.Context, rawToken, password string) (string, string, error)
+	ValidateAccessTokenFn     func(tokenString string) (*service.Claims, error)
+	CleanupStaleTokensFn      func(ctx context.Context) error
 }
 
 var _ service.AuthServiceInterface = (*MockAuthService)(nil)
@@ -34,8 +38,8 @@ func (m *MockAuthService) Logout(ctx context.Context, rawRefreshToken string) er
 	return m.LogoutFn(ctx, rawRefreshToken)
 }
 
-func (m *MockAuthService) Register(ctx context.Context, email, password, role string) (*userAggregate.User, error) {
-	return m.RegisterFn(ctx, email, password, role)
+func (m *MockAuthService) Register(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error) {
+	return m.RegisterFn(ctx, firstName, lastName, email, password, role)
 }
 
 func (m *MockAuthService) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
@@ -58,6 +62,22 @@ func (m *MockAuthService) ResetPassword(ctx context.Context, rawToken, newPasswo
 	return m.ResetPasswordFn(ctx, rawToken, newPassword)
 }
 
+func (m *MockAuthService) InitiateOnboarding(ctx context.Context, email, firstName, lastName string) (string, error) {
+	return m.InitiateOnboardingFn(ctx, email, firstName, lastName)
+}
+
+func (m *MockAuthService) ValidateOnboardingToken(ctx context.Context, rawToken string) error {
+	return m.ValidateOnboardingTokenFn(ctx, rawToken)
+}
+
+func (m *MockAuthService) CompleteOnboarding(ctx context.Context, rawToken, password string) (string, string, error) {
+	return m.CompleteOnboardingFn(ctx, rawToken, password)
+}
+
 func (m *MockAuthService) ValidateAccessToken(tokenString string) (*service.Claims, error) {
 	return m.ValidateAccessTokenFn(tokenString)
+}
+
+func (m *MockAuthService) CleanupStaleTokens(ctx context.Context) error {
+	return m.CleanupStaleTokensFn(ctx)
 }

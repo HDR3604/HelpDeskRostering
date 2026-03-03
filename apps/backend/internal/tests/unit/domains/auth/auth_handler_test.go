@@ -82,16 +82,20 @@ func (s *AuthHandlerTestSuite) doRequest(method, path string, body string) *http
 
 func (s *AuthHandlerTestSuite) TestRegister_Success() {
 	userID := uuid.New()
-	s.mockSvc.RegisterFn = func(_ context.Context, email, password, role string) (*userAggregate.User, error) {
+	s.mockSvc.RegisterFn = func(_ context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error) {
 		return &userAggregate.User{
-			ID:       userID,
-			Email:    email,
-			Role:     userAggregate.Role(role),
-			IsActive: true,
+			ID:        userID,
+			FirstName: firstName,
+			LastName:  lastName,
+			Email:     email,
+			Role:      userAggregate.Role(role),
+			IsActive:  true,
 		}, nil
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
+		"first_name": "Test",
+		"last_name": "User",
 		"email": "test@uwi.edu",
 		"password": "Secret1!",
 		"role": "admin"
@@ -120,15 +124,17 @@ func (s *AuthHandlerTestSuite) TestRegister_MissingFields() {
 
 	var resp map[string]any
 	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
-	s.Equal("email, password, and role are required", resp["error"])
+	s.Equal("first_name, last_name, email, password, and role are required", resp["error"])
 }
 
 func (s *AuthHandlerTestSuite) TestRegister_EmailAlreadyExists() {
-	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _ string) (*userAggregate.User, error) {
+	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _, _, _ string) (*userAggregate.User, error) {
 		return nil, userErrors.ErrEmailAlreadyExists
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
+		"first_name": "Test",
+		"last_name": "User",
 		"email": "test@uwi.edu",
 		"password": "Secret1!",
 		"role": "admin"
@@ -138,11 +144,13 @@ func (s *AuthHandlerTestSuite) TestRegister_EmailAlreadyExists() {
 }
 
 func (s *AuthHandlerTestSuite) TestRegister_InvalidRole() {
-	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _ string) (*userAggregate.User, error) {
+	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _, _, _ string) (*userAggregate.User, error) {
 		return nil, userErrors.ErrInvalidRole
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
+		"first_name": "Test",
+		"last_name": "User",
 		"email": "test@uwi.edu",
 		"password": "Secret1!",
 		"role": "superuser"
@@ -152,11 +160,13 @@ func (s *AuthHandlerTestSuite) TestRegister_InvalidRole() {
 }
 
 func (s *AuthHandlerTestSuite) TestRegister_WeakPassword() {
-	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _ string) (*userAggregate.User, error) {
+	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _, _, _ string) (*userAggregate.User, error) {
 		return nil, userErrors.ErrInvalidPasswordLength
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
+		"first_name": "Test",
+		"last_name": "User",
 		"email": "test@uwi.edu",
 		"password": "ab1",
 		"role": "admin"
@@ -166,11 +176,13 @@ func (s *AuthHandlerTestSuite) TestRegister_WeakPassword() {
 }
 
 func (s *AuthHandlerTestSuite) TestRegister_SendVerificationFailed() {
-	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _ string) (*userAggregate.User, error) {
+	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _, _, _ string) (*userAggregate.User, error) {
 		return nil, authErrors.ErrSendVerificationFailed
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
+		"first_name": "Test",
+		"last_name": "User",
 		"email": "test@uwi.edu",
 		"password": "Secret1!",
 		"role": "admin"
@@ -180,11 +192,13 @@ func (s *AuthHandlerTestSuite) TestRegister_SendVerificationFailed() {
 }
 
 func (s *AuthHandlerTestSuite) TestRegister_InternalError() {
-	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _ string) (*userAggregate.User, error) {
+	s.mockSvc.RegisterFn = func(_ context.Context, _, _, _, _, _ string) (*userAggregate.User, error) {
 		return nil, fmt.Errorf("something")
 	}
 
 	rr := s.doRequest("POST", "/api/v1/auth/register", `{
+		"first_name": "Test",
+		"last_name": "User",
 		"email": "test@uwi.edu",
 		"password": "Secret1!",
 		"role": "admin"

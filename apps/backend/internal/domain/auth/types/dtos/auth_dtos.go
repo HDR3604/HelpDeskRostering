@@ -7,9 +7,11 @@ import (
 )
 
 type RegisterRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Role     string `json:"role"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	Role      string `json:"role"`
 }
 
 type LoginRequest struct {
@@ -47,6 +49,15 @@ type ResetPasswordRequest struct {
 	NewPassword string `json:"new_password"`
 }
 
+type ValidateOnboardingTokenRequest struct {
+	Token string `json:"token"`
+}
+
+type CompleteOnboardingRequest struct {
+	Token    string `json:"token"`
+	Password string `json:"password"`
+}
+
 type AuthTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
@@ -56,6 +67,8 @@ type AuthTokenResponse struct {
 
 type UserResponse struct {
 	ID              string     `json:"id"`
+	FirstName       string     `json:"first_name"`
+	LastName        string     `json:"last_name"`
 	Email           string     `json:"email"`
 	Role            string     `json:"role"`
 	IsActive        bool       `json:"is_active"`
@@ -69,6 +82,8 @@ type MessageResponse struct {
 func UserToResponse(u *aggregate.User) UserResponse {
 	return UserResponse{
 		ID:              u.ID.String(),
+		FirstName:       u.FirstName,
+		LastName:        u.LastName,
 		Email:           u.Email,
 		Role:            string(u.Role),
 		IsActive:        u.IsActive,

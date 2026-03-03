@@ -22,4 +22,6 @@ type Users struct {
 	CreatedAt       time.Time
 	UpdatedAt       *time.Time
 	EmailVerifiedAt *time.Time
+	FirstName       string
+	LastName        string
 }

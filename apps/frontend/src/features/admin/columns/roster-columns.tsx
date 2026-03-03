@@ -46,7 +46,7 @@ export function getRosterColumns({
         {
             id: 'name',
             accessorFn: (row) =>
-                `${row.first_name} ${row.last_name} ${row.email_address} ${row.student_id} ${row.transcript_metadata.degree_programme}`,
+                `${row.first_name} ${row.last_name} ${row.email_address} ${row.student_id} ${row.transcript_metadata.current_programme}`,
             header: 'Assistant',
             cell: ({ row }) => (
                 <div>
@@ -54,9 +54,9 @@ export function getRosterColumns({
                         {row.original.first_name} {row.original.last_name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                        {row.original.transcript_metadata.degree_programme}{' '}
+                        {row.original.transcript_metadata.current_programme}{' '}
                         &middot; Level{' '}
-                        {row.original.transcript_metadata.current_level}
+                        {row.original.transcript_metadata.current_year}
                     </p>
                 </div>
             ),
@@ -90,7 +90,9 @@ export function getRosterColumns({
             header: () => <div className="text-right">GPA</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums font-semibold">
-                    {row.original.transcript_metadata.overall_gpa.toFixed(2)}
+                    {(
+                        row.original.transcript_metadata.overall_gpa ?? 0
+                    ).toFixed(2)}
                 </div>
             ),
         },

@@ -18,7 +18,7 @@ export type TranscriptData = z.infer<typeof transcriptSchema>
 export const courseSchema = z.object({
     courseCode: z.string().min(1, 'Course code is required'),
     courseName: z.string().min(1, 'Course name is required'),
-    grade: z.string().min(1, 'Grade is required'),
+    grade: z.string(),
 })
 
 export const verifySchema = z.object({

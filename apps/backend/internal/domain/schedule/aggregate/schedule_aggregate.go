@@ -10,6 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
+// Status represents the lifecycle state of a schedule.
+type Status string
+
+const (
+	Status_Draft    Status = "draft"
+	Status_Active   Status = "active"
+	Status_Archived Status = "archived"
+)
+
 // Schedule
 type Schedule struct {
 	ScheduleID           uuid.UUID
@@ -42,53 +51,83 @@ func NewSchedule(title string, effectiveFrom time.Time, effectiveTo *time.Time) 
 	return &Schedule{
 		ScheduleID:           uuid.New(),
 		Title:                title,
-		Assignments:          json.RawMessage("{}"),
+		Assignments:          json.RawMessage("[]"),
 		AvailabilityMetadata: json.RawMessage("{}"),
 		EffectiveFrom:        effectiveFrom,
 		EffectiveTo:          effectiveTo,
 	}, nil
 }
 
-// Activate updates the schedule to be active
-func (a *Schedule) Activate() {
-	// Skip if already active
-	if a.IsActive {
-		return
-	}
-
-	a.IsActive = true
-}
-
-// Deactivate updates the schedule to be inactive
-func (a *Schedule) Deactivate() {
-	// Skip if already inactive
-	if !a.IsActive {
-		return
-	}
-
-	a.IsActive = false
-}
-
-// Archive updates the schedule to be archived
-func (a *Schedule) Archive() {
-	// Skip if schedule is already archived
+// Status derives the lifecycle state from IsActive and ArchivedAt.
+func (a *Schedule) Status() Status {
 	if a.ArchivedAt != nil {
-		return
+		return Status_Archived
 	}
+	if a.IsActive {
+		return Status_Active
+	}
+	return Status_Draft
+}
 
+// Activate transitions the schedule from draft to active.
+func (a *Schedule) Activate() error {
+	switch a.Status() {
+	case Status_Active:
+		return errors.ErrAlreadyActive
+	case Status_Archived:
+		return errors.ErrInvalidTransition
+	}
+	a.IsActive = true
+	return nil
+}
+
+// Deactivate transitions the schedule from active to draft.
+func (a *Schedule) Deactivate() error {
+	switch a.Status() {
+	case Status_Draft:
+		return errors.ErrAlreadyDraft
+	case Status_Archived:
+		return errors.ErrInvalidTransition
+	}
+	a.IsActive = false
+	return nil
+}
+
+// Archive transitions the schedule from draft or active to archived.
+func (a *Schedule) Archive() error {
+	if a.Status() == Status_Archived {
+		return errors.ErrAlreadyArchived
+	}
 	now := time.Now()
 	a.IsActive = false
 	a.ArchivedAt = &now
+	return nil
 }
 
-// Unarchive updates the schedule to be unarchived
-func (a *Schedule) Unarchive() {
-	// Skip if schedule is not archived already
-	if a.ArchivedAt == nil {
-		return
-	}
+// UpdateAssignments replaces the schedule's assignments
+func (a *Schedule) UpdateAssignments(assignments json.RawMessage) {
+	a.Assignments = assignments
+}
 
+// Rename updates the schedule title with validation
+func (a *Schedule) Rename(title string) error {
+	if strings.TrimSpace(title) == "" {
+		return errors.ErrInvalidTitle
+	}
+	a.Title = title
+	return nil
+}
+
+// Unarchive transitions the schedule from archived back to draft.
+func (a *Schedule) Unarchive() error {
+	switch a.Status() {
+	case Status_Draft:
+		return errors.ErrAlreadyDraft
+	case Status_Active:
+		return errors.ErrInvalidTransition
+	}
 	a.ArchivedAt = nil
+	return nil
 }
 
 // ToModel maps the Schedule aggregate to a database model

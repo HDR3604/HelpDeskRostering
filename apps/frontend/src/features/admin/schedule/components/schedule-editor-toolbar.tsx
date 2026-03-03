@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 
-export type ScheduleStatus = 'active' | 'inactive' | 'archived'
+export type ScheduleStatus = 'active' | 'draft' | 'archived'
 
 const STATUS_BADGE: Record<
     ScheduleStatus,
@@ -39,8 +39,8 @@ const STATUS_BADGE: Record<
         className:
             'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/15',
     },
-    inactive: {
-        label: 'Inactive',
+    draft: {
+        label: 'Draft',
         className: 'bg-blue-500/15 text-blue-500 hover:bg-blue-500/15',
     },
     archived: {

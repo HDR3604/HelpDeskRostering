@@ -1,21 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Dev seed script — creates a test user, shift templates, scheduler config,
+# Dev seed script — creates shift templates, scheduler config,
 # and fires a schedule generation request with realistic assistants.
+# Note: admin user is seeded automatically on app startup via SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD.
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
 API="$BASE_URL/api/v1"
-DB_CONTAINER="${DB_CONTAINER:-$(docker ps --filter ancestor=postgres:16-alpine -q | head -1)}"
-DB_USER="${DB_USER:-helpdesk}"
-DB_NAME="${DB_NAME:-helpdesk}"
-DEV_USER_ID="${DEV_USER_ID:-11111111-1111-1111-1111-111111111111}"
-
-echo "==> Seeding dev user ($DEV_USER_ID)..."
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c \
-  "INSERT INTO auth.users (user_id, email_address, password, role)
-   VALUES ('$DEV_USER_ID', 'dev@local.com', 'dev', 'admin')
-   ON CONFLICT DO NOTHING;"
 
 # ---------- Shift Templates ----------
 echo "==> Creating shift templates..."

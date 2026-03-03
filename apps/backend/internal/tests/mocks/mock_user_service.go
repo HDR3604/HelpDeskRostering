@@ -8,7 +8,7 @@ import (
 )
 
 type MockUserService struct {
-	CreateFn                  func(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error)
+	CreateFn                  func(ctx context.Context, firstName, lastName, email, password string, role aggregate.Role) (*aggregate.User, error)
 	GetByIDFn                 func(ctx context.Context, userID string) (*aggregate.User, error)
 	GetByEmailFn              func(ctx context.Context, email string) (*aggregate.User, error)
 	UpdateFn                  func(ctx context.Context, userID string, input service.UpdateUserInput) error
@@ -20,8 +20,8 @@ type MockUserService struct {
 
 var _ service.UserServiceInterface = (*MockUserService)(nil)
 
-func (m *MockUserService) Create(ctx context.Context, email, password string, role aggregate.Role) (*aggregate.User, error) {
-	return m.CreateFn(ctx, email, password, role)
+func (m *MockUserService) Create(ctx context.Context, firstName, lastName, email, password string, role aggregate.Role) (*aggregate.User, error) {
+	return m.CreateFn(ctx, firstName, lastName, email, password, role)
 }
 
 func (m *MockUserService) GetByID(ctx context.Context, userID string) (*aggregate.User, error) {

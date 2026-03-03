@@ -82,15 +82,15 @@ export function getStudentColumns({
         {
             id: 'programme',
             accessorFn: (row) =>
-                `${row.transcript_metadata.degree_programme} Level ${row.transcript_metadata.current_level}`,
+                `${row.transcript_metadata.current_programme} Level ${row.transcript_metadata.current_year}`,
             header: 'Programme',
             cell: ({ row }) => (
                 <div>
                     <p className="text-sm">
-                        {row.original.transcript_metadata.degree_programme}
+                        {row.original.transcript_metadata.current_programme}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                        Level {row.original.transcript_metadata.current_level}
+                        Level {row.original.transcript_metadata.current_year}
                     </p>
                 </div>
             ),
@@ -101,7 +101,9 @@ export function getStudentColumns({
             header: () => <div className="text-right">GPA</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums font-semibold">
-                    {row.original.transcript_metadata.overall_gpa.toFixed(2)}
+                    {(
+                        row.original.transcript_metadata.overall_gpa ?? 0
+                    ).toFixed(2)}
                 </div>
             ),
         },

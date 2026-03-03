@@ -1,6 +1,6 @@
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Search, Settings, ArrowLeftRight, LogOut } from 'lucide-react'
+import { Search, Settings, LogOut } from 'lucide-react'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
-import { useUser } from '@/hooks/use-user'
+import { useUser, useLogout } from '@/lib/auth'
 import { MOCK_SCHEDULES } from '@/lib/mock-data'
 
 const PAGE_TITLES: Record<string, string> = {
@@ -82,16 +82,15 @@ function buildBreadcrumbs(pathname: string): Crumb[] {
 export function SiteHeader() {
     const router = useRouterState()
     const currentPath = router.location.pathname
-    const { role, setRole, currentStudent } = useUser()
+    const { firstName, lastName, email } = useUser()
 
-    const isAdmin = role === 'admin'
-    const userName = isAdmin
-        ? 'Admin User'
-        : `${currentStudent.first_name} ${currentStudent.last_name}`
-    const userEmail = isAdmin ? 'admin@uwi.edu' : currentStudent.email_address
-    const userInitials = isAdmin
-        ? 'AD'
-        : `${currentStudent.first_name[0]}${currentStudent.last_name[0]}`
+    const logout = useLogout()
+    const displayName =
+        firstName && lastName ? `${firstName} ${lastName}` : (email ?? '')
+    const userInitials =
+        firstName && lastName
+            ? `${firstName[0]}${lastName[0]}`.toUpperCase()
+            : (email ?? '').slice(0, 2).toUpperCase()
 
     const crumbs = useMemo(() => buildBreadcrumbs(currentPath), [currentPath])
 
@@ -105,20 +104,22 @@ export function SiteHeader() {
                     {crumbs.map((crumb, i) => {
                         const isLast = i === crumbs.length - 1
                         return (
-                            <BreadcrumbItem key={crumb.label + i}>
+                            <React.Fragment key={crumb.label + i}>
                                 {i > 0 && <BreadcrumbSeparator />}
-                                {isLast ? (
-                                    <BreadcrumbPage>
-                                        {crumb.label}
-                                    </BreadcrumbPage>
-                                ) : (
-                                    <BreadcrumbLink asChild>
-                                        <Link to={crumb.to!}>
+                                <BreadcrumbItem>
+                                    {isLast ? (
+                                        <BreadcrumbPage>
                                             {crumb.label}
-                                        </Link>
-                                    </BreadcrumbLink>
-                                )}
-                            </BreadcrumbItem>
+                                        </BreadcrumbPage>
+                                    ) : (
+                                        <BreadcrumbLink asChild>
+                                            <Link to={crumb.to!}>
+                                                {crumb.label}
+                                            </Link>
+                                        </BreadcrumbLink>
+                                    )}
+                                </BreadcrumbItem>
+                            </React.Fragment>
                         )
                     })}
                 </BreadcrumbList>
@@ -159,12 +160,12 @@ export function SiteHeader() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                         <DropdownMenuLabel className="font-normal">
-                            <div className="flex flex-col gap-1">
-                                <p className="text-sm font-medium leading-none">
-                                    {userName}
+                            <div className="flex min-w-0 flex-col gap-1">
+                                <p className="truncate text-sm font-medium leading-none">
+                                    {displayName}
                                 </p>
-                                <p className="text-xs leading-none text-muted-foreground">
-                                    {userEmail}
+                                <p className="truncate text-xs leading-none text-muted-foreground">
+                                    {email}
                                 </p>
                             </div>
                         </DropdownMenuLabel>
@@ -175,16 +176,8 @@ export function SiteHeader() {
                                 Settings
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onSelect={() =>
-                                setRole(isAdmin ? 'student' : 'admin')
-                            }
-                        >
-                            <ArrowLeftRight className="mr-2 size-4" />
-                            Switch to {isAdmin ? 'Student' : 'Admin'}
-                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => logout()}>
                             <LogOut className="mr-2 size-4" />
                             Sign out
                         </DropdownMenuItem>

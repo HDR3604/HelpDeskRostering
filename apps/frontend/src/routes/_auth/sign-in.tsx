@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { loginUser } from '@/lib/auth'
+import { isAxiosError } from 'axios'
+import { loginUser, type ApiErrorBody } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -18,7 +19,12 @@ import {
 } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
 
+const searchSchema = z.object({
+    redirect: z.string().optional(),
+})
+
 export const Route = createFileRoute('/_auth/sign-in')({
+    validateSearch: searchSchema,
     component: SignInComponent,
 })
 
@@ -35,6 +41,7 @@ type LoginValues = z.infer<typeof loginSchema>
 
 export function SignInComponent() {
     const navigate = useNavigate()
+    const { redirect: redirectTo } = Route.useSearch()
     const [error, setError] = useState('')
     const [showPassword, setShowPassword] = useState(false)
 
@@ -51,14 +58,33 @@ export function SignInComponent() {
         setError('')
         try {
             await loginUser(values.email, values.password, values.remember)
-            navigate({ to: '/' })
-        } catch {
-            setError('Invalid email or password. Please try again.')
+            const safe =
+                redirectTo?.startsWith('/') && !redirectTo.startsWith('//')
+            navigate({ to: safe ? redirectTo : '/' })
+        } catch (err: unknown) {
+            if (!isAxiosError(err)) {
+                setError('Something went wrong. Please try again later.')
+                return
+            }
+
+            const status = err.response?.status
+            const message =
+                (err.response?.data as ApiErrorBody | undefined)?.error ?? ''
+
+            if (status === 403 && message.includes('not been verified')) {
+                setError('Please verify your email before signing in.')
+            } else if (status === 403 && message.includes('not active')) {
+                setError('Your account has been deactivated.')
+            } else if (status === 401) {
+                setError('Invalid email or password. Please try again.')
+            } else {
+                setError('Something went wrong. Please try again later.')
+            }
         }
     }
 
     return (
-        <div className="flex h-full">
+        <div className="flex min-h-dvh">
             <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
                 <div className="w-full max-w-sm space-y-6">
                     {/* Branded header */}

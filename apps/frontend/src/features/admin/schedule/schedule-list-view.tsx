@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { WEEKDAYS_SHORT, getTodayWeekdayIndex } from '@/lib/constants'
-import { formatHour } from '@/lib/format'
+import { formatHour, formatDateRange } from '@/lib/format'
 import { STUDENT_COLORS } from './types'
 
 const ScheduleTables = lazy(() =>
@@ -41,11 +41,14 @@ function getScheduleStats(schedule: ScheduleResponse | null) {
             avgHoursPerStudent: 0,
         }
     }
-    const studentSet = new Set(schedule.assignments.map((a) => a.assistant_id))
+    const assignments = Array.isArray(schedule.assignments)
+        ? schedule.assignments
+        : []
+    const studentSet = new Set(assignments.map((a) => a.assistant_id))
     const totalStudents = studentSet.size
-    const totalAssignments = schedule.assignments.length
+    const totalAssignments = assignments.length
     const hoursPerDay = [0, 0, 0, 0, 0]
-    for (const a of schedule.assignments) {
+    for (const a of assignments) {
         if (a.day_of_week >= 0 && a.day_of_week < 5)
             hoursPerDay[a.day_of_week]++
     }
@@ -96,8 +99,8 @@ export function ScheduleListView({
     onDeactivate,
     onNotify,
 }: ScheduleListViewProps) {
-    const activeSchedule = schedules.find((s) => s.is_active) ?? null
-    const pastSchedules = schedules.filter((s) => !s.is_active)
+    const activeSchedule = schedules.find((s) => s.status === 'active') ?? null
+    const pastSchedules = schedules.filter((s) => s.status !== 'active')
     const stats = getScheduleStats(activeSchedule)
 
     const scheduleColumns = useMemo(
@@ -183,7 +186,7 @@ export function ScheduleListView({
                 )}
             </div>
 
-            {/* Schedules table (lazy — loads DataTable on demand) */}
+            {/* Schedules table (lazy -- loads DataTable on demand) */}
             {pastSchedules.length > 0 && (
                 <Suspense
                     fallback={
@@ -211,11 +214,33 @@ export function ScheduleListView({
                         </p>
                     </div>
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <HoursWorkedChart data={hoursWorked} />
-                        <AttendanceChart data={missedShifts} />
-                        <div className="lg:col-span-2">
-                            <HoursTrendChart data={hoursTrend} />
-                        </div>
+                        <HoursWorkedChart
+                            data={hoursWorked}
+                            description={
+                                activeSchedule?.effective_from
+                                    ? formatDateRange(
+                                          activeSchedule.effective_from,
+                                          activeSchedule.effective_to ?? null,
+                                      )
+                                    : undefined
+                            }
+                        />
+                        <AttendanceChart
+                            data={missedShifts}
+                            description={
+                                activeSchedule?.effective_from
+                                    ? formatDateRange(
+                                          activeSchedule.effective_from,
+                                          activeSchedule.effective_to ?? null,
+                                      )
+                                    : undefined
+                            }
+                        />
+                        {hoursTrend.length > 0 && (
+                            <div className="lg:col-span-2">
+                                <HoursTrendChart data={hoursTrend} />
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -239,7 +264,12 @@ function ScheduleOverview({
     const uniqueStudentIds = useMemo(
         () =>
             Array.from(
-                new Set(schedule.assignments.map((a) => a.assistant_id)),
+                new Set(
+                    (Array.isArray(schedule.assignments)
+                        ? schedule.assignments
+                        : []
+                    ).map((a) => a.assistant_id),
+                ),
             ),
         [schedule],
     )
@@ -255,10 +285,12 @@ function ScheduleOverview({
         [uniqueStudentIds],
     )
 
-    // Build shift → students map
+    // Build shift -> students map
     const assignmentsByShift = useMemo(() => {
         const map: Record<string, string[]> = {}
-        for (const a of schedule.assignments) {
+        for (const a of Array.isArray(schedule.assignments)
+            ? schedule.assignments
+            : []) {
             if (!map[a.shift_id]) map[a.shift_id] = []
             map[a.shift_id].push(a.assistant_id)
         }
@@ -278,7 +310,7 @@ function ScheduleOverview({
         )
     }, [shiftTemplates])
 
-    // Quick shift lookup: "startTime-endTime-dayOfWeek" → ShiftTemplate
+    // Quick shift lookup: "startTime-endTime-dayOfWeek" -> ShiftTemplate
     const shiftLookup = useMemo(() => {
         const map = new Map<string, ShiftTemplate>()
         for (const s of shiftTemplates)
@@ -292,162 +324,204 @@ function ScheduleOverview({
                 <CardTitle>Schedule Overview</CardTitle>
                 <CardDescription>
                     {schedule.title} — {uniqueStudentIds.length} students,{' '}
-                    {schedule.assignments.length} assignments
+                    {
+                        (Array.isArray(schedule.assignments)
+                            ? schedule.assignments
+                            : []
+                        ).length
+                    }{' '}
+                    assignments
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="overflow-x-auto">
-                    <div
-                        className="grid min-w-[36rem]"
-                        style={{
-                            gridTemplateColumns: '3.5rem repeat(5, 1fr)',
-                            gridTemplateRows: `auto repeat(${timeSlots.length}, auto)`,
-                        }}
-                    >
-                        {/* Day header row */}
-                        <div className="border-b border-border" />
-                        {WEEKDAYS_SHORT.map((day, idx) => (
+                {timeSlots.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8">
+                        <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            No shift templates configured. Add shift templates
+                            to see the weekly grid.
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="overflow-x-auto">
                             <div
-                                key={day}
-                                className={cn(
-                                    'flex items-center justify-center border-b border-border py-2',
-                                    idx > 0 && 'border-l border-border',
-                                    idx === today && 'bg-foreground/[0.03]',
-                                )}
+                                className="grid min-w-[36rem]"
+                                style={{
+                                    gridTemplateColumns:
+                                        '3.5rem repeat(5, 1fr)',
+                                    gridTemplateRows: `auto repeat(${timeSlots.length}, auto)`,
+                                }}
                             >
-                                <span
-                                    className={cn(
-                                        'text-xs font-medium',
-                                        idx === today
-                                            ? 'text-foreground'
-                                            : 'text-muted-foreground',
-                                    )}
-                                >
-                                    {day}
-                                </span>
-                            </div>
-                        ))}
-
-                        {/* Time slot rows */}
-                        {timeSlots.map((slot) => (
-                            <Fragment key={slot.start}>
-                                {/* Time gutter */}
-                                <div className="flex items-start justify-end border-b border-r border-border pr-2 pt-1.5">
-                                    <span className="text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
-                                        {formatHour(slot.start)}
-                                    </span>
-                                </div>
-
-                                {/* Day cells */}
-                                {WEEKDAYS_SHORT.map((_, dayIdx) => {
-                                    const shift = shiftLookup.get(
-                                        `${slot.start}-${slot.end}-${dayIdx}`,
-                                    )
-                                    const students = shift
-                                        ? (assignmentsByShift[shift.id] ?? [])
-                                        : []
-
-                                    return (
-                                        <div
-                                            key={`${slot.start}-${dayIdx}`}
+                                {/* Day header row */}
+                                <div className="border-b border-border" />
+                                {WEEKDAYS_SHORT.map((day, idx) => (
+                                    <div
+                                        key={day}
+                                        className={cn(
+                                            'flex items-center justify-center border-b border-border py-2',
+                                            idx > 0 && 'border-l border-border',
+                                            idx === today &&
+                                                'bg-foreground/[0.03]',
+                                        )}
+                                    >
+                                        <span
                                             className={cn(
-                                                'min-h-10 border-b border-border p-1.5 sm:p-2',
-                                                dayIdx > 0 &&
-                                                    'border-l border-border',
-                                                dayIdx === today &&
-                                                    'bg-foreground/[0.03]',
+                                                'text-xs font-medium',
+                                                idx === today
+                                                    ? 'text-foreground'
+                                                    : 'text-muted-foreground',
                                             )}
                                         >
-                                            {students.length > 0 ? (
-                                                <div className="flex flex-col gap-0.5 sm:gap-1">
-                                                    {students.map((sid) => {
-                                                        const color =
-                                                            STUDENT_COLORS[
-                                                                studentColorIndex[
-                                                                    sid
-                                                                ] ?? 0
-                                                            ]
-                                                        const name =
-                                                            studentNames[sid] ||
-                                                            sid.slice(0, 6)
-                                                        const firstName =
-                                                            name.split(' ')[0]
-                                                        return (
-                                                            <TooltipProvider
-                                                                key={sid}
-                                                                delayDuration={
-                                                                    200
-                                                                }
-                                                            >
-                                                                <Tooltip>
-                                                                    <TooltipTrigger
-                                                                        asChild
-                                                                    >
-                                                                        <div
-                                                                            className={cn(
-                                                                                'flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs leading-none',
-                                                                                color.bg,
-                                                                            )}
+                                            {day}
+                                        </span>
+                                    </div>
+                                ))}
+
+                                {/* Time slot rows */}
+                                {timeSlots.map((slot) => (
+                                    <Fragment key={slot.start}>
+                                        {/* Time gutter */}
+                                        <div className="flex items-start justify-end border-b border-r border-border pr-2 pt-1.5">
+                                            <span className="text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
+                                                {formatHour(slot.start)}
+                                            </span>
+                                        </div>
+
+                                        {/* Day cells */}
+                                        {WEEKDAYS_SHORT.map((_, dayIdx) => {
+                                            const shift = shiftLookup.get(
+                                                `${slot.start}-${slot.end}-${dayIdx}`,
+                                            )
+                                            const students = shift
+                                                ? (assignmentsByShift[
+                                                      shift.id
+                                                  ] ?? [])
+                                                : []
+
+                                            return (
+                                                <div
+                                                    key={`${slot.start}-${dayIdx}`}
+                                                    className={cn(
+                                                        'min-h-10 border-b border-border p-1.5 sm:p-2',
+                                                        dayIdx > 0 &&
+                                                            'border-l border-border',
+                                                        dayIdx === today &&
+                                                            'bg-foreground/[0.03]',
+                                                    )}
+                                                >
+                                                    {students.length > 0 ? (
+                                                        <div className="flex flex-col gap-0.5 sm:gap-1">
+                                                            {students.map(
+                                                                (sid) => {
+                                                                    const color =
+                                                                        STUDENT_COLORS[
+                                                                            studentColorIndex[
+                                                                                sid
+                                                                            ] ??
+                                                                                0
+                                                                        ]
+                                                                    const name =
+                                                                        studentNames[
+                                                                            sid
+                                                                        ] ||
+                                                                        sid.slice(
+                                                                            0,
+                                                                            6,
+                                                                        )
+                                                                    const firstName =
+                                                                        name.split(
+                                                                            ' ',
+                                                                        )[0]
+                                                                    return (
+                                                                        <TooltipProvider
+                                                                            key={
+                                                                                sid
+                                                                            }
+                                                                            delayDuration={
+                                                                                200
+                                                                            }
                                                                         >
-                                                                            <span
-                                                                                className={cn(
-                                                                                    'h-1.5 w-1.5 shrink-0 rounded-full',
-                                                                                    color.dot,
-                                                                                )}
-                                                                            />
-                                                                            <span className="min-w-0 truncate font-medium text-foreground">
-                                                                                {
-                                                                                    firstName
-                                                                                }
-                                                                            </span>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent side="top">
-                                                                        {name}
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        )
-                                                    })}
+                                                                            <Tooltip>
+                                                                                <TooltipTrigger
+                                                                                    asChild
+                                                                                >
+                                                                                    <div
+                                                                                        className={cn(
+                                                                                            'flex items-center gap-1 sm:gap-1.5 rounded-md px-1 sm:px-2 py-1 sm:py-1.5 text-[10px] sm:text-xs leading-none',
+                                                                                            color.bg,
+                                                                                        )}
+                                                                                    >
+                                                                                        <span
+                                                                                            className={cn(
+                                                                                                'h-1.5 w-1.5 shrink-0 rounded-full',
+                                                                                                color.dot,
+                                                                                            )}
+                                                                                        />
+                                                                                        <span className="min-w-0 truncate font-medium text-foreground">
+                                                                                            {
+                                                                                                firstName
+                                                                                            }
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </TooltipTrigger>
+                                                                                <TooltipContent side="top">
+                                                                                    {
+                                                                                        name
+                                                                                    }
+                                                                                </TooltipContent>
+                                                                            </Tooltip>
+                                                                        </TooltipProvider>
+                                                                    )
+                                                                },
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex h-full items-center justify-center">
+                                                            <span className="text-[9px] text-muted-foreground/30">
+                                                                —
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            ) : (
-                                                <div className="flex h-full items-center justify-center">
-                                                    <span className="text-[9px] text-muted-foreground/30">
-                                                        —
-                                                    </span>
-                                                </div>
-                                            )}
+                                            )
+                                        })}
+                                    </Fragment>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Legend */}
+                        {uniqueStudentIds.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t pt-3">
+                                {uniqueStudentIds.map((id) => {
+                                    const color =
+                                        STUDENT_COLORS[
+                                            studentColorIndex[id] ?? 0
+                                        ]
+                                    const name =
+                                        studentNames[id] || id.slice(0, 8)
+                                    return (
+                                        <div
+                                            key={id}
+                                            className="flex items-center gap-1.5 text-xs"
+                                        >
+                                            <span
+                                                className={cn(
+                                                    'h-2 w-2 shrink-0 rounded-full',
+                                                    color.dot,
+                                                )}
+                                            />
+                                            <span className="truncate max-w-[7rem]">
+                                                {name}
+                                            </span>
                                         </div>
                                     )
                                 })}
-                            </Fragment>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Legend */}
-                <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t pt-3">
-                    {uniqueStudentIds.map((id) => {
-                        const color = STUDENT_COLORS[studentColorIndex[id] ?? 0]
-                        const name = studentNames[id] || id.slice(0, 8)
-                        return (
-                            <div
-                                key={id}
-                                className="flex items-center gap-1.5 text-xs"
-                            >
-                                <span
-                                    className={cn(
-                                        'h-2 w-2 shrink-0 rounded-full',
-                                        color.dot,
-                                    )}
-                                />
-                                <span className="truncate max-w-[7rem]">
-                                    {name}
-                                </span>
                             </div>
-                        )
-                    })}
-                </div>
+                        )}
+                    </>
+                )}
             </CardContent>
         </Card>
     )

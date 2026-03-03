@@ -7,28 +7,49 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ChevronDown, X } from 'lucide-react'
+import { CalendarDays, ChevronDown, Clock, X } from 'lucide-react'
 import { SummaryCards } from './components/summary-cards'
 import { StudentApplicationsTable } from './components/student-applications-table'
 import { TranscriptDialog } from './components/transcript-dialog'
 import { MiniWeeklySchedule } from './components/mini-weekly-schedule'
 import { HoursWorkedChart } from './components/hours-worked-chart'
 import { MissedShiftsChart } from './components/missed-shifts-chart'
-import {
-    MOCK_STUDENTS,
-    MOCK_ACTIVE_SCHEDULE,
-    MOCK_SHIFT_TEMPLATES,
-    STUDENT_NAME_MAP,
-    MOCK_HOURS_WORKED,
-    MOCK_MISSED_SHIFTS,
-} from '@/lib/mock-data'
+import { useActiveSchedule } from '@/lib/queries/schedules'
+import { useShiftTemplates } from '@/lib/queries/shift-templates'
+import { buildStudentNameMap } from '@/lib/mock-data'
+import { formatDateRange } from '@/lib/format'
 import { getApplicationStatus } from '@/types/student'
 import type { Student } from '@/types/student'
+import {
+    useStudents,
+    useAcceptStudent,
+    useRejectStudent,
+} from '@/lib/queries/students'
 
 const TOAST_DURATION = 5000
 
 export function AdminDashboard() {
-    const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
+    const studentsQuery = useStudents()
+    const students = studentsQuery.data ?? []
+
+    const acceptMutation = useAcceptStudent()
+    const rejectMutation = useRejectStudent()
+
+    const activeScheduleQuery = useActiveSchedule()
+    const activeSchedule = activeScheduleQuery.data ?? null
+    const shiftTemplatesQuery = useShiftTemplates()
+    const shiftTemplates = shiftTemplatesQuery.data ?? []
+
+    const studentNames = useMemo(
+        () => buildStudentNameMap(students),
+        [students],
+    )
+
+    // Optimistic local state overlay — tracks pending undo-able changes
+    const [optimisticUpdates, setOptimisticUpdates] = useState<
+        Map<number, { accepted_at: string | null; rejected_at: string | null }>
+    >(new Map())
+
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
         null,
     )
@@ -39,6 +60,15 @@ export function AdminDashboard() {
         new Map(),
     )
 
+    // Merge server data with optimistic updates
+    const displayStudents = useMemo(() => {
+        if (optimisticUpdates.size === 0) return students
+        return students.map((s) => {
+            const update = optimisticUpdates.get(s.student_id)
+            return update ? { ...s, ...update } : s
+        })
+    }, [students, optimisticUpdates])
+
     function toggleStudent(name: string) {
         setSelectedStudents((prev) => {
             const next = new Set(prev)
@@ -48,45 +78,84 @@ export function AdminDashboard() {
         })
     }
 
+    // Derive chart data from active schedule assignments
+    const assignments = useMemo(
+        () =>
+            Array.isArray(activeSchedule?.assignments)
+                ? activeSchedule.assignments
+                : [],
+        [activeSchedule],
+    )
+
+    const hoursAssigned = useMemo(() => {
+        const counts: Record<string, number> = {}
+        for (const a of assignments) {
+            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
+        }
+        return Object.entries(counts)
+            .map(([id, hours], i) => ({
+                name: studentNames[id] || id,
+                hours,
+                fill: `var(--chart-${(i % 5) + 1})`,
+            }))
+            .sort((a, b) => b.hours - a.hours)
+    }, [assignments, studentNames])
+
+    const shiftAttendance = useMemo(() => {
+        const counts: Record<string, number> = {}
+        for (const a of assignments) {
+            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
+        }
+        return Object.entries(counts)
+            .map(([id, total], i) => ({
+                name: studentNames[id] || id,
+                missed: 0, // no time logs yet
+                total,
+                fill: `var(--chart-${(i % 5) + 1})`,
+            }))
+            .sort((a, b) => b.total - a.total)
+    }, [assignments, studentNames])
+
     const filteredHours = useMemo(
         () =>
-            [
-                ...(selectedStudents.size === 0
-                    ? MOCK_HOURS_WORKED
-                    : MOCK_HOURS_WORKED.filter((s) =>
-                          selectedStudents.has(s.name),
-                      )),
-            ].sort((a, b) => b.hours - a.hours),
-        [selectedStudents],
+            selectedStudents.size === 0
+                ? hoursAssigned
+                : hoursAssigned.filter((s) => selectedStudents.has(s.name)),
+        [selectedStudents, hoursAssigned],
     )
     const filteredMissed = useMemo(
         () =>
-            [
-                ...(selectedStudents.size === 0
-                    ? MOCK_MISSED_SHIFTS
-                    : MOCK_MISSED_SHIFTS.filter((s) =>
-                          selectedStudents.has(s.name),
-                      )),
-            ].sort((a, b) => b.total - a.total),
-        [selectedStudents],
+            selectedStudents.size === 0
+                ? shiftAttendance
+                : shiftAttendance.filter((s) => selectedStudents.has(s.name)),
+        [selectedStudents, shiftAttendance],
     )
 
     const { pendingCount, acceptedCount } = useMemo(() => {
         let pending = 0
         let accepted = 0
-        for (const s of students) {
+        for (const s of displayStudents) {
             const status = getApplicationStatus(s)
             if (status === 'pending') pending++
             else if (status === 'accepted') accepted++
         }
         return { pendingCount: pending, acceptedCount: accepted }
-    }, [students])
+    }, [displayStudents])
 
     const scheduledThisWeekCount = useMemo(
+        () => new Set(assignments.map((a) => a.assistant_id)).size,
+        [assignments],
+    )
+
+    const scheduleDescription = useMemo(
         () =>
-            new Set(MOCK_ACTIVE_SCHEDULE.assignments.map((a) => a.assistant_id))
-                .size,
-        [],
+            activeSchedule?.effective_from
+                ? formatDateRange(
+                      activeSchedule.effective_from,
+                      activeSchedule.effective_to ?? null,
+                  )
+                : undefined,
+        [activeSchedule],
     )
 
     function scheduleCommit(studentId: number, action: 'accept' | 'reject') {
@@ -95,8 +164,18 @@ export function AdminDashboard() {
 
         const timer = setTimeout(() => {
             pendingTimers.current.delete(studentId)
-            // TODO: fire API call — PATCH /api/v1/students/:id/{action}
-            console.log(`[commit] ${action} student ${studentId}`)
+            // Clear the optimistic update — server data will take over after refetch
+            setOptimisticUpdates((prev) => {
+                const next = new Map(prev)
+                next.delete(studentId)
+                return next
+            })
+
+            if (action === 'accept') {
+                acceptMutation.mutate(studentId)
+            } else {
+                rejectMutation.mutate(studentId)
+            }
         }, TOAST_DURATION)
 
         pendingTimers.current.set(studentId, timer)
@@ -108,86 +187,58 @@ export function AdminDashboard() {
             clearTimeout(timer)
             pendingTimers.current.delete(studentId)
         }
+        // Remove optimistic update to revert to server state
+        setOptimisticUpdates((prev) => {
+            const next = new Map(prev)
+            next.delete(studentId)
+            return next
+        })
     }
 
     function handleAccept(studentId: number) {
-        const prev = students.find((s) => s.student_id === studentId)
+        const prev = displayStudents.find((s) => s.student_id === studentId)
         if (!prev) return
-        const snapshot = {
-            accepted_at: prev.accepted_at,
-            rejected_at: prev.rejected_at,
-        }
-        setStudents((s) =>
-            s.map((st) =>
-                st.student_id === studentId
-                    ? {
-                          ...st,
-                          accepted_at: new Date().toISOString(),
-                          rejected_at: null,
-                      }
-                    : st,
-            ),
-        )
+
+        // Apply optimistic update
+        setOptimisticUpdates((m) => {
+            const next = new Map(m)
+            next.set(studentId, {
+                accepted_at: new Date().toISOString(),
+                rejected_at: null,
+            })
+            return next
+        })
+
         scheduleCommit(studentId, 'accept')
         toast.success(`${prev.first_name} ${prev.last_name} accepted`, {
             duration: TOAST_DURATION,
             action: {
                 label: 'Undo',
-                onClick: () => {
-                    cancelCommit(studentId)
-                    setStudents((s) =>
-                        s.map((st) =>
-                            st.student_id === studentId
-                                ? {
-                                      ...st,
-                                      accepted_at: snapshot.accepted_at,
-                                      rejected_at: snapshot.rejected_at,
-                                  }
-                                : st,
-                        ),
-                    )
-                },
+                onClick: () => cancelCommit(studentId),
             },
         })
     }
 
     function handleReject(studentId: number) {
-        const prev = students.find((s) => s.student_id === studentId)
+        const prev = displayStudents.find((s) => s.student_id === studentId)
         if (!prev) return
-        const snapshot = {
-            accepted_at: prev.accepted_at,
-            rejected_at: prev.rejected_at,
-        }
-        setStudents((s) =>
-            s.map((st) =>
-                st.student_id === studentId
-                    ? {
-                          ...st,
-                          rejected_at: new Date().toISOString(),
-                          accepted_at: null,
-                      }
-                    : st,
-            ),
-        )
+
+        // Apply optimistic update
+        setOptimisticUpdates((m) => {
+            const next = new Map(m)
+            next.set(studentId, {
+                rejected_at: new Date().toISOString(),
+                accepted_at: null,
+            })
+            return next
+        })
+
         scheduleCommit(studentId, 'reject')
         toast.error(`${prev.first_name} ${prev.last_name} rejected`, {
             duration: TOAST_DURATION,
             action: {
                 label: 'Undo',
-                onClick: () => {
-                    cancelCommit(studentId)
-                    setStudents((s) =>
-                        s.map((st) =>
-                            st.student_id === studentId
-                                ? {
-                                      ...st,
-                                      accepted_at: snapshot.accepted_at,
-                                      rejected_at: snapshot.rejected_at,
-                                  }
-                                : st,
-                        ),
-                    )
-                },
+                onClick: () => cancelCommit(studentId),
             },
         })
     }
@@ -209,79 +260,128 @@ export function AdminDashboard() {
                 pendingCount={pendingCount}
                 acceptedCount={acceptedCount}
                 scheduledThisWeekCount={scheduledThisWeekCount}
-                totalCount={students.length}
+                totalCount={displayStudents.length}
             />
 
-            <StudentApplicationsTable
-                students={students}
-                onAccept={handleAccept}
-                onReject={handleReject}
-                onSync={async () => {
-                    await new Promise((r) => setTimeout(r, 800))
-                    setStudents([...MOCK_STUDENTS])
-                }}
-                onViewTranscript={setTranscriptStudent}
-            />
+            {activeSchedule && assignments.length > 0 ? (
+                <>
+                    {/* Schedule */}
+                    <MiniWeeklySchedule
+                        schedule={activeSchedule}
+                        shiftTemplates={shiftTemplates}
+                        studentNames={studentNames}
+                    />
 
-            {/* Charts */}
-            <div className="space-y-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 className="text-lg font-semibold">Analytics</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Hours worked and attendance for the current schedule
-                            period.
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        {selectedStudents.size > 0 && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setSelectedStudents(new Set())}
-                            >
-                                <X className="mr-1 h-3.5 w-3.5" />
-                                Clear
-                            </Button>
-                        )}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    {selectedStudents.size === 0
-                                        ? 'All students'
-                                        : `${selectedStudents.size} selected`}
-                                    <ChevronDown className="ml-1 h-3.5 w-3.5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                {MOCK_HOURS_WORKED.map((s) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={s.name}
-                                        checked={selectedStudents.has(s.name)}
-                                        onCheckedChange={() =>
-                                            toggleStudent(s.name)
+                    {/* Analytics */}
+                    <div className="space-y-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">
+                                    Analytics
+                                </h2>
+                                <p className="text-sm text-muted-foreground">
+                                    Hours assigned and attendance for the
+                                    current schedule period.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                {selectedStudents.size > 0 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                            setSelectedStudents(new Set())
                                         }
-                                        onSelect={(e) => e.preventDefault()}
                                     >
-                                        {s.name}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                        <X className="mr-1 h-3.5 w-3.5" />
+                                        Clear
+                                    </Button>
+                                )}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm">
+                                            {selectedStudents.size === 0
+                                                ? 'All students'
+                                                : `${selectedStudents.size} selected`}
+                                            <ChevronDown className="ml-1 h-3.5 w-3.5" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {hoursAssigned.map((s) => (
+                                            <DropdownMenuCheckboxItem
+                                                key={s.name}
+                                                checked={selectedStudents.has(
+                                                    s.name,
+                                                )}
+                                                onCheckedChange={() =>
+                                                    toggleStudent(s.name)
+                                                }
+                                                onSelect={(e) =>
+                                                    e.preventDefault()
+                                                }
+                                            >
+                                                {s.name}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                            <HoursWorkedChart
+                                data={filteredHours}
+                                description={scheduleDescription}
+                            />
+                            <MissedShiftsChart
+                                data={filteredMissed}
+                                description={scheduleDescription}
+                            />
+                        </div>
                     </div>
+                </>
+            ) : (
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+                    <div className="relative">
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                            <CalendarDays className="size-7 text-primary" />
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted">
+                            <Clock className="size-3 text-muted-foreground" />
+                        </div>
+                    </div>
+                    <h2 className="mt-5 text-base font-semibold">
+                        No active schedule
+                    </h2>
+                    <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+                        Create and activate a schedule from the{' '}
+                        <span className="font-medium text-foreground">
+                            Schedule
+                        </span>{' '}
+                        page to see the weekly overview and analytics here.
+                    </p>
                 </div>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <HoursWorkedChart data={filteredHours} />
-                    <MissedShiftsChart data={filteredMissed} />
-                </div>
-            </div>
+            )}
 
-            {/* Schedule */}
-            <MiniWeeklySchedule
-                schedule={MOCK_ACTIVE_SCHEDULE}
-                shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                studentNames={STUDENT_NAME_MAP}
-            />
+            {/* Student Applications */}
+            <div className="space-y-3">
+                <div>
+                    <h2 className="text-lg font-semibold">
+                        Student Applications
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                        Review and manage incoming student applications.
+                    </p>
+                </div>
+                <StudentApplicationsTable
+                    students={displayStudents}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    onSync={async () => {
+                        await studentsQuery.refetch()
+                    }}
+                    onViewTranscript={setTranscriptStudent}
+                />
+            </div>
 
             <TranscriptDialog
                 student={transcriptStudent}

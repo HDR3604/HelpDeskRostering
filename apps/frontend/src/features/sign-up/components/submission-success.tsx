@@ -2,7 +2,7 @@ import { CheckCircle2, Mail } from 'lucide-react'
 
 export function SubmissionSuccess() {
     return (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center space-y-6">
+        <div className="flex min-h-[60dvh] flex-col items-center justify-center px-4 text-center space-y-6">
             <div className="rounded-full bg-primary/10 p-4">
                 <CheckCircle2 className="size-16 text-primary" />
             </div>

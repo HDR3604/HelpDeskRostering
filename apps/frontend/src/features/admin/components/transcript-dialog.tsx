@@ -41,7 +41,6 @@ export function TranscriptDialog({
 
     const { transcript_metadata: t } = student
     const status = getApplicationStatus(student)
-    const totalCredits = t.courses.reduce((sum, c) => sum + c.credits, 0)
     const completedCourses = t.courses.filter((c) => c.grade !== null).length
 
     return (
@@ -89,9 +88,9 @@ export function TranscriptDialog({
                                 GPA
                             </p>
                             <p className="text-sm font-semibold">
-                                {t.overall_gpa.toFixed(2)}{' '}
+                                {(t.overall_gpa ?? 0).toFixed(2)}{' '}
                                 <span className="text-xs font-normal text-muted-foreground">
-                                    / 4.0
+                                    / 4.3
                                 </span>
                             </p>
                         </div>
@@ -100,17 +99,17 @@ export function TranscriptDialog({
                                 Programme
                             </p>
                             <p className="truncate text-sm font-semibold">
-                                {t.degree_programme.replace('BSc ', '')}
+                                {t.current_programme.replace('BSc ', '')}
                             </p>
                         </div>
                         <div className="rounded-lg bg-muted/50 px-3 py-2">
                             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                                Credits
+                                Courses
                             </p>
                             <p className="text-sm font-semibold">
-                                {totalCredits}{' '}
+                                {completedCourses}/{t.courses.length}{' '}
                                 <span className="text-xs font-normal text-muted-foreground">
-                                    ({completedCourses}/{t.courses.length} done)
+                                    completed
                                 </span>
                             </p>
                         </div>
@@ -233,7 +232,9 @@ export function TranscriptDialog({
                                                 c.code
                                                     .toLowerCase()
                                                     .includes(q) ||
-                                                c.name.toLowerCase().includes(q)
+                                                c.title
+                                                    .toLowerCase()
+                                                    .includes(q)
                                             )
                                         })
                                         .map((course) => (
@@ -245,10 +246,7 @@ export function TranscriptDialog({
                                                     {course.code}
                                                 </span>
                                                 <span className="min-w-0 flex-1 truncate">
-                                                    {course.name}
-                                                </span>
-                                                <span className="w-6 text-right text-xs text-muted-foreground">
-                                                    {course.credits}cr
+                                                    {course.title}
                                                 </span>
                                                 <span
                                                     className={cn(

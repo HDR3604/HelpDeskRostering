@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/errors"
@@ -48,7 +49,11 @@ func (s *TranscriptsService) ExtractTranscript(filename string, pdfBytes []byte)
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 
-	part, err := writer.CreateFormFile("file", filename)
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+	h.Set("Content-Type", "application/pdf")
+
+	part, err := writer.CreatePart(h)
 	if err != nil {
 		s.logger.Error("failed to create form file", zap.Error(err))
 		return nil, fmt.Errorf("%w: %w", errors.ErrTranscriptsInternal, err)

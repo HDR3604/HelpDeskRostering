@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
-	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 )
 
 type CreateScheduleRequest struct {
@@ -15,16 +14,22 @@ type CreateScheduleRequest struct {
 }
 
 type GenerateScheduleRequest struct {
-	ConfigID      string            `json:"config_id"`
-	Title         string            `json:"title"`
-	EffectiveFrom string            `json:"effective_from"` // format: "2006-01-02"
-	EffectiveTo   *string           `json:"effective_to"`   // format: "2006-01-02"
-	Assistants    []types.Assistant `json:"assistants"`
+	ConfigID      string   `json:"config_id"`
+	Title         string   `json:"title"`
+	EffectiveFrom string   `json:"effective_from"` // format: "2006-01-02"
+	EffectiveTo   *string  `json:"effective_to"`   // format: "2006-01-02"
+	StudentIDs    []string `json:"student_ids"`
+}
+
+type UpdateScheduleRequest struct {
+	Title       *string          `json:"title,omitempty"`
+	Assignments *json.RawMessage `json:"assignments,omitempty"`
 }
 
 type ScheduleResponse struct {
 	ScheduleID           string          `json:"schedule_id"`
 	Title                string          `json:"title"`
+	Status               string          `json:"status"`
 	IsActive             bool            `json:"is_active"`
 	Assignments          json.RawMessage `json:"assignments"`
 	AvailabilityMetadata json.RawMessage `json:"availability_metadata"`
@@ -42,6 +47,7 @@ func ScheduleToResponse(s *aggregate.Schedule) ScheduleResponse {
 	resp := ScheduleResponse{
 		ScheduleID:           s.ScheduleID.String(),
 		Title:                s.Title,
+		Status:               string(s.Status()),
 		IsActive:             s.IsActive,
 		Assignments:          s.Assignments,
 		AvailabilityMetadata: s.AvailabilityMetadata,

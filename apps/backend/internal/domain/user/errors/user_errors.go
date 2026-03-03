@@ -16,4 +16,5 @@ var (
 	ErrEmailAlreadyExists        = errors.New("email already exists")
 	ErrUserNotFound              = errors.New("user not found")
 	ErrMissingAuthContext        = errors.New("missing auth context")
+	ErrNameRequired              = errors.New("first name and last name are required")
 )

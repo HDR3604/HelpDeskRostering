@@ -48,7 +48,7 @@ func (s *UserRepositoryTestSuite) TearDownTest() {
 }
 
 func (s *UserRepositoryTestSuite) createUser(email, password string, role aggregate.Role, isActive bool) *aggregate.User {
-	user, err := aggregate.NewUser(email, password, role)
+	user, err := aggregate.NewUser("Test", "User", email, password, role)
 	s.Require().NoError(err)
 	user.IsActive = isActive
 
@@ -64,9 +64,9 @@ func (s *UserRepositoryTestSuite) createUser(email, password string, role aggreg
 
 func (s *UserRepositoryTestSuite) TestCreate_DuplicateEmail() {
 	email := "dupe@my.uwi.edu"
-	user1, err := aggregate.NewUser(email, "P@ss1234", aggregate.Role_Student)
+	user1, err := aggregate.NewUser("Test", "User", email, "P@ss1234", aggregate.Role_Student)
 	s.Require().NoError(err)
-	user2, err := aggregate.NewUser(email, "P@ss2345", aggregate.Role_Student)
+	user2, err := aggregate.NewUser("Test", "User", email, "P@ss2345", aggregate.Role_Student)
 	s.Require().NoError(err)
 
 	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
@@ -169,7 +169,7 @@ func (s *UserRepositoryTestSuite) TestUpdate_Success() {
 }
 
 func (s *UserRepositoryTestSuite) TestCreate_Success() {
-	user, err := aggregate.NewUser("admin@uwi.edu", "SecureP@ss123", aggregate.Role_Admin)
+	user, err := aggregate.NewUser("Test", "User", "admin@uwi.edu", "SecureP@ss123", aggregate.Role_Admin)
 	s.Require().NoError(err)
 
 	var result *aggregate.User

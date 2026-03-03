@@ -32,7 +32,7 @@ func TestStudentHandlerTestSuite(t *testing.T) {
 
 func (s *StudentHandlerTestSuite) SetupTest() {
 	s.mockSvc = &mocks.MockBankingDetailsService{}
-	hdl := handler.NewStudentHandler(zap.NewNop(), s.mockSvc)
+	hdl := handler.NewStudentHandler(zap.NewNop(), s.mockSvc, nil, nil, nil, "", "")
 	s.router = chi.NewRouter()
 	s.router.Route("/api/v1", func(r chi.Router) {
 		hdl.RegisterRoutes(r)

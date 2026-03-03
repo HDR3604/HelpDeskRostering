@@ -1,5 +1,5 @@
 from datetime import time
-from typing import Optional, Sequence
+from typing import Optional, Self, Sequence
 
 from pydantic import BaseModel, field_validator, model_validator
 
@@ -31,7 +31,7 @@ class GenerateScheduleRequest(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def at_least_one_feasible_assignment(self) -> GenerateScheduleRequest:
+    def at_least_one_feasible_assignment(self) -> Self:
         for assistant in self.assistants:
             for shift in self.shifts:
                 if assistant.is_available(shift):
@@ -60,7 +60,7 @@ class GenerateScheduleResponse(BaseModel):
         cls,
         result: ScheduleResult,
         shifts: Sequence[Shift],
-    ) -> GenerateScheduleResponse:
+    ) -> Self:
         shift_lookup = {s.id: s for s in shifts}
 
         assignments = [

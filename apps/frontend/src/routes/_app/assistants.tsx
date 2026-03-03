@@ -150,7 +150,8 @@ function AssistantsLayout() {
         const avgGpa =
             activeCount > 0
                 ? activeStudents.reduce(
-                      (sum, s) => sum + s.transcript_metadata.overall_gpa,
+                      (sum, s) =>
+                          sum + (s.transcript_metadata.overall_gpa ?? 0),
                       0,
                   ) / activeCount
                 : 0

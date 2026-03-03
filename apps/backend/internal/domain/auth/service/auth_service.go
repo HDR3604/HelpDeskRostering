@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
@@ -26,6 +28,9 @@ import (
 
 type Claims struct {
 	jwt.RegisteredClaims
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Email     string  `json:"email"`
 	Role      string  `json:"role"`
 	StudentID *string `json:"student_id,omitempty"`
 }
@@ -34,13 +39,17 @@ type AuthServiceInterface interface {
 	Login(ctx context.Context, email, password string) (accessToken, refreshToken string, err error)
 	Refresh(ctx context.Context, rawRefreshToken string) (accessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, rawRefreshToken string) error
-	Register(ctx context.Context, email, password, role string) (*userAggregate.User, error)
+	Register(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error)
 	ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error
 	VerifyEmail(ctx context.Context, rawToken string) error
 	ResendVerification(ctx context.Context, email string) error
 	ForgotPassword(ctx context.Context, email string) error
 	ResetPassword(ctx context.Context, rawToken, newPassword string) error
+	InitiateOnboarding(ctx context.Context, email, firstName, lastName string) (rawToken string, err error)
+	ValidateOnboardingToken(ctx context.Context, rawToken string) error
+	CompleteOnboarding(ctx context.Context, rawToken, password string) (accessToken, refreshToken string, err error)
 	ValidateAccessToken(tokenString string) (*Claims, error)
+	CleanupStaleTokens(ctx context.Context) error
 }
 
 type AuthService struct {
@@ -54,6 +63,7 @@ type AuthService struct {
 	accessTokenTTL       int
 	refreshTokenTTL      int
 	verificationTokenTTL int
+	onboardingTokenTTL   int
 	frontendURL          string
 	fromEmail            string
 }
@@ -71,6 +81,7 @@ func NewAuthService(
 	accessTokenTTL int,
 	refreshTokenTTL int,
 	verificationTokenTTL int,
+	onboardingTokenTTL int,
 	frontendURL string,
 	fromEmail string,
 ) *AuthService {
@@ -85,16 +96,17 @@ func NewAuthService(
 		accessTokenTTL:       accessTokenTTL,
 		refreshTokenTTL:      refreshTokenTTL,
 		verificationTokenTTL: verificationTokenTTL,
+		onboardingTokenTTL:   onboardingTokenTTL,
 		frontendURL:          frontendURL,
 		fromEmail:            fromEmail,
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password, role string) (*userAggregate.User, error) {
+func (s *AuthService) Register(ctx context.Context, firstName, lastName, email, password, role string) (*userAggregate.User, error) {
 	userRole := userAggregate.Role(role)
 
 	// Validate via aggregate (plain password before hashing)
-	_, err := userAggregate.NewUser(email, password, userRole)
+	_, err := userAggregate.NewUser(firstName, lastName, email, password, userRole)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +117,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	user, err := userAggregate.NewUser(email, string(hashedPassword), userRole)
+	user, err := userAggregate.NewUser(firstName, lastName, email, string(hashedPassword), userRole)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user aggregate: %w", err)
 	}
@@ -206,7 +218,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 			}
 		}
 
-		accessToken, err = s.generateAccessToken(user.ID.String(), string(user.Role), studentID)
+		accessToken, err = s.generateAccessToken(user.ID.String(), user.FirstName, user.LastName, user.Email, string(user.Role), studentID)
 		if err != nil {
 			return fmt.Errorf("failed to generate access token: %w", err)
 		}
@@ -280,7 +292,7 @@ func (s *AuthService) Refresh(ctx context.Context, rawRefreshToken string) (stri
 			}
 		}
 
-		newAccessToken, err = s.generateAccessToken(user.ID.String(), string(user.Role), studentID)
+		newAccessToken, err = s.generateAccessToken(user.ID.String(), user.FirstName, user.LastName, user.Email, string(user.Role), studentID)
 		if err != nil {
 			return fmt.Errorf("failed to generate access token: %w", err)
 		}
@@ -557,6 +569,207 @@ func (s *AuthService) ResetPassword(ctx context.Context, rawToken, newPassword s
 	})
 }
 
+func (s *AuthService) InitiateOnboarding(ctx context.Context, email, firstName, lastName string) (string, error) {
+	var rawToken string
+
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		// Check if user already exists (idempotent for re-accept)
+		existing, err := s.userRepo.GetByEmail(ctx, tx, email)
+		if err != nil && !errors.Is(err, userErrors.ErrUserNotFound) {
+			return fmt.Errorf("failed to check existing user: %w", err)
+		}
+
+		var userID uuid.UUID
+		if existing != nil {
+			userID = existing.ID
+		} else {
+			// Create user with random placeholder password (no real login possible)
+			placeholder := make([]byte, 32)
+			if _, err := rand.Read(placeholder); err != nil {
+				return fmt.Errorf("failed to generate placeholder password: %w", err)
+			}
+			hashedPlaceholder, err := bcrypt.GenerateFromPassword(placeholder, 14)
+			if err != nil {
+				return fmt.Errorf("failed to hash placeholder password: %w", err)
+			}
+
+			user := &userAggregate.User{
+				ID:        uuid.New(),
+				FirstName: firstName,
+				LastName:  lastName,
+				Email:     email,
+				Password:  string(hashedPlaceholder),
+				Role:      userAggregate.Role_Student,
+				IsActive:  true,
+			}
+
+			created, err := s.userRepo.Create(ctx, tx, user)
+			if err != nil {
+				return fmt.Errorf("failed to create onboarding user: %w", err)
+			}
+			userID = created.ID
+		}
+
+		// Invalidate any existing onboarding tokens
+		if err := s.authTokenRepo.InvalidateAllByUserID(ctx, tx, userID, aggregate.AuthTokenType_Onboarding); err != nil {
+			return fmt.Errorf("failed to invalidate old onboarding tokens: %w", err)
+		}
+
+		// Generate new onboarding token
+		token, raw, err := aggregate.NewAuthToken(userID, s.onboardingTokenTTL, aggregate.AuthTokenType_Onboarding)
+		if err != nil {
+			return fmt.Errorf("failed to generate onboarding token: %w", err)
+		}
+
+		_, err = s.authTokenRepo.Create(ctx, tx, token)
+		if err != nil {
+			return fmt.Errorf("failed to store onboarding token: %w", err)
+		}
+
+		rawToken = raw
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return rawToken, nil
+}
+
+func (s *AuthService) ValidateOnboardingToken(ctx context.Context, rawToken string) error {
+	tokenHash, err := aggregate.HashToken(rawToken)
+	if err != nil {
+		return fmt.Errorf("failed to hash token: %w", err)
+	}
+
+	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		token, err := s.authTokenRepo.GetByTokenHash(ctx, tx, tokenHash, aggregate.AuthTokenType_Onboarding)
+		if err != nil {
+			return err // ErrOnboardingTokenInvalid from repo
+		}
+
+		if token.IsUsed() {
+			return authErrors.ErrOnboardingTokenUsed
+		}
+
+		if token.IsExpired() {
+			return authErrors.ErrOnboardingTokenExpired
+		}
+
+		return nil
+	})
+}
+
+func (s *AuthService) CompleteOnboarding(ctx context.Context, rawToken, password string) (string, string, error) {
+	if err := userAggregate.ValidatePassword(password); err != nil {
+		return "", "", err
+	}
+
+	tokenHash, err := aggregate.HashToken(rawToken)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to hash token: %w", err)
+	}
+
+	var accessToken, rawRefreshToken string
+
+	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		token, err := s.authTokenRepo.GetByTokenHash(ctx, tx, tokenHash, aggregate.AuthTokenType_Onboarding)
+		if err != nil {
+			return err // ErrOnboardingTokenInvalid from repo
+		}
+
+		if token.IsUsed() {
+			return authErrors.ErrOnboardingTokenUsed
+		}
+
+		if token.IsExpired() {
+			return authErrors.ErrOnboardingTokenExpired
+		}
+
+		// Get user and set real password
+		user, err := s.userRepo.GetByID(ctx, tx, token.UserID.String())
+		if err != nil {
+			return fmt.Errorf("failed to get user: %w", err)
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+		if err != nil {
+			return fmt.Errorf("failed to hash password: %w", err)
+		}
+
+		user.Password = string(hashedPassword)
+		now := time.Now()
+		user.EmailVerifiedAt = &now
+		if err := s.userRepo.Update(ctx, tx, user); err != nil {
+			return fmt.Errorf("failed to update user: %w", err)
+		}
+
+		// Invalidate all onboarding tokens for this user
+		if err := s.authTokenRepo.InvalidateAllByUserID(ctx, tx, user.ID, aggregate.AuthTokenType_Onboarding); err != nil {
+			return fmt.Errorf("failed to invalidate onboarding tokens: %w", err)
+		}
+
+		// Generate tokens for auto sign-in
+		var studentID *string
+		if user.Role == userAggregate.Role_Student {
+			studentID, err = s.userRepo.GetStudentIDByEmail(ctx, tx, user.Email)
+			if err != nil {
+				return fmt.Errorf("failed to get student ID: %w", err)
+			}
+		}
+
+		accessToken, err = s.generateAccessToken(user.ID.String(), user.FirstName, user.LastName, user.Email, string(user.Role), studentID)
+		if err != nil {
+			return fmt.Errorf("failed to generate access token: %w", err)
+		}
+
+		refreshToken, rawToken, err := aggregate.NewRefreshToken(user.ID, s.refreshTokenTTL)
+		if err != nil {
+			return fmt.Errorf("failed to generate refresh token: %w", err)
+		}
+
+		_, err = s.refreshTokenRepo.Create(ctx, tx, refreshToken)
+		if err != nil {
+			return fmt.Errorf("failed to store refresh token: %w", err)
+		}
+
+		rawRefreshToken = rawToken
+		return nil
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	return accessToken, rawRefreshToken, nil
+}
+
+const revokedTokenRetention = 7 * 24 * time.Hour // keep revoked tokens for 7 days
+
+func (s *AuthService) CleanupStaleTokens(ctx context.Context) error {
+	return s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		now := time.Now()
+
+		expired, err := s.refreshTokenRepo.DeleteExpired(ctx, tx, now)
+		if err != nil {
+			return fmt.Errorf("failed to delete expired tokens: %w", err)
+		}
+
+		revoked, err := s.refreshTokenRepo.DeleteRevokedBefore(ctx, tx, now.Add(-revokedTokenRetention))
+		if err != nil {
+			return fmt.Errorf("failed to delete old revoked tokens: %w", err)
+		}
+
+		if expired > 0 || revoked > 0 {
+			s.logger.Info("refresh token cleanup complete",
+				zap.Int64("expired_deleted", expired),
+				zap.Int64("revoked_deleted", revoked),
+			)
+		}
+
+		return nil
+	})
+}
+
 func (s *AuthService) ValidateAccessToken(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -576,7 +789,7 @@ func (s *AuthService) ValidateAccessToken(tokenString string) (*Claims, error) {
 	return claims, nil
 }
 
-func (s *AuthService) generateAccessToken(userID string, role string, studentID *string) (string, error) {
+func (s *AuthService) generateAccessToken(userID, firstName, lastName, email, role string, studentID *string) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -585,6 +798,9 @@ func (s *AuthService) generateAccessToken(userID string, role string, studentID 
 			ExpiresAt: jwt.NewNumericDate(now.Add(time.Duration(s.accessTokenTTL) * time.Second)),
 			Issuer:    "helpdesk-api",
 		},
+		FirstName: firstName,
+		LastName:  lastName,
+		Email:     email,
 		Role:      role,
 		StudentID: studentID,
 	}

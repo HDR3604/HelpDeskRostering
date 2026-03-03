@@ -16,4 +16,9 @@ export default defineConfig({
       '@': path.resolve(process.cwd(), './src'),
     },
   },
+  server: {
+    proxy: {
+      '/api': process.env.VITE_API_PROXY_TARGET || 'http://localhost:8080',
+    },
+  },
 })

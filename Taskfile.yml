@@ -163,31 +163,31 @@ tasks:
     cmds:
       - pnpm test
 
-  # Migrations
+  # Migrations (goose)
   migrate:up:
     desc: Run all pending migrations
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" up
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" up
 
   migrate:down:
     desc: Rollback the last migration
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down 1
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" down
 
   migrate:reset:
     desc: Rollback all migrations
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down -all
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" reset
 
-  migrate:force:
-    desc: "Force set migration version (usage: task migrate:force -- <version>)"
+  migrate:status:
+    desc: Show migration status
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" force {{.CLI_ARGS}}
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" status
 
   migrate:create:
     desc: "Create a new migration (usage: task migrate:create -- name)"
     cmds:
-      - migrate create -ext sql -dir {{.MIGRATIONS_DIR}} -seq {{.CLI_ARGS}}
+      - goose -dir {{.MIGRATIONS_DIR}} create {{.CLI_ARGS}} sql
 
   generate:models:
     desc: Generate Go models from database schema using jet
@@ -220,7 +220,7 @@ tasks:
       - pnpm db:studio
 
   db:reset:
-    desc: Drop and recreate the database, run migrations, start services and seed
+    desc: Drop and recreate the database, run migrations, and start services
     cmds:
       - docker compose -f {{.COMPOSE_FILE}} down -v
       - task: db:start
@@ -237,12 +237,23 @@ tasks:
         done
         echo "Timed out waiting for backend."
         exit 1
-      - task: db:seed
 
   db:seed:
     desc: Seed the database with dev data (requires backend to be running)
     cmds:
       - ./scripts/seed_dev.sh
+
+  db:seed-admin:
+    desc: "Seed admin user (usage: task db:seed-admin -- <first_name> <last_name> <email> <password>)"
+    dir: "{{.BACKEND_DIR}}"
+    env:
+      DATABASE_URL: "{{.DATABASE_URL}}"
+      SEED_ADMIN_FIRST_NAME: "{{index .CLI_ARGS_LIST 0}}"
+      SEED_ADMIN_LAST_NAME: "{{index .CLI_ARGS_LIST 1}}"
+      SEED_ADMIN_EMAIL: "{{index .CLI_ARGS_LIST 2}}"
+      SEED_ADMIN_PASSWORD: "{{index .CLI_ARGS_LIST 3}}"
+    cmds:
+      - go run ./cmd/seed-admin
 
   # Visualize
   visualize:

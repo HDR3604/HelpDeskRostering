@@ -15,8 +15,11 @@ import (
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
 	studentService "github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
+	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	userService "github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
+	verificationHandler "github.com/HDR3604/HelpDeskApp/internal/domain/verification/handler"
+	verificationService "github.com/HDR3604/HelpDeskApp/internal/domain/verification/service"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
@@ -26,17 +29,20 @@ import (
 	studentRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/student"
 	transcriptsService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/service"
 	userRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/user"
+	verificationInfra "github.com/HDR3604/HelpDeskApp/internal/infrastructure/verification"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	_ "github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
 type App struct {
-	config Config
-	db     *sql.DB
-	logger *zap.Logger
-	server *http.Server
+	config  Config
+	db      *sql.DB
+	logger  *zap.Logger
+	server  *http.Server
+	authSvc authService.AuthServiceInterface
 }
 
 func NewApp(cfg Config) (*App, error) {
@@ -77,6 +83,13 @@ func NewApp(cfg Config) (*App, error) {
 	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 	bankingDetailsRepository := studentRepo.NewBankingDetailsRepository(logger, cfg.EncryptionKey)
+	studentRepository := studentRepo.NewStudentRepository(logger)
+	verificationRepository := verificationInfra.NewVerificationRepository(logger)
+
+	// Seed default admin (idempotent, skipped if env vars not set)
+	if err := seedDefaultAdmin(context.Background(), cfg, logger, txManager, userRepository); err != nil {
+		logger.Warn("failed to seed default admin", zap.Error(err))
+	}
 
 	// Email sender
 	var emailSenderSvc emailInterfaces.EmailSenderInterface
@@ -89,7 +102,6 @@ func NewApp(cfg Config) (*App, error) {
 	// Services
 	userSvc := userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
 	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
-	_ = transcriptsSvc // TODO: inject into domain service when needed
 
 	authSvc := authService.NewAuthService(
 		logger,
@@ -102,6 +114,7 @@ func NewApp(cfg Config) (*App, error) {
 		cfg.AccessTokenTTL,
 		cfg.RefreshTokenTTL,
 		cfg.VerificationTokenTTL,
+		cfg.OnboardingTokenTTL,
 		cfg.FrontendURL,
 		cfg.FromEmail,
 	)
@@ -112,28 +125,49 @@ func NewApp(cfg Config) (*App, error) {
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
 	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository)
+	studentSvc := studentService.NewStudentService(logger, studentRepository, txManager)
+	verificationSvc := verificationService.NewVerificationService(logger, txManager, verificationRepository, emailSenderSvc, cfg.FromEmail)
 
 	// Handlers
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
-	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc)
+	transcriptHdl := transcriptHandler.NewTranscriptHandler(logger, transcriptsSvc)
+	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, emailSenderSvc, cfg.FromEmail)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
-	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc)
+	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc, studentSvc, authSvc, emailSenderSvc, cfg.FromEmail, cfg.FrontendURL)
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
+	verificationHdl := verificationHandler.NewVerificationHandler(logger, verificationSvc)
 
 	// Router
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{cfg.FrontendURL},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           3600,
+	}))
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+			next.ServeHTTP(w, r)
+		})
+	})
 
-	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl)
 
 	app := &App{
-		config: cfg,
-		db:     db,
-		logger: logger,
+		config:  cfg,
+		db:      db,
+		logger:  logger,
+		authSvc: authSvc,
 		server: &http.Server{
 			Addr:         ":" + cfg.Port,
 			Handler:      r,
@@ -149,6 +183,9 @@ func NewApp(cfg Config) (*App, error) {
 func (a *App) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// Start background token cleanup
+	go a.runTokenCleanup(ctx)
 
 	// Start server in a goroutine
 	errCh := make(chan error, 1)
@@ -178,6 +215,29 @@ func (a *App) Run() error {
 
 	a.logger.Info("server stopped")
 	return nil
+}
+
+const tokenCleanupInterval = 24 * time.Hour
+
+func (a *App) runTokenCleanup(ctx context.Context) {
+	// Run once on startup
+	if err := a.authSvc.CleanupStaleTokens(ctx); err != nil {
+		a.logger.Error("initial token cleanup failed", zap.Error(err))
+	}
+
+	ticker := time.NewTicker(tokenCleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := a.authSvc.CleanupStaleTokens(ctx); err != nil {
+				a.logger.Error("token cleanup failed", zap.Error(err))
+			}
+		}
+	}
 }
 
 func devAuthMiddleware(userID string) func(http.Handler) http.Handler {

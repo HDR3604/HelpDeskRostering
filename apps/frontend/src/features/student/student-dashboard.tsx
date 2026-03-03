@@ -1,24 +1,50 @@
-import { useUser } from '@/hooks/use-user'
-import {
-    MOCK_ACTIVE_SCHEDULE,
-    MOCK_SHIFT_TEMPLATES,
-    MOCK_TIME_LOGS,
-} from '@/lib/mock-data'
+import { useMemo } from 'react'
+import { CalendarDays, Clock, Loader2 } from 'lucide-react'
+import { useMyStudentProfile } from '@/lib/queries/students'
+import { useActiveSchedule } from '@/lib/queries/schedules'
+import { useShiftTemplates } from '@/lib/queries/shift-templates'
 import { getApplicationStatus } from '@/types/student'
 import { ApplicationStatusBanner } from './components/application-status-banner'
-import { StudentSummaryCards } from './components/student-summary-cards'
-import { NextShiftCard } from './components/next-shift-card'
 import { WeekSummaryCard } from './components/week-summary-card'
+import { NextShiftCard } from './components/next-shift-card'
 import { StudentWeeklySchedule } from './components/student-weekly-schedule'
 
 export function StudentDashboard() {
-    const { currentStudent, currentStudentId } = useUser()
+    const profileQuery = useMyStudentProfile()
+    const student = profileQuery.data
 
-    const myAssignments = MOCK_ACTIVE_SCHEDULE.assignments.filter(
-        (a) => a.assistant_id === currentStudentId,
-    )
+    const status = student ? getApplicationStatus(student) : null
+    const isAccepted = status === 'accepted'
 
-    const isAccepted = getApplicationStatus(currentStudent) === 'accepted'
+    const scheduleQuery = useActiveSchedule()
+    const shiftTemplatesQuery = useShiftTemplates()
+
+    const schedule = scheduleQuery.data
+    const shiftTemplates = shiftTemplatesQuery.data ?? []
+
+    // Filter assignments for the current student
+    // assistant_id may arrive as string or number depending on JSON storage
+    const myAssignments = useMemo(() => {
+        if (!schedule?.assignments || !student) return []
+        const studentIdStr = String(student.student_id)
+        return schedule.assignments.filter(
+            (a) => String(a.assistant_id) === studentIdStr,
+        )
+    }, [schedule, student])
+
+    const hasSchedule = isAccepted && schedule && myAssignments.length > 0
+
+    if (profileQuery.isLoading || (isAccepted && scheduleQuery.isLoading)) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    if (!student) {
+        return null
+    }
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -28,48 +54,50 @@ export function StudentDashboard() {
                     My Dashboard
                 </h1>
                 <p className="mt-1 text-muted-foreground">
-                    Welcome back, {currentStudent.first_name}. Here is your
-                    helpdesk overview.
+                    Welcome back, {student.first_name}.
                 </p>
             </div>
 
-            <ApplicationStatusBanner student={currentStudent} />
+            <ApplicationStatusBanner student={student} />
 
-            <StudentSummaryCards
-                student={currentStudent}
-                assignments={myAssignments}
-                shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                timeLogs={MOCK_TIME_LOGS}
-            />
-
-            {isAccepted && myAssignments.length > 0 && (
-                <div className="space-y-4">
-                    <div>
-                        <h2 className="text-lg font-semibold">
-                            This Week's Schedule
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            {MOCK_ACTIVE_SCHEDULE.title}
-                        </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <NextShiftCard
-                            assignments={myAssignments}
-                            shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                        />
+            {hasSchedule ? (
+                <>
+                    <div className="grid gap-4 md:grid-cols-2">
                         <WeekSummaryCard
                             assignments={myAssignments}
-                            schedule={MOCK_ACTIVE_SCHEDULE}
+                            schedule={schedule}
+                        />
+                        <NextShiftCard
+                            assignments={myAssignments}
+                            shiftTemplates={shiftTemplates}
                         />
                     </div>
-
                     <StudentWeeklySchedule
                         assignments={myAssignments}
-                        shiftTemplates={MOCK_SHIFT_TEMPLATES}
-                        schedule={MOCK_ACTIVE_SCHEDULE}
+                        shiftTemplates={shiftTemplates}
+                        schedule={schedule}
                     />
-                </div>
+                </>
+            ) : (
+                isAccepted && (
+                    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-24 text-center">
+                        <div className="relative">
+                            <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10">
+                                <CalendarDays className="size-8 text-primary" />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center rounded-full border-2 border-background bg-muted">
+                                <Clock className="size-3.5 text-muted-foreground" />
+                            </div>
+                        </div>
+                        <h2 className="mt-6 text-lg font-semibold">
+                            No schedule assigned yet
+                        </h2>
+                        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+                            Your shifts, schedules, and time logs will appear
+                            here once an administrator assigns you to a roster.
+                        </p>
+                    </div>
+                )
             )}
         </div>
     )

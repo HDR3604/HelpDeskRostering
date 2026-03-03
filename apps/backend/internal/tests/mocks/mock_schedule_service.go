@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
@@ -15,12 +16,14 @@ var _ service.ScheduleServiceInterface = (*MockScheduleService)(nil)
 type MockScheduleService struct {
 	CreateFn           func(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
 	GetByIDFn          func(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error)
+	GetActiveFn        func(ctx context.Context) (*aggregate.Schedule, error)
 	ListArchivedFn     func(ctx context.Context) ([]*aggregate.Schedule, error)
 	ListFn             func(ctx context.Context) ([]*aggregate.Schedule, error)
 	ArchiveFn          func(ctx context.Context, id uuid.UUID) error
 	UnarchiveFn        func(ctx context.Context, id uuid.UUID) error
 	ActivateFn         func(ctx context.Context, id uuid.UUID) error
 	DeactivateFn       func(ctx context.Context, id uuid.UUID) error
+	UpdateScheduleFn   func(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error)
 	GenerateScheduleFn func(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error)
 }
 
@@ -30,6 +33,10 @@ func (m *MockScheduleService) Create(ctx context.Context, schedule *aggregate.Sc
 
 func (m *MockScheduleService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error) {
 	return m.GetByIDFn(ctx, id)
+}
+
+func (m *MockScheduleService) GetActive(ctx context.Context) (*aggregate.Schedule, error) {
+	return m.GetActiveFn(ctx)
 }
 
 func (m *MockScheduleService) ListArchived(ctx context.Context) ([]*aggregate.Schedule, error) {
@@ -54,6 +61,10 @@ func (m *MockScheduleService) Activate(ctx context.Context, id uuid.UUID) error 
 
 func (m *MockScheduleService) Deactivate(ctx context.Context, id uuid.UUID) error {
 	return m.DeactivateFn(ctx, id)
+}
+
+func (m *MockScheduleService) UpdateSchedule(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error) {
+	return m.UpdateScheduleFn(ctx, id, title, assignments)
 }
 
 func (m *MockScheduleService) GenerateSchedule(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error) {

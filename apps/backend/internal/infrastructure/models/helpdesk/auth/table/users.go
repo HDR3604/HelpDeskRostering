@@ -25,6 +25,8 @@ type usersTable struct {
 	CreatedAt       postgres.ColumnTimestampz
 	UpdatedAt       postgres.ColumnTimestampz
 	EmailVerifiedAt postgres.ColumnTimestampz
+	FirstName       postgres.ColumnString
+	LastName        postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -74,9 +76,11 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		CreatedAtColumn       = postgres.TimestampzColumn("created_at")
 		UpdatedAtColumn       = postgres.TimestampzColumn("updated_at")
 		EmailVerifiedAtColumn = postgres.TimestampzColumn("email_verified_at")
-		allColumns            = postgres.ColumnList{UserIDColumn, EmailAddressColumn, PasswordColumn, RoleColumn, IsActiveColumn, CreatedAtColumn, UpdatedAtColumn, EmailVerifiedAtColumn}
-		mutableColumns        = postgres.ColumnList{EmailAddressColumn, PasswordColumn, RoleColumn, IsActiveColumn, CreatedAtColumn, UpdatedAtColumn, EmailVerifiedAtColumn}
-		defaultColumns        = postgres.ColumnList{IsActiveColumn, CreatedAtColumn}
+		FirstNameColumn       = postgres.StringColumn("first_name")
+		LastNameColumn        = postgres.StringColumn("last_name")
+		allColumns            = postgres.ColumnList{UserIDColumn, EmailAddressColumn, PasswordColumn, RoleColumn, IsActiveColumn, CreatedAtColumn, UpdatedAtColumn, EmailVerifiedAtColumn, FirstNameColumn, LastNameColumn}
+		mutableColumns        = postgres.ColumnList{EmailAddressColumn, PasswordColumn, RoleColumn, IsActiveColumn, CreatedAtColumn, UpdatedAtColumn, EmailVerifiedAtColumn, FirstNameColumn, LastNameColumn}
+		defaultColumns        = postgres.ColumnList{IsActiveColumn, CreatedAtColumn, FirstNameColumn, LastNameColumn}
 	)
 
 	return usersTable{
@@ -91,6 +95,8 @@ func newUsersTableImpl(schemaName, tableName, alias string) usersTable {
 		CreatedAt:       CreatedAtColumn,
 		UpdatedAt:       UpdatedAtColumn,
 		EmailVerifiedAt: EmailVerifiedAtColumn,
+		FirstName:       FirstNameColumn,
+		LastName:        LastNameColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

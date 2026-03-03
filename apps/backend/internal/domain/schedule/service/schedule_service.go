@@ -31,12 +31,14 @@ type GenerateScheduleParams struct {
 type ScheduleServiceInterface interface {
 	Create(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*aggregate.Schedule, error)
+	GetActive(ctx context.Context) (*aggregate.Schedule, error)
 	ListArchived(ctx context.Context) ([]*aggregate.Schedule, error)
 	List(ctx context.Context) ([]*aggregate.Schedule, error)
 	Archive(ctx context.Context, id uuid.UUID) error
 	Unarchive(ctx context.Context, id uuid.UUID) error
 	Activate(ctx context.Context, id uuid.UUID) error
 	Deactivate(ctx context.Context, id uuid.UUID) error
+	UpdateSchedule(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error)
 	GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.Schedule, error)
 }
 
@@ -131,6 +133,31 @@ func (s *ScheduleService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate
 	return result, nil
 }
 
+func (s *ScheduleService) GetActive(ctx context.Context) (*aggregate.Schedule, error) {
+	s.logger.Debug("getting active schedule")
+
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result *aggregate.Schedule
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repository.GetActive(ctx, tx)
+		return txErr
+	})
+	if err != nil {
+		if errors.Is(err, scheduleErrors.ErrNotFound) {
+			return nil, err
+		}
+		s.logger.Error("failed to get active schedule", zap.Error(err))
+		return nil, err
+	}
+
+	return result, nil
+}
+
 func (s *ScheduleService) ListArchived(ctx context.Context) ([]*aggregate.Schedule, error) {
 	s.logger.Debug("listing archived schedules")
 
@@ -189,7 +216,9 @@ func (s *ScheduleService) Archive(ctx context.Context, id uuid.UUID) error {
 		if txErr != nil {
 			return txErr
 		}
-		schedule.Archive()
+		if err := schedule.Archive(); err != nil {
+			return err
+		}
 		return s.repository.Update(ctx, tx, schedule)
 	})
 	if err != nil {
@@ -213,7 +242,9 @@ func (s *ScheduleService) Unarchive(ctx context.Context, id uuid.UUID) error {
 		if txErr != nil {
 			return txErr
 		}
-		schedule.Unarchive()
+		if err := schedule.Unarchive(); err != nil {
+			return err
+		}
 		return s.repository.Update(ctx, tx, schedule)
 	})
 	if err != nil {
@@ -237,7 +268,24 @@ func (s *ScheduleService) Activate(ctx context.Context, id uuid.UUID) error {
 		if txErr != nil {
 			return txErr
 		}
-		schedule.Activate()
+		if err := schedule.Activate(); err != nil {
+			return err
+		}
+
+		// Enforce single-active: deactivate any currently-active schedule
+		currentActive, err := s.repository.GetActive(ctx, tx)
+		if err != nil && !errors.Is(err, scheduleErrors.ErrNotFound) {
+			return err
+		}
+		if currentActive != nil && currentActive.ScheduleID != id {
+			if err := currentActive.Deactivate(); err != nil {
+				return err
+			}
+			if err := s.repository.Update(ctx, tx, currentActive); err != nil {
+				return err
+			}
+		}
+
 		return s.repository.Update(ctx, tx, schedule)
 	})
 	if err != nil {
@@ -261,7 +309,9 @@ func (s *ScheduleService) Deactivate(ctx context.Context, id uuid.UUID) error {
 		if txErr != nil {
 			return txErr
 		}
-		schedule.Deactivate()
+		if err := schedule.Deactivate(); err != nil {
+			return err
+		}
 		return s.repository.Update(ctx, tx, schedule)
 	})
 	if err != nil {
@@ -271,6 +321,46 @@ func (s *ScheduleService) Deactivate(ctx context.Context, id uuid.UUID) error {
 
 	s.logger.Info("schedule deactivated", zap.String("schedule_id", id.String()))
 	return nil
+}
+
+func (s *ScheduleService) UpdateSchedule(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error) {
+	s.logger.Info("updating schedule", zap.String("schedule_id", id.String()))
+
+	if _, err := s.authCtx(ctx); err != nil {
+		return nil, err
+	}
+
+	var result *aggregate.Schedule
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		schedule, txErr := s.repository.GetByID(ctx, tx, id)
+		if txErr != nil {
+			return txErr
+		}
+
+		if title != nil {
+			if err := schedule.Rename(*title); err != nil {
+				return err
+			}
+		}
+
+		if assignments != nil {
+			schedule.UpdateAssignments(*assignments)
+		}
+
+		if err := s.repository.Update(ctx, tx, schedule); err != nil {
+			return err
+		}
+
+		result = schedule
+		return nil
+	})
+	if err != nil {
+		s.logger.Error("failed to update schedule", zap.String("schedule_id", id.String()), zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("schedule updated", zap.String("schedule_id", id.String()))
+	return result, nil
 }
 
 func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.Schedule, error) {

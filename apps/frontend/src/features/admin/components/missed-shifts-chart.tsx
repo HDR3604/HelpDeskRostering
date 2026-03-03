@@ -18,6 +18,7 @@ import {
 
 interface MissedShiftsChartProps {
     data: { name: string; missed: number; total: number; fill: string }[]
+    description?: string
 }
 
 const chartConfig = {
@@ -31,7 +32,10 @@ const chartConfig = {
     },
 } satisfies ChartConfig
 
-export function MissedShiftsChart({ data }: MissedShiftsChartProps) {
+export function MissedShiftsChart({
+    data,
+    description,
+}: MissedShiftsChartProps) {
     const stacked = useMemo(
         () =>
             data.map(({ fill: _, ...d }) => ({
@@ -45,7 +49,9 @@ export function MissedShiftsChart({ data }: MissedShiftsChartProps) {
         <Card>
             <CardHeader>
                 <CardTitle>Shift Attendance</CardTitle>
-                <CardDescription>Week of Feb 17 – 21</CardDescription>
+                <CardDescription>
+                    {description ?? 'Current schedule period'}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer

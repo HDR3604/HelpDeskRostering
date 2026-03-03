@@ -5,8 +5,6 @@ import {
     Calendar,
     Settings,
     GraduationCap,
-    ArrowLeftRight,
-    ClipboardList,
     Plus,
     ChevronRight,
     LogOut,
@@ -14,9 +12,8 @@ import {
     UserSearch,
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
-import { useUser } from '@/hooks/use-user'
-import { MOCK_SCHEDULES, MOCK_STUDENTS } from '@/lib/mock-data'
-import { getApplicationStatus } from '@/types/student'
+import { useUser, useLogout } from '@/lib/auth'
+import { useSchedules } from '@/lib/queries/schedules'
 
 import {
     Sidebar,
@@ -28,7 +25,6 @@ import {
     SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarMenuSub,
@@ -54,33 +50,31 @@ export function AppSidebar() {
     const router = useRouterState()
     const currentPath = router.location.pathname
     const navigate = useNavigate()
-    const { role, setRole, currentStudent } = useUser()
+    const { role, firstName, lastName, email } = useUser()
+    const logout = useLogout()
 
     const isOnAssistants = currentPath.startsWith('/assistants')
 
     const isAdmin = role === 'admin'
-    const userName = isAdmin
-        ? 'Admin User'
-        : `${currentStudent.first_name} ${currentStudent.last_name}`
-    const userEmail = isAdmin ? 'admin@uwi.edu' : currentStudent.email_address
-    const userInitials = isAdmin
-        ? 'AD'
-        : `${currentStudent.first_name[0]}${currentStudent.last_name[0]}`
+    const displayName =
+        firstName && lastName ? `${firstName} ${lastName}` : (email ?? '')
+    const userInitials =
+        firstName && lastName
+            ? `${firstName[0]}${lastName[0]}`.toUpperCase()
+            : (email ?? '').slice(0, 2).toUpperCase()
 
-    const pendingCount = useMemo(
-        () =>
-            MOCK_STUDENTS.filter((s) => getApplicationStatus(s) === 'pending')
-                .length,
-        [],
-    )
+    const { data: schedules } = useSchedules({ enabled: isAdmin })
 
     const recentSchedules = useMemo(
         () =>
-            MOCK_SCHEDULES.slice(0, 3).map((s) => ({
-                title: s.title,
-                to: `/schedule/${s.schedule_id}`,
-            })),
-        [],
+            (schedules ?? [])
+                .filter((s) => s.status !== 'archived')
+                .slice(0, 3)
+                .map((s) => ({
+                    title: s.title,
+                    to: `/schedule/${s.schedule_id}`,
+                })),
+        [schedules],
     )
 
     return (
@@ -230,11 +224,6 @@ export function AppSidebar() {
                                                 <span>Applications</span>
                                             </Link>
                                         </SidebarMenuButton>
-                                        {pendingCount > 0 && (
-                                            <SidebarMenuBadge>
-                                                {pendingCount}
-                                            </SidebarMenuBadge>
-                                        )}
                                     </SidebarMenuItem>
                                     {/* Assistants — collapsible with submenu */}
                                     <Collapsible
@@ -339,19 +328,6 @@ export function AppSidebar() {
                                 <SidebarMenuItem>
                                     <SidebarMenuButton
                                         asChild
-                                        isActive={currentPath === '/onboarding'}
-                                        tooltip="Onboarding"
-                                    >
-                                        <Link to="/onboarding">
-                                            <ClipboardList />
-                                            <span>Onboarding</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                    <SidebarMenuBadge>New</SidebarMenuBadge>
-                                </SidebarMenuItem>
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        asChild
                                         isActive={currentPath === '/settings'}
                                         tooltip="Settings"
                                     >
@@ -373,7 +349,10 @@ export function AppSidebar() {
                     <SidebarMenuItem>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton size="lg" tooltip={userName}>
+                                <SidebarMenuButton
+                                    size="lg"
+                                    tooltip={displayName}
+                                >
                                     <Avatar className="h-8 w-8">
                                         <AvatarFallback className="text-xs">
                                             {userInitials}
@@ -381,10 +360,10 @@ export function AppSidebar() {
                                     </Avatar>
                                     <div className="flex min-w-0 flex-col gap-0.5 leading-none">
                                         <span className="truncate text-sm font-medium">
-                                            {userName}
+                                            {displayName}
                                         </span>
                                         <span className="truncate text-xs text-muted-foreground">
-                                            {userEmail}
+                                            {email}
                                         </span>
                                     </div>
                                     <ChevronsUpDown className="ml-auto size-4 shrink-0 text-muted-foreground" />
@@ -402,16 +381,7 @@ export function AppSidebar() {
                                     </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onSelect={() =>
-                                        setRole(isAdmin ? 'student' : 'admin')
-                                    }
-                                >
-                                    <ArrowLeftRight className="mr-2 size-4" />
-                                    Switch to {isAdmin ? 'Student' : 'Admin'}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => logout()}>
                                     <LogOut className="mr-2 size-4" />
                                     Sign out
                                 </DropdownMenuItem>

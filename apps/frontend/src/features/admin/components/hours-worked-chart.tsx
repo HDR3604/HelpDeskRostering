@@ -15,6 +15,7 @@ import {
 
 interface HoursWorkedChartProps {
     data: { name: string; hours: number; fill: string }[]
+    description?: string
 }
 
 const chartConfig = {
@@ -23,12 +24,14 @@ const chartConfig = {
     },
 } satisfies ChartConfig
 
-export function HoursWorkedChart({ data }: HoursWorkedChartProps) {
+export function HoursWorkedChart({ data, description }: HoursWorkedChartProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Hours Worked</CardTitle>
-                <CardDescription>Week of Feb 17 – 21</CardDescription>
+                <CardTitle>Hours Assigned</CardTitle>
+                <CardDescription>
+                    {description ?? 'Current schedule period'}
+                </CardDescription>
             </CardHeader>
             <CardContent>
                 <ChartContainer

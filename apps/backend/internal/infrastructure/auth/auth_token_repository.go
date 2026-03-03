@@ -123,6 +123,8 @@ func tokenNotFoundError(tokenType string) error {
 	switch tokenType {
 	case aggregate.AuthTokenType_PasswordReset:
 		return authErrors.ErrPasswordResetTokenInvalid
+	case aggregate.AuthTokenType_Onboarding:
+		return authErrors.ErrOnboardingTokenInvalid
 	default:
 		return authErrors.ErrVerificationTokenInvalid
 	}
