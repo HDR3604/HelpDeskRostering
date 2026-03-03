@@ -1,7 +1,15 @@
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card'
 import { DataTable } from '@/components/ui/data-table'
 import { getDeactivatedStudentColumns } from '../columns/deactivated-student-columns'
+import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
 import {
     Select,
     SelectContent,
@@ -32,6 +40,9 @@ export function DeactivatedStudents({
     onActivate,
     onDeactivate,
 }: DeactivatedStudentsProps) {
+    const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
+        null,
+    )
     const [yearFilter, setYearFilter] = useState('all')
     const [semesterFilter, setSemesterFilter] = useState('all')
 
@@ -61,14 +72,18 @@ export function DeactivatedStudents({
     }
 
     const columns = useMemo(
-        () => getDeactivatedStudentColumns({ onActivate: handleActivate }),
+        () =>
+            getDeactivatedStudentColumns({
+                onActivate: handleActivate,
+                onViewTranscript: setTranscriptStudent,
+            }),
         [],
     )
 
     const toolbar = (
         <div className="flex items-center gap-2">
             <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger size="sm" className="w-32">
                     <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -81,7 +96,7 @@ export function DeactivatedStudents({
                 </SelectContent>
             </Select>
             <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-                <SelectTrigger className="w-36">
+                <SelectTrigger size="sm" className="w-36">
                     <SelectValue placeholder="Semester" />
                 </SelectTrigger>
                 <SelectContent>
@@ -95,14 +110,33 @@ export function DeactivatedStudents({
     )
 
     return (
-        <DataTable
-            columns={columns}
-            data={filtered}
-            searchPlaceholder="Search name or ID"
-            searchColumnId="name"
-            toolbarSlot={toolbar}
-            emptyMessage="No students found."
-            pageSize={10}
-        />
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Deactivated Assistants</CardTitle>
+                    <CardDescription>
+                        Assistants who have been deactivated.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <DataTable
+                        columns={columns}
+                        data={filtered}
+                        searchPlaceholder="Search assistants"
+                        globalFilter
+                        toolbarSlot={toolbar}
+                        emptyMessage="No assistants found."
+                        pageSize={10}
+                    />
+                </CardContent>
+            </Card>
+            <TranscriptDialog
+                student={transcriptStudent}
+                open={transcriptStudent !== null}
+                onOpenChange={(open) => {
+                    if (!open) setTranscriptStudent(null)
+                }}
+            />
+        </>
     )
 }

@@ -15,12 +15,14 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
-import { Route as AppStudentCentreRouteImport } from './routes/_app/student-centre'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
+import { Route as AppAssistantsRouteImport } from './routes/_app/assistants'
 import { Route as AppApplicationsRouteImport } from './routes/_app/applications'
 import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/index'
+import { Route as AppAssistantsIndexRouteImport } from './routes/_app/assistants/index'
 import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedule/$scheduleId'
+import { Route as AppAssistantsPaymentsRouteImport } from './routes/_app/assistants/payments'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
@@ -50,11 +52,6 @@ const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthRoute,
 } as any)
-const AppStudentCentreRoute = AppStudentCentreRouteImport.update({
-  id: '/student-centre',
-  path: '/student-centre',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -63,6 +60,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
 const AppScheduleRoute = AppScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAssistantsRoute = AppAssistantsRouteImport.update({
+  id: '/assistants',
+  path: '/assistants',
   getParentRoute: () => AppRoute,
 } as any)
 const AppApplicationsRoute = AppApplicationsRouteImport.update({
@@ -75,33 +77,46 @@ const AppScheduleIndexRoute = AppScheduleIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppScheduleRoute,
 } as any)
+const AppAssistantsIndexRoute = AppAssistantsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAssistantsRoute,
+} as any)
 const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
   id: '/$scheduleId',
   path: '/$scheduleId',
   getParentRoute: () => AppScheduleRoute,
 } as any)
+const AppAssistantsPaymentsRoute = AppAssistantsPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AppAssistantsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/applications': typeof AppApplicationsRoute
+  '/assistants': typeof AppAssistantsRouteWithChildren
   '/schedule': typeof AppScheduleRouteWithChildren
   '/settings': typeof AppSettingsRoute
-  '/student-centre': typeof AppStudentCentreRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/assistants/payments': typeof AppAssistantsPaymentsRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/assistants/': typeof AppAssistantsIndexRoute
   '/schedule/': typeof AppScheduleIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/applications': typeof AppApplicationsRoute
   '/settings': typeof AppSettingsRoute
-  '/student-centre': typeof AppStudentCentreRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
+  '/assistants/payments': typeof AppAssistantsPaymentsRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/assistants': typeof AppAssistantsIndexRoute
   '/schedule': typeof AppScheduleIndexRoute
 }
 export interface FileRoutesById {
@@ -109,14 +124,16 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/_app/applications': typeof AppApplicationsRoute
+  '/_app/assistants': typeof AppAssistantsRouteWithChildren
   '/_app/schedule': typeof AppScheduleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
-  '/_app/student-centre': typeof AppStudentCentreRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/assistants/payments': typeof AppAssistantsPaymentsRoute
   '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/_app/assistants/': typeof AppAssistantsIndexRoute
   '/_app/schedule/': typeof AppScheduleIndexRoute
 }
 export interface FileRouteTypes {
@@ -124,38 +141,43 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/applications'
+    | '/assistants'
     | '/schedule'
     | '/settings'
-    | '/student-centre'
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
+    | '/assistants/payments'
     | '/schedule/$scheduleId'
+    | '/assistants/'
     | '/schedule/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/applications'
     | '/settings'
-    | '/student-centre'
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
+    | '/assistants/payments'
     | '/schedule/$scheduleId'
+    | '/assistants'
     | '/schedule'
   id:
     | '__root__'
     | '/_app'
     | '/_auth'
     | '/_app/applications'
+    | '/_app/assistants'
     | '/_app/schedule'
     | '/_app/settings'
-    | '/_app/student-centre'
     | '/_auth/onboarding'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
     | '/_app/'
+    | '/_app/assistants/payments'
     | '/_app/schedule/$scheduleId'
+    | '/_app/assistants/'
     | '/_app/schedule/'
   fileRoutesById: FileRoutesById
 }
@@ -208,13 +230,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthOnboardingRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/_app/student-centre': {
-      id: '/_app/student-centre'
-      path: '/student-centre'
-      fullPath: '/student-centre'
-      preLoaderRoute: typeof AppStudentCentreRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -227,6 +242,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/schedule'
       preLoaderRoute: typeof AppScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assistants': {
+      id: '/_app/assistants'
+      path: '/assistants'
+      fullPath: '/assistants'
+      preLoaderRoute: typeof AppAssistantsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/applications': {
@@ -243,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScheduleIndexRouteImport
       parentRoute: typeof AppScheduleRoute
     }
+    '/_app/assistants/': {
+      id: '/_app/assistants/'
+      path: '/'
+      fullPath: '/assistants/'
+      preLoaderRoute: typeof AppAssistantsIndexRouteImport
+      parentRoute: typeof AppAssistantsRoute
+    }
     '/_app/schedule/$scheduleId': {
       id: '/_app/schedule/$scheduleId'
       path: '/$scheduleId'
@@ -250,8 +279,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScheduleScheduleIdRouteImport
       parentRoute: typeof AppScheduleRoute
     }
+    '/_app/assistants/payments': {
+      id: '/_app/assistants/payments'
+      path: '/payments'
+      fullPath: '/assistants/payments'
+      preLoaderRoute: typeof AppAssistantsPaymentsRouteImport
+      parentRoute: typeof AppAssistantsRoute
+    }
   }
 }
+
+interface AppAssistantsRouteChildren {
+  AppAssistantsPaymentsRoute: typeof AppAssistantsPaymentsRoute
+  AppAssistantsIndexRoute: typeof AppAssistantsIndexRoute
+}
+
+const AppAssistantsRouteChildren: AppAssistantsRouteChildren = {
+  AppAssistantsPaymentsRoute: AppAssistantsPaymentsRoute,
+  AppAssistantsIndexRoute: AppAssistantsIndexRoute,
+}
+
+const AppAssistantsRouteWithChildren = AppAssistantsRoute._addFileChildren(
+  AppAssistantsRouteChildren,
+)
 
 interface AppScheduleRouteChildren {
   AppScheduleScheduleIdRoute: typeof AppScheduleScheduleIdRoute
@@ -269,17 +319,17 @@ const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppApplicationsRoute: typeof AppApplicationsRoute
+  AppAssistantsRoute: typeof AppAssistantsRouteWithChildren
   AppScheduleRoute: typeof AppScheduleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
-  AppStudentCentreRoute: typeof AppStudentCentreRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppApplicationsRoute: AppApplicationsRoute,
+  AppAssistantsRoute: AppAssistantsRouteWithChildren,
   AppScheduleRoute: AppScheduleRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
-  AppStudentCentreRoute: AppStudentCentreRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

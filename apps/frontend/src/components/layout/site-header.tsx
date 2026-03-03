@@ -27,10 +27,10 @@ import { MOCK_SCHEDULES } from '@/lib/mock-data'
 const PAGE_TITLES: Record<string, string> = {
     '/': 'Dashboard',
     '/applications': 'Applications',
+    '/assistants': 'Assistants',
+    '/assistants/payments': 'Payroll',
     '/schedule': 'Schedule',
     '/settings': 'Settings',
-    '/about': 'About',
-    '/showcase': 'Component Showcase',
     '/onboarding': 'Onboarding',
 }
 
@@ -40,13 +40,13 @@ interface Crumb {
 }
 
 function buildBreadcrumbs(pathname: string): Crumb[] {
-    // Exact match — single crumb, no link
-    if (PAGE_TITLES[pathname]) {
-        return [{ label: PAGE_TITLES[pathname] }]
-    }
-
     const segments = pathname.split('/').filter(Boolean)
     if (segments.length === 0) return [{ label: 'Dashboard' }]
+
+    // Single segment — exact match, no link
+    if (segments.length === 1 && PAGE_TITLES[pathname]) {
+        return [{ label: PAGE_TITLES[pathname] }]
+    }
 
     const crumbs: Crumb[] = []
 
@@ -60,14 +60,15 @@ function buildBreadcrumbs(pathname: string): Crumb[] {
         }
     }
 
-    // Last segment — resolve dynamic title
+    // Last segment — resolve from PAGE_TITLES or dynamic title
+    const fullPath = '/' + segments.join('/')
     const lastSegment = segments[segments.length - 1]
     const parentPath = '/' + segments.slice(0, -1).join('/')
 
-    let lastLabel: string | undefined
+    let lastLabel: string | undefined = PAGE_TITLES[fullPath]
 
     // Schedule editor: resolve schedule title from ID
-    if (parentPath === '/schedule') {
+    if (!lastLabel && parentPath === '/schedule') {
         const schedule = MOCK_SCHEDULES.find(
             (s) => s.schedule_id === lastSegment,
         )

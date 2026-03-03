@@ -18,6 +18,7 @@ export interface Student {
     email_address: string
     first_name: string
     last_name: string
+    phone_number: string | null
     transcript_metadata: TranscriptMetadata
     availability: Record<number, number[]>
     created_at: string

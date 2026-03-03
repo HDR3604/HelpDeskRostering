@@ -11,7 +11,7 @@ export function Applications() {
     )
 
     return (
-        <div className="pt-4">
+        <>
             <StudentApplicationsTable
                 students={students}
                 onAccept={handleAccept}
@@ -29,6 +29,6 @@ export function Applications() {
                     if (!open) setTranscriptStudent(null)
                 }}
             />
-        </div>
+        </>
     )
 }

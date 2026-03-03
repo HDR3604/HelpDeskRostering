@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo } from 'react'
+import { createContext, useContext, useState, useMemo, useEffect } from 'react'
 import { MOCK_STUDENTS } from '@/lib/mock-data'
 import { getApplicationStatus } from '@/types/student'
 import type { Student } from '@/types/student'
@@ -7,6 +7,7 @@ type StudentContextValue = {
     students: Student[]
     activeStudents: Student[]
     deactivatedStudents: Student[]
+    isLoading: boolean
     handleDeactivate: (student: Student) => void
     handleActivate: (student: Student) => void
     handleReject: (studentId: number) => void
@@ -16,8 +17,18 @@ type StudentContextValue = {
 export const StudentContext = createContext<StudentContextValue | null>(null)
 
 export function StudentProvider({ children }: { children: React.ReactNode }) {
-    const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
+    const [students, setStudents] = useState<Student[]>([])
     const [deactivatedIds, setDeactivatedIds] = useState<Set<number>>(new Set())
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        // Simulate API fetch
+        const timer = setTimeout(() => {
+            setStudents(MOCK_STUDENTS)
+            setIsLoading(false)
+        }, 800)
+        return () => clearTimeout(timer)
+    }, [])
 
     const activeStudents = useMemo(
         () =>
@@ -84,6 +95,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
                 students,
                 activeStudents,
                 deactivatedStudents,
+                isLoading,
                 handleDeactivate,
                 handleActivate,
                 handleReject,
