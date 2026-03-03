@@ -66,9 +66,6 @@ func NewTestDB(t *testing.T) *TestDB {
 	if err := goose.Up(db, migrationsDir); err != nil {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
-	if err != nil {
-		t.Fatalf("failed to connect to test database: %v", err)
-	}
 
 	tdb := &TestDB{
 		DB:        db,
