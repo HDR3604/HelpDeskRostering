@@ -1,12 +1,13 @@
 import { useState } from "react"
 import { createFileRoute, Link } from "@tanstack/react-router"
-import { GraduationCap, Eye, EyeOff, AlertCircle } from "lucide-react"
-import { z } from "zod"
+import { GraduationCap, Eye, EyeOff, AlertCircle, Check, X } from "lucide-react"
+
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 
 import { resetPassword } from "@/lib/auth"
+import { passwordSchema, PASSWORD_RULES, type PasswordData } from "@/features/onboarding/lib/onboarding-schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -32,21 +33,8 @@ export const Route = createFileRoute("/_auth/reset-password")({
     },
 })
 
-const resetPasswordSchema = z
-    .object({
-        password: z
-            .string()
-            .min(8, "Password must be at least 8 characters"),
-        confirmPassword: z
-            .string()
-            .min(8, "Password must be at least 8 characters"),
-    })
-    .refine((data) => data.password === data.confirmPassword, {
-        message: "Passwords don't match",
-        path: ["confirmPassword"],
-    })
-
-type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
+const resetPasswordSchema = passwordSchema
+type ResetPasswordValues = PasswordData
 
 export function ResetPasswordComponent() {
     const { token } = Route.useSearch()
@@ -63,6 +51,8 @@ export function ResetPasswordComponent() {
             confirmPassword: "",
         },
     })
+
+    const passwordValue = form.watch("password")
 
     // Early return for missing token
     if (!token) {
@@ -229,6 +219,38 @@ export function ResetPasswordComponent() {
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Requirements checklist */}
+                            <div className="space-y-2 rounded-lg border bg-card p-4">
+                                <p className="text-[13px] font-medium text-muted-foreground">
+                                    Password must contain:
+                                </p>
+                                <ul className="space-y-1.5">
+                                    {PASSWORD_RULES.map((rule) => {
+                                        const passes = rule.test(passwordValue || "")
+                                        return (
+                                            <li
+                                                key={rule.label}
+                                                className="flex items-center gap-2"
+                                            >
+                                                {passes ? (
+                                                    <Check className="size-3.5 text-green-600 dark:text-green-400" />
+                                                ) : (
+                                                    <X className="size-3.5 text-muted-foreground/40" />
+                                                )}
+                                                <span
+                                                    className={`text-sm ${passes
+                                                        ? "text-green-700 dark:text-green-300"
+                                                        : "text-muted-foreground"
+                                                        }`}
+                                                >
+                                                    {rule.label}
+                                                </span>
+                                            </li>
+                                        )
+                                    })}
+                                </ul>
+                            </div>
 
                             <FormField
                                 control={form.control}
