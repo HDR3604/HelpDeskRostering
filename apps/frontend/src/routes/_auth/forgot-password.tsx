@@ -26,7 +26,13 @@ const forgotPasswordSchema = z.object({
     email: z
         .string()
         .min(1, "Email is required")
-        .email("Please enter a valid email"),
+        .email("Please enter a valid email")
+        .refine(
+            (val) => val.endsWith("@my.uwi.edu") || val.endsWith("@uwi.edu"),
+            {
+                message: "Please enter a valid student or staff email address",
+            },
+        ),
 })
 
 type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>
