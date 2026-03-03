@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { GraduationCap, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
@@ -50,7 +50,7 @@ type ResetPasswordValues = z.infer<typeof resetPasswordSchema>
 
 export function ResetPasswordComponent() {
     const { token } = Route.useSearch()
-    const navigate = useNavigate()
+
     const [isSuccess, setIsSuccess] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)

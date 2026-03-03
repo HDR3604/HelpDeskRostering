@@ -71,19 +71,7 @@ export function ForgotPasswordComponent() {
         }
     }
 
-    const handleResend = async () => {
-        if (resendTimer > 0) return
-        const values = form.getValues()
-        if (!values.email) return
 
-        try {
-            await sendPasswordResetEmail(values.email)
-            setResendTimer(30)
-            toast.success("Password reset link resent.")
-        } catch {
-            toast.error("Failed to resend password reset email. Please try again.")
-        }
-    }
 
     return (
         <div className="flex h-full">
