@@ -10,7 +10,7 @@ var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]
 
 const studentEmailSuffix = "@my.uwi.edu"
 
-func ValidateEmail(email string) error {
+func ValidateStudentEmail(email string) error {
 	if strings.TrimSpace(email) == "" {
 		return errors.New("email is required")
 	}

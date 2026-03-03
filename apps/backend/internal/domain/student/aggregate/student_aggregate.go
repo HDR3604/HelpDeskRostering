@@ -37,7 +37,7 @@ func NewStudent(emailAddress string, phoneNumber string, transcriptMetadata type
 	emailAddress = strings.TrimSpace(emailAddress)
 	phoneNumber = strings.TrimSpace(phoneNumber)
 
-	if err := validation.ValidateEmail(emailAddress); err != nil {
+	if err := validation.ValidateStudentEmail(emailAddress); err != nil {
 		return nil, studentErrors.ErrInvalidEmail
 	}
 

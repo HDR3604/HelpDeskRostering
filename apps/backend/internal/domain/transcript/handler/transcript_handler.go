@@ -46,15 +46,17 @@ func (h *TranscriptHandler) ExtractTranscript(w http.ResponseWriter, r *http.Req
 	}
 	defer file.Close()
 
-	if header.Header.Get("Content-Type") != "application/pdf" {
-		writeError(w, http.StatusBadRequest, "only PDF files are accepted")
-		return
-	}
-
 	pdfBytes, err := io.ReadAll(file)
 	if err != nil {
 		h.logger.Error("failed to read uploaded file", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "failed to read file")
+		return
+	}
+
+	// Validate by checking the PDF magic bytes (%PDF-) rather than the
+	// Content-Type header, which browsers may set to application/octet-stream.
+	if len(pdfBytes) < 5 || string(pdfBytes[:5]) != "%PDF-" {
+		writeError(w, http.StatusBadRequest, "only PDF files are accepted")
 		return
 	}
 

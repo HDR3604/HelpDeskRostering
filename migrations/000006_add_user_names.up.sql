@@ -1,4 +1,4 @@
--- Migration: 000007_add_user_names
+-- Migration: 000006_add_user_names
 -- Description: Add first_name and last_name columns to auth.users
 
 ALTER TABLE "auth"."users"

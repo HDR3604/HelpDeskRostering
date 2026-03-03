@@ -2,12 +2,23 @@ import type { JwtPayload } from './types'
 import { TOKEN_EXPIRY_BUFFER_SECONDS } from './constants'
 import { getAccessToken } from './storage'
 
+/** Decode a base64url string (RFC 7515) to a UTF-8 string. */
+function base64UrlDecode(input: string): string {
+    // Replace base64url chars with base64 equivalents and add padding
+    const base64 = input.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(
+        base64.length + ((4 - (base64.length % 4)) % 4),
+        '=',
+    )
+    return atob(padded)
+}
+
 /** Decode a JWT payload. Returns null if the token is malformed. */
 export function decodeToken(token: string): JwtPayload | null {
     try {
         const segment = token.split('.')[1]
         if (!segment) return null
-        return JSON.parse(atob(segment)) as JwtPayload
+        return JSON.parse(base64UrlDecode(segment)) as JwtPayload
     } catch {
         return null
     }

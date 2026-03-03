@@ -87,16 +87,28 @@ export function getScheduleColumns({
             header: 'Status',
             cell: ({ row }) => {
                 const status = row.original.status
+                const config = {
+                    draft: {
+                        label: 'Draft',
+                        className:
+                            'bg-yellow-500/15 text-yellow-600 hover:bg-yellow-500/15',
+                    },
+                    active: {
+                        label: 'Active',
+                        className:
+                            'bg-green-500/15 text-green-600 hover:bg-green-500/15',
+                    },
+                    archived: {
+                        label: 'Archived',
+                        className:
+                            'bg-muted text-muted-foreground hover:bg-muted',
+                    },
+                }[status] ?? {
+                    label: status,
+                    className: 'bg-muted text-muted-foreground hover:bg-muted',
+                }
                 return (
-                    <Badge
-                        className={
-                            status === 'archived'
-                                ? 'bg-muted text-muted-foreground hover:bg-muted'
-                                : 'bg-blue-500/15 text-blue-500 hover:bg-blue-500/15'
-                        }
-                    >
-                        {status === 'archived' ? 'Archived' : 'Available'}
-                    </Badge>
+                    <Badge className={config.className}>{config.label}</Badge>
                 )
             },
         },
