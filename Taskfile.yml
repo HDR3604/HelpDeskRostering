@@ -163,31 +163,31 @@ tasks:
     cmds:
       - pnpm test
 
-  # Migrations
+  # Migrations (goose)
   migrate:up:
     desc: Run all pending migrations
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" up
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" up
 
   migrate:down:
     desc: Rollback the last migration
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down 1
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" down
 
   migrate:reset:
     desc: Rollback all migrations
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" down -all
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" reset
 
-  migrate:force:
-    desc: "Force set migration version (usage: task migrate:force -- <version>)"
+  migrate:status:
+    desc: Show migration status
     cmds:
-      - migrate -path {{.MIGRATIONS_DIR}} -database "{{.DATABASE_URL}}" force {{.CLI_ARGS}}
+      - goose -dir {{.MIGRATIONS_DIR}} postgres "{{.DATABASE_URL}}" status
 
   migrate:create:
     desc: "Create a new migration (usage: task migrate:create -- name)"
     cmds:
-      - migrate create -ext sql -dir {{.MIGRATIONS_DIR}} -seq {{.CLI_ARGS}}
+      - goose -dir {{.MIGRATIONS_DIR}} create {{.CLI_ARGS}} sql
 
   generate:models:
     desc: Generate Go models from database schema using jet

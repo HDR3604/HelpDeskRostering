@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE
     "auth"."refresh_tokens" (
         "id" uuid NOT NULL DEFAULT gen_random_uuid (),
@@ -27,3 +28,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON "auth"."refresh_tokens" TO internal;
 CREATE POLICY internal_bypass_refresh_tokens ON "auth"."refresh_tokens" TO internal 
 USING (TRUE)
 WITH CHECK (TRUE);
+-- +goose Down
+DROP POLICY IF EXISTS internal_bypass_refresh_tokens ON "auth"."refresh_tokens";
+REVOKE SELECT, INSERT, UPDATE, DELETE ON "auth"."refresh_tokens" FROM internal;
+DROP TABLE IF EXISTS "auth"."refresh_tokens";

@@ -1,7 +1,9 @@
+-- +goose Up
 -- Migration: 000002_rls_grants_and_policies
 -- Description: Set up database roles, row-level security, grants, and access policies
 
 -- Database roles (use DO block for idempotent role creation)
+-- +goose StatementBegin
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
@@ -12,8 +14,10 @@ BEGIN
     END IF;
 END
 $$;
+-- +goose StatementEnd
 
--- Helper Functions 
+-- Helper Functions
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION user_has_role(check_role VARCHAR)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -22,7 +26,9 @@ BEGIN
     RETURN current_setting('app.current_role', true) = check_role;
 END;
 $$;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION student_owns_record(record_student_id INT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -37,6 +43,7 @@ BEGIN
     RETURN record_student_id = current_id::int;
 END;
 $$;
+-- +goose StatementEnd
 
 -- Schema usage
 GRANT USAGE ON SCHEMA auth TO authenticated, internal;
@@ -169,3 +176,67 @@ CREATE POLICY schedules_select ON schedule.schedules
 --   - SET ROLE internal       (for system/background operations)
 GRANT authenticated TO helpdesk;
 GRANT internal TO helpdesk;
+-- +goose Down
+-- Migration: 000002_rls_grants_and_policies (DOWN)
+-- Reverse all changes from the up migration
+
+-- Revoke application user role membership
+REVOKE authenticated FROM helpdesk;
+REVOKE internal FROM helpdesk;
+
+-- Drop policies
+DROP POLICY IF EXISTS schedules_select ON schedule.schedules;
+DROP POLICY IF EXISTS time_logs_insert ON schedule.time_logs;
+DROP POLICY IF EXISTS time_logs_select ON schedule.time_logs;
+DROP POLICY IF EXISTS payments_select ON auth.payments;
+DROP POLICY IF EXISTS banking_insert ON auth.banking_details;
+DROP POLICY IF EXISTS banking_update ON auth.banking_details;
+DROP POLICY IF EXISTS banking_select ON auth.banking_details;
+DROP POLICY IF EXISTS users_update ON auth.users;
+DROP POLICY IF EXISTS users_select ON auth.users;
+DROP POLICY IF EXISTS students_update ON auth.students;
+DROP POLICY IF EXISTS students_select ON auth.students;
+
+-- Drop internal bypass policies
+DROP POLICY IF EXISTS internal_bypass_schedules ON schedule.schedules;
+DROP POLICY IF EXISTS internal_bypass_time_logs ON schedule.time_logs;
+DROP POLICY IF EXISTS internal_bypass_payments ON auth.payments;
+DROP POLICY IF EXISTS internal_bypass_banking ON auth.banking_details;
+DROP POLICY IF EXISTS internal_bypass_users ON auth.users;
+DROP POLICY IF EXISTS internal_bypass_students ON auth.students;
+
+-- Disable forced RLS
+ALTER TABLE schedule.schedules NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE schedule.time_logs NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE auth.payments NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE auth.banking_details NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE auth.users NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE auth.students NO FORCE ROW LEVEL SECURITY;
+
+-- Disable RLS
+ALTER TABLE schedule.schedules DISABLE ROW LEVEL SECURITY;
+ALTER TABLE schedule.time_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE auth.payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE auth.banking_details DISABLE ROW LEVEL SECURITY;
+ALTER TABLE auth.users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE auth.students DISABLE ROW LEVEL SECURITY;
+
+-- Revoke table permissions
+REVOKE ALL ON schedule.schedules FROM authenticated, internal;
+REVOKE ALL ON schedule.time_logs FROM authenticated, internal;
+REVOKE ALL ON auth.payments FROM authenticated, internal;
+REVOKE ALL ON auth.banking_details FROM authenticated, internal;
+REVOKE ALL ON auth.users FROM authenticated, internal;
+REVOKE ALL ON auth.students FROM authenticated, internal;
+
+-- Revoke schema usage
+REVOKE USAGE ON SCHEMA schedule FROM authenticated, internal;
+REVOKE USAGE ON SCHEMA auth FROM authenticated, internal;
+
+-- Drop helper functions
+DROP FUNCTION IF EXISTS student_owns_record(INT);
+DROP FUNCTION IF EXISTS user_has_role(VARCHAR);
+
+-- Drop roles
+DROP ROLE IF EXISTS internal;
+DROP ROLE IF EXISTS authenticated;

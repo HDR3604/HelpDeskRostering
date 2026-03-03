@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE public.email_verifications (
     id          uuid        NOT NULL DEFAULT gen_random_uuid(),
     email       text        NOT NULL,
@@ -18,3 +19,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.email_verifications TO internal;
 
 CREATE POLICY internal_bypass_email_verifications ON public.email_verifications
     TO internal USING (TRUE) WITH CHECK (TRUE);
+
+-- +goose Down
+DROP TABLE IF EXISTS public.email_verifications;

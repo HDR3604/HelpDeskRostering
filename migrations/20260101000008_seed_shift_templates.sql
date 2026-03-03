@@ -1,3 +1,4 @@
+-- +goose Up
 -- Seed default shift templates: 1-hour slots from 08:00 to 16:00, Monday–Friday
 INSERT INTO schedule.shift_templates (name, day_of_week, start_time, end_time, min_staff, max_staff, course_demands)
 SELECT
@@ -12,3 +13,8 @@ FROM
   (VALUES (0,'Mon'),(1,'Tue'),(2,'Wed'),(3,'Thu'),(4,'Fri')) AS d(dow, day_name),
   generate_series(8, 15) AS h(hr)
 ORDER BY d.dow, h.hr;
+
+-- +goose Down
+-- Remove seeded shift templates
+DELETE FROM schedule.shift_templates
+WHERE name ~ '^(Mon|Tue|Wed|Thu|Fri) \d{2}:\d{2}-\d{2}:\d{2}$';

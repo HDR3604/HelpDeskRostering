@@ -1,3 +1,4 @@
+-- +goose Up
 -- Add verified timestamp to users (NULL = unverified)
 ALTER TABLE "auth"."users"
     ADD COLUMN "email_verified_at" timestamptz;
@@ -27,3 +28,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON "auth"."auth_tokens" TO internal;
 
 CREATE POLICY internal_bypass_auth_tokens ON "auth"."auth_tokens"
     TO internal USING (TRUE) WITH CHECK (TRUE);
+
+-- +goose Down
+DROP POLICY IF EXISTS internal_bypass_auth_tokens ON "auth"."auth_tokens";
+REVOKE ALL ON "auth"."auth_tokens" FROM internal;
+DROP TABLE IF EXISTS "auth"."auth_tokens";
+ALTER TABLE "auth"."users" DROP COLUMN IF EXISTS "email_verified_at";

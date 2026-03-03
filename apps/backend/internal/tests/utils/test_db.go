@@ -9,10 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
+	"github.com/pressly/goose/v3"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -56,27 +54,18 @@ func NewTestDB(t *testing.T) *TestDB {
 	}
 
 	// Run migrations
-	m, err := migrate.New(
-		"file://"+migrationsDir,
-		connStr,
-	)
+	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		t.Fatalf("failed to create migrate instance: %v", err)
+		t.Fatalf("failed to open database for migrations: %v", err)
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := goose.SetDialect("postgres"); err != nil {
+		t.Fatalf("failed to set goose dialect: %v", err)
+	}
+
+	if err := goose.Up(db, migrationsDir); err != nil {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
-
-	srcErr, dbErr := m.Close()
-	if srcErr != nil {
-		t.Fatalf("failed to close migration source: %v", srcErr)
-	}
-	if dbErr != nil {
-		t.Fatalf("failed to close migration db: %v", dbErr)
-	}
-
-	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		t.Fatalf("failed to connect to test database: %v", err)
 	}
