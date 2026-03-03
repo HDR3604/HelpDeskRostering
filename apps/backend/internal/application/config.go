@@ -15,8 +15,10 @@ type Config struct {
 	AccessTokenTTL       int // seconds
 	RefreshTokenTTL      int // seconds
 	VerificationTokenTTL int // seconds
+	RateLimitRPM         int // requests per minute per IP
 	FrontendURL          string
 	FromEmail            string
+	EncryptionKey        string
 }
 
 func LoadConfig() (Config, error) {
@@ -70,6 +72,18 @@ func LoadConfig() (Config, error) {
 		}
 	}
 
+	cfg.RateLimitRPM = 30
+	if v := os.Getenv("RATE_LIMIT_RPM"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("RATE_LIMIT_RPM must be a valid integer, got %q", v)
+		}
+		if parsed <= 0 {
+			return Config{}, fmt.Errorf("RATE_LIMIT_RPM must be positive, got %d", parsed)
+		}
+		cfg.RateLimitRPM = parsed
+	}
+
 	cfg.FrontendURL = os.Getenv("FRONTEND_URL")
 	if cfg.FrontendURL == "" {
 		cfg.FrontendURL = "http://localhost:5173"
@@ -78,6 +92,12 @@ func LoadConfig() (Config, error) {
 	cfg.FromEmail = os.Getenv("FROM_EMAIL")
 	if cfg.FromEmail == "" {
 		cfg.FromEmail = "noreply@uwi.edu"
+	}
+
+	// Encryption
+	cfg.EncryptionKey = os.Getenv("ENCRYPTION_KEY")
+	if cfg.EncryptionKey == "" {
+		return Config{}, fmt.Errorf("ENCRYPTION_KEY environment variable is required")
 	}
 
 	return cfg, nil
