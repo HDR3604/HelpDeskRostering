@@ -7,6 +7,7 @@ import (
 	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
+	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	authMiddleware "github.com/HDR3604/HelpDeskApp/internal/middleware"
@@ -22,6 +23,7 @@ func registerRoutes(
 	scheduleGenerationHdl *scheduleHandler.ScheduleGenerationHandler,
 	shiftTemplateHdl *scheduleHandler.ShiftTemplateHandler,
 	schedulerConfigHdl *scheduleHandler.SchedulerConfigHandler,
+	studentHdl *studentHandler.StudentHandler,
 	userHdl *userHandler.UserHandler,
 ) {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +51,7 @@ func registerRoutes(
 				r.Use(authMiddleware.Permission([]aggregate.Role{aggregate.Role_Admin}))
 
 				scheduleHdl.RegisterAdminRoutes(r)
+				studentHdl.RegisterAdminRoutes(r)
 				userHdl.RegisterAdminRoutes(r)
 			})
 
@@ -57,6 +60,7 @@ func registerRoutes(
 			scheduleGenerationHdl.RegisterRoutes(r)
 			shiftTemplateHdl.RegisterRoutes(r)
 			schedulerConfigHdl.RegisterRoutes(r)
+			studentHdl.RegisterRoutes(r)
 			userHdl.RegisterRoutes(r)
 		})
 	})

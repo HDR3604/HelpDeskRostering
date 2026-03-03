@@ -13,6 +13,8 @@ import (
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
+	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
+	studentService "github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
 	userService "github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
@@ -21,6 +23,7 @@ import (
 	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
 	schedulerService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
+	studentRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/student"
 	transcriptsService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/service"
 	userRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/user"
 	"github.com/go-chi/chi/v5"
@@ -73,6 +76,7 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationRepository := scheduleRepo.NewScheduleGenerationRepository(logger)
 	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
+	bankingDetailsRepository := studentRepo.NewBankingDetailsRepository(logger, cfg.EncryptionKey)
 
 	// Email sender
 	var emailSenderSvc emailInterfaces.EmailSenderInterface
@@ -107,6 +111,7 @@ func NewApp(cfg Config) (*App, error) {
 	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
+	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository)
 
 	// Handlers
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
@@ -114,6 +119,7 @@ func NewApp(cfg Config) (*App, error) {
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
+	studentHdl := studentHandler.NewStudentHandler(logger, bankingDetailsSvc)
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
 
 	// Router
@@ -122,7 +128,7 @@ func NewApp(cfg Config) (*App, error) {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 
-	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, userHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl)
 
 	app := &App{
 		config: cfg,
