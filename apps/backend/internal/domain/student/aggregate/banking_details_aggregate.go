@@ -73,15 +73,3 @@ func BankingDetailsFromModel(m *model.BankingDetails, decryptedAccountNumber str
 		UpdatedAt:     m.UpdatedAt,
 	}
 }
-
-func (bd *BankingDetails) ToModel(encryptedAccountNumber string) *model.BankingDetails {
-	encryptedBytes := []byte(encryptedAccountNumber)
-
-	return &model.BankingDetails{
-		StudentID:     bd.StudentID,
-		BankName:      bd.BankName,
-		BranchName:    bd.BranchName,
-		AccountType:   model.BankAccountType(bd.AccountType),
-		AccountNumber: encryptedBytes,
-	}
-}

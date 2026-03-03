@@ -64,7 +64,7 @@ func (r *BankingDetailsRepository) Upsert(
 			bankingDetails.BankName,
 			bankingDetails.BranchName,
 			string(bankingDetails.AccountType),
-			[]byte(encryptedAccountNumber),
+			encryptedAccountNumber,
 		).
 		ON_CONFLICT(table.BankingDetails.StudentID).
 		DO_UPDATE(
@@ -84,8 +84,7 @@ func (r *BankingDetailsRepository) Upsert(
 		return nil, fmt.Errorf("failed to upsert banking details: %w", err)
 	}
 
-	encryptedAccountStr := string(result.AccountNumber)
-	decryptedAccountNumber, err := crypto.Decrypt(encryptedAccountStr, r.encryptionKey)
+	decryptedAccountNumber, err := crypto.Decrypt(result.AccountNumber, r.encryptionKey)
 	if err != nil {
 		r.logger.Error("failed to decrypt account number", zap.Error(err))
 		return nil, fmt.Errorf("failed to decrypt account number: %w", err)
@@ -113,30 +112,11 @@ func (r *BankingDetailsRepository) GetByStudentID(
 		return nil, fmt.Errorf("failed to get banking details by student ID: %w", err)
 	}
 
-	encryptedAccountStr := string(result.AccountNumber)
-	decryptedAccountNumber, err := crypto.Decrypt(encryptedAccountStr, r.encryptionKey)
+	decryptedAccountNumber, err := crypto.Decrypt(result.AccountNumber, r.encryptionKey)
 	if err != nil {
 		r.logger.Error("failed to decrypt account number", zap.Error(err))
 		return nil, fmt.Errorf("failed to decrypt account number: %w", err)
 	}
 
 	return aggregate.BankingDetailsFromModel(&result, decryptedAccountNumber), nil
-}
-
-func (r *BankingDetailsRepository) Delete(
-	ctx context.Context,
-	tx *sql.Tx,
-	studentID int32,
-) error {
-	stmt := table.BankingDetails.
-		DELETE().
-		WHERE(table.BankingDetails.StudentID.EQ(postgres.Int32(studentID)))
-
-	_, err := stmt.ExecContext(ctx, tx)
-	if err != nil {
-		r.logger.Error("failed to delete banking details", zap.Error(err), zap.Int32("student_id", studentID))
-		return fmt.Errorf("failed to delete banking details: %w", err)
-	}
-
-	return nil
 }

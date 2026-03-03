@@ -55,7 +55,7 @@ func TestDecryptWithCorruptedCiphertext(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 
 	// Corrupt ciphertext by modifying it
-	corrupted := "0123456789abcdef0123456789abcdef0123456789abcdef"
+	corrupted := []byte("0123456789abcdef0123456789abcdef0123456789abcdef")
 	_, err := crypto.Decrypt(corrupted, key)
 	if err == nil {
 		t.Errorf("Expected error when decrypting corrupted ciphertext, got nil")
@@ -77,7 +77,7 @@ func TestEncryptDifferentInputs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Encrypt failed for %q: %v", input, err)
 		}
-		ciphertexts[ct] = true
+		ciphertexts[string(ct)] = true
 	}
 
 	// Verify all ciphertexts are different (due to random nonce)
