@@ -1,4 +1,4 @@
-package auth_test
+package middleware_test
 
 import (
 	"net/http"
