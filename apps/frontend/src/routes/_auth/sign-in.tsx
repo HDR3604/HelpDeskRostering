@@ -18,6 +18,7 @@ import {
     FormMessage,
 } from '@/components/ui/form'
 import { Checkbox } from '@/components/ui/checkbox'
+import { AuthSidePanel } from '@/components/layout/auth-side-panel'
 
 const searchSchema = z.object({
     redirect: z.string().optional(),
@@ -239,13 +240,7 @@ export function SignInComponent() {
                 </div>
             </div>
 
-            <div className="relative hidden w-1/2 shrink-0 p-4 lg:block">
-                <img
-                    src="/images/UwiFrontPage.webp"
-                    alt="Student working at a desk"
-                    className="absolute inset-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)] rounded-xl object-cover dark:brightness-[0.8]"
-                />
-            </div>
+            <AuthSidePanel />
         </div>
     )
 }

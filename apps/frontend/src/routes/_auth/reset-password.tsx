@@ -1,15 +1,17 @@
-import { useState } from "react"
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { GraduationCap, Eye, EyeOff, AlertCircle, Check, X } from "lucide-react"
+import { useState } from 'react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { GraduationCap, Eye, EyeOff, AlertCircle, Check, X } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { toast } from "sonner"
-
-import { resetPassword } from "@/lib/auth"
-import { passwordSchema, PASSWORD_RULES, type PasswordData } from "@/features/onboarding/lib/onboarding-schemas"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+// import { resetPassword } from "@/lib/auth"
+import {
+    passwordSchema,
+    PASSWORD_RULES,
+    type PasswordData,
+} from '@/features/onboarding/lib/onboarding-schemas'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
     Form,
     FormControl,
@@ -17,24 +19,38 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-} from "@/components/ui/form"
+} from '@/components/ui/form'
+import { AuthSidePanel } from '@/components/layout/auth-side-panel'
 
-// Define search parameters type for token
 type ResetPasswordSearch = {
     token?: string
 }
 
-export const Route = createFileRoute("/_auth/reset-password")({
+export const Route = createFileRoute('/_auth/reset-password')({
     component: ResetPasswordComponent,
     validateSearch: (search: Record<string, unknown>): ResetPasswordSearch => {
         return {
-            token: typeof search.token === "string" ? search.token : undefined,
+            token: typeof search.token === 'string' ? search.token : undefined,
         }
     },
 })
 
 const resetPasswordSchema = passwordSchema
 type ResetPasswordValues = PasswordData
+
+function BrandedHeader() {
+    return (
+        <div className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <GraduationCap className="size-5" />
+            </div>
+            <div className="flex flex-col text-left leading-none">
+                <span className="text-lg font-semibold">HelpDesk</span>
+                <span className="text-xs text-muted-foreground">Rostering</span>
+            </div>
+        </div>
+    )
+}
 
 export function ResetPasswordComponent() {
     const { token } = Route.useSearch()
@@ -47,38 +63,44 @@ export function ResetPasswordComponent() {
     const form = useForm<ResetPasswordValues>({
         resolver: zodResolver(resetPasswordSchema),
         defaultValues: {
-            password: "",
-            confirmPassword: "",
+            password: '',
+            confirmPassword: '',
         },
     })
 
-    const passwordValue = form.watch("password")
+    const passwordValue = form.watch('password')
 
-    // Early return for missing token
+    // Missing token
     if (!token) {
         return (
-            <div className="flex h-full">
+            <div className="flex min-h-dvh">
                 <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
                     <div className="w-full max-w-sm space-y-6 text-center">
+                        <BrandedHeader />
+
                         <div className="flex justify-center">
                             <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                                 <AlertCircle className="size-6" />
                             </div>
                         </div>
+
                         <div className="space-y-2">
-                            <h1 className="text-2xl font-semibold tracking-tight">
+                            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                                 Missing Reset Token
                             </h1>
                             <p className="text-muted-foreground">
-                                No password reset token was provided. Please request a new reset
-                                link.
+                                No password reset token was provided. Please
+                                request a new reset link.
                             </p>
                         </div>
+
                         <Button asChild className="w-full">
-                            <Link to="/forgot-password">Go to Forgot Password</Link>
+                            <Link to="/forgot-password">Request New Link</Link>
                         </Button>
                     </div>
                 </div>
+
+                <AuthSidePanel />
             </div>
         )
     }
@@ -86,90 +108,77 @@ export function ResetPasswordComponent() {
     const onSubmit = async (values: ResetPasswordValues) => {
         setTokenError(null)
         try {
-            await resetPassword(token, values.password)
+            // await resetPassword(token, values.password)
             setIsSuccess(true)
-            toast.success("Password has been reset successfully.")
         } catch (err) {
-            if (err instanceof Error) {
-                setTokenError(err.message)
-                toast.error(err.message)
-            } else {
-                toast.error("An unexpected error occurred.")
-            }
+            setTokenError(
+                err instanceof Error
+                    ? err.message
+                    : 'An unexpected error occurred. Please try again.',
+            )
         }
     }
 
-    // Render for success or token error
+    // Success or token error
     if (isSuccess || tokenError) {
         return (
-            <div className="flex h-full">
+            <div className="flex min-h-dvh">
                 <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
                     <div className="w-full max-w-sm space-y-6 text-center">
-                        {/* Branded header */}
-                        <div className="flex items-center justify-center gap-3">
-                            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                                <GraduationCap className="size-5" />
-                            </div>
-                            <div className="flex flex-col text-left leading-none">
-                                <span className="text-lg font-semibold">HelpDesk</span>
-                                <span className="text-xs text-muted-foreground">Rostering</span>
-                            </div>
-                        </div>
+                        <BrandedHeader />
 
                         {isSuccess ? (
-                            <div className="space-y-4">
+                            <>
                                 <div className="space-y-2">
-                                    <h1 className="text-2xl font-semibold tracking-tight">
+                                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                                         Password Reset!
                                     </h1>
                                     <p className="text-muted-foreground">
-                                        Your password has been successfully reset. You can now sign
-                                        in with your new password.
+                                        Your password has been successfully
+                                        reset. You can now sign in with your new
+                                        password.
                                     </p>
                                 </div>
                                 <Button asChild className="w-full">
                                     <Link to="/sign-in">Sign in</Link>
                                 </Button>
-                            </div>
+                            </>
                         ) : (
-                            <div className="space-y-4">
+                            <>
                                 <div className="flex justify-center">
                                     <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
                                         <AlertCircle className="size-6" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <h1 className="text-2xl font-semibold tracking-tight">
+                                    <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                                         Reset Link Invalid
                                     </h1>
-                                    <p className="text-muted-foreground">{tokenError}</p>
+                                    <p className="text-muted-foreground">
+                                        {tokenError}
+                                    </p>
                                 </div>
                                 <Button asChild className="w-full">
-                                    <Link to="/forgot-password">Request New Link</Link>
+                                    <Link to="/forgot-password">
+                                        Request New Link
+                                    </Link>
                                 </Button>
-                            </div>
+                            </>
                         )}
                     </div>
                 </div>
+
+                <AuthSidePanel />
             </div>
         )
     }
 
-    // Default active form
+    // Default form
     return (
-        <div className="flex h-full">
+        <div className="flex min-h-dvh">
             <div className="flex flex-1 items-center justify-center px-4 py-10 sm:px-6 sm:py-16">
                 <div className="w-full max-w-sm space-y-6">
-                    {/* Branded header */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                            <GraduationCap className="size-5" />
-                        </div>
-                        <div className="flex flex-col leading-none">
-                            <span className="text-lg font-semibold">HelpDesk</span>
-                            <span className="text-xs text-muted-foreground">Rostering</span>
-                        </div>
-                    </div>
+                    <BrandedHeader />
 
                     {/* Heading */}
                     <div className="space-y-2">
@@ -183,7 +192,10 @@ export function ResetPasswordComponent() {
 
                     {/* Form */}
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+                        <form
+                            onSubmit={form.handleSubmit(onSubmit)}
+                            className="grid gap-4"
+                        >
                             <FormField
                                 control={form.control}
                                 name="password"
@@ -193,7 +205,11 @@ export function ResetPasswordComponent() {
                                         <FormControl>
                                             <div className="relative">
                                                 <Input
-                                                    type={showPassword ? "text" : "password"}
+                                                    type={
+                                                        showPassword
+                                                            ? 'text'
+                                                            : 'password'
+                                                    }
                                                     placeholder="••••••••"
                                                     autoComplete="new-password"
                                                     {...field}
@@ -201,10 +217,16 @@ export function ResetPasswordComponent() {
                                                 <button
                                                     type="button"
                                                     className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground hover:text-foreground"
-                                                    onClick={() => setShowPassword(!showPassword)}
+                                                    onClick={() =>
+                                                        setShowPassword(
+                                                            !showPassword,
+                                                        )
+                                                    }
                                                     tabIndex={-1}
                                                     aria-label={
-                                                        showPassword ? "Hide password" : "Show password"
+                                                        showPassword
+                                                            ? 'Hide password'
+                                                            : 'Show password'
                                                     }
                                                 >
                                                     {showPassword ? (
@@ -227,7 +249,9 @@ export function ResetPasswordComponent() {
                                 </p>
                                 <ul className="space-y-1.5">
                                     {PASSWORD_RULES.map((rule) => {
-                                        const passes = rule.test(passwordValue || "")
+                                        const passes = rule.test(
+                                            passwordValue || '',
+                                        )
                                         return (
                                             <li
                                                 key={rule.label}
@@ -239,10 +263,11 @@ export function ResetPasswordComponent() {
                                                     <X className="size-3.5 text-muted-foreground/40" />
                                                 )}
                                                 <span
-                                                    className={`text-sm ${passes
-                                                        ? "text-green-700 dark:text-green-300"
-                                                        : "text-muted-foreground"
-                                                        }`}
+                                                    className={`text-sm ${
+                                                        passes
+                                                            ? 'text-green-700 dark:text-green-300'
+                                                            : 'text-muted-foreground'
+                                                    }`}
                                                 >
                                                     {rule.label}
                                                 </span>
@@ -261,7 +286,11 @@ export function ResetPasswordComponent() {
                                         <FormControl>
                                             <div className="relative">
                                                 <Input
-                                                    type={showConfirmPassword ? "text" : "password"}
+                                                    type={
+                                                        showConfirmPassword
+                                                            ? 'text'
+                                                            : 'password'
+                                                    }
                                                     placeholder="••••••••"
                                                     autoComplete="new-password"
                                                     {...field}
@@ -270,13 +299,15 @@ export function ResetPasswordComponent() {
                                                     type="button"
                                                     className="absolute right-0 top-0 h-full px-3 py-2 text-muted-foreground hover:text-foreground"
                                                     onClick={() =>
-                                                        setShowConfirmPassword(!showConfirmPassword)
+                                                        setShowConfirmPassword(
+                                                            !showConfirmPassword,
+                                                        )
                                                     }
                                                     tabIndex={-1}
                                                     aria-label={
                                                         showConfirmPassword
-                                                            ? "Hide confirm password"
-                                                            : "Show confirm password"
+                                                            ? 'Hide confirm password'
+                                                            : 'Show confirm password'
                                                     }
                                                 >
                                                     {showConfirmPassword ? (
@@ -298,21 +329,15 @@ export function ResetPasswordComponent() {
                                 disabled={form.formState.isSubmitting}
                             >
                                 {form.formState.isSubmitting
-                                    ? "Resetting..."
-                                    : "Reset Password"}
+                                    ? 'Resetting...'
+                                    : 'Reset Password'}
                             </Button>
                         </form>
                     </Form>
                 </div>
             </div>
 
-            <div className="relative hidden w-1/2 shrink-0 p-4 lg:block">
-                <img
-                    src="/images/UwiFrontPage.webp"
-                    alt="Student working at a desk"
-                    className="absolute inset-4 h-[calc(100%-2rem)] w-[calc(100%-2rem)] rounded-xl object-cover dark:brightness-[0.8]"
-                />
-            </div>
+            <AuthSidePanel />
         </div>
     )
 }

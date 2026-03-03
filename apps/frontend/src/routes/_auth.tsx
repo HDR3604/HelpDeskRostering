@@ -21,7 +21,7 @@ export const Route = createFileRoute('/_auth')({
 function AuthLayout() {
     return (
         <div className="relative h-dvh overflow-auto">
-            <div className="fixed right-4 top-4 z-50">
+            <div className="fixed left-4 top-4 z-50">
                 <ThemeSwitcher />
             </div>
             <Outlet />
