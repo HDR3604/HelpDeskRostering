@@ -163,6 +163,7 @@ export function AppSidebar() {
                                         )}
                                     </SidebarMenuItem>
 
+
                                     {/* Schedule — collapsible with submenu */}
                                     <Collapsible
                                         defaultOpen={currentPath.startsWith(

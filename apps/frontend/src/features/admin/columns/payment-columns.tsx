@@ -17,6 +17,7 @@ interface PaymentColumnCallbacks {
   isEditing: boolean
 }
 
+const rate = "$20.00/Hr."
 export function getPaymentColumns({ onDelete, changeAllocation, isEditing }: PaymentColumnCallbacks): ColumnDef<PaymentEntry>[] {
   return [
     {
@@ -57,7 +58,7 @@ export function getPaymentColumns({ onDelete, changeAllocation, isEditing }: Pay
     },
     {
       id: "rate",
-      header: "$20.00/Hr.",
+      header: rate,
       cell: ({ row }) => (<span>$20.00</span>),
     },
     {

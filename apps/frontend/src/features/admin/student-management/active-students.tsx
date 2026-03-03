@@ -84,7 +84,7 @@ const filtered = useMemo(() => {
                   <TableCell className="text-sm">{student.student_id}</TableCell>
                   <TableCell>
                     <p className="font-medium"> {student.first_name} {student.last_name} </p>
-                    <p className="text-xs neutral-500"> {student.email_address} </p>
+                    <p className="text-xs text-muted-foreground"> {student.email_address} </p>
                   </TableCell>
                   <TableCell>{getTotalHours(student)}</TableCell>
                   <TableCell>{getDegree(student)}</TableCell>
@@ -106,7 +106,7 @@ const filtered = useMemo(() => {
           </TableBody>
         </Table>
       </div>
-    
+
     <TranscriptDialog
       student={transcriptStudent}
       open={transcriptStudent !== null}

@@ -25,21 +25,21 @@ const MOCK_PAYMENT_TABLE: PaymentEntry[] = MOCK_STUDENTS
 export function PaymentsCentre() {
   const [payments, setPayments] = useState<PaymentEntry[]>(MOCK_PAYMENT_TABLE)
   const [isEditing, setIsEditing] = useState(false)
-  const [lastDeleted, setLastDeleted] = useState<PaymentEntry | null>(null)
+  const [deletedStack, setDeletedStack] = useState<PaymentEntry[]>([])
 
   function handleDelete(entry: PaymentEntry) {
     setPayments((prev) =>
       prev.filter((p) => p.student.student_id !== entry.student.student_id)
     )
-    setLastDeleted(entry)
+    setDeletedStack((prev) => [...prev, entry])
   }
 
   function handleUndo() {
-    if (!lastDeleted) return
-    setPayments((prev) => [...prev, lastDeleted])
-    setLastDeleted(null)
+    if (deletedStack.length === 0) return
+    const last = deletedStack[deletedStack.length - 1]
+    setPayments((prev) => [...prev, last])
+    setDeletedStack((prev) => prev.slice(0, -1))
   }
-
   function handleAllocationChange(studentId: number, value: string) {
     setPayments((prev) =>
       prev.map((p) =>
@@ -55,14 +55,8 @@ export function PaymentsCentre() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center w-full">
-        <p className="mt-2 text-muted-foreground">Manage student payments and transactions.</p>
-          <div className="flex items-center gap-2">
-          {isEditing && lastDeleted && (
-            <Button variant="outline" size="lg" onClick={handleUndo}>
-              Undo
-            </Button>
-          )}
+      <div className="flex items-center justify-start">
+        <div className="flex items-center gap-2">
           <Button
             variant={isEditing ? "default" : "outline"}
             size="lg"
@@ -71,6 +65,12 @@ export function PaymentsCentre() {
             {isEditing ? "Done" : "Edit"}
             <PencilLine />
           </Button>
+          {isEditing && deletedStack && (
+            <Button variant="outline" size="lg" onClick={handleUndo}>
+              Undo
+            </Button>
+          )}
+          
         </div>
       </div>
       <DataTable

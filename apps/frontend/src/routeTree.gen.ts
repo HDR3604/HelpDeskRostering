@@ -15,12 +15,10 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AuthSignUpRouteImport } from './routes/_auth/sign-up'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
+import { Route as AppStudentCentreRouteImport } from './routes/_app/student-centre'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
-import { Route as AppPaymentCentreRouteImport } from './routes/_app/payment-centre'
-import { Route as AppDeactivatedStudentsRouteImport } from './routes/_app/deactivated-students'
 import { Route as AppApplicationsRouteImport } from './routes/_app/applications'
-import { Route as AppActiveStudentsRouteImport } from './routes/_app/active-students'
 import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/index'
 import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedule/$scheduleId'
 
@@ -52,6 +50,11 @@ const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthRoute,
 } as any)
+const AppStudentCentreRoute = AppStudentCentreRouteImport.update({
+  id: '/student-centre',
+  path: '/student-centre',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -62,24 +65,9 @@ const AppScheduleRoute = AppScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => AppRoute,
 } as any)
-const AppPaymentCentreRoute = AppPaymentCentreRouteImport.update({
-  id: '/payment-centre',
-  path: '/payment-centre',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDeactivatedStudentsRoute = AppDeactivatedStudentsRouteImport.update({
-  id: '/deactivated-students',
-  path: '/deactivated-students',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppApplicationsRoute = AppApplicationsRouteImport.update({
   id: '/applications',
   path: '/applications',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppActiveStudentsRoute = AppActiveStudentsRouteImport.update({
-  id: '/active-students',
-  path: '/active-students',
   getParentRoute: () => AppRoute,
 } as any)
 const AppScheduleIndexRoute = AppScheduleIndexRouteImport.update({
@@ -95,12 +83,10 @@ const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
-  '/active-students': typeof AppActiveStudentsRoute
   '/applications': typeof AppApplicationsRoute
-  '/deactivated-students': typeof AppDeactivatedStudentsRoute
-  '/payment-centre': typeof AppPaymentCentreRoute
   '/schedule': typeof AppScheduleRouteWithChildren
   '/settings': typeof AppSettingsRoute
+  '/student-centre': typeof AppStudentCentreRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
@@ -109,11 +95,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
-  '/active-students': typeof AppActiveStudentsRoute
   '/applications': typeof AppApplicationsRoute
-  '/deactivated-students': typeof AppDeactivatedStudentsRoute
-  '/payment-centre': typeof AppPaymentCentreRoute
   '/settings': typeof AppSettingsRoute
+  '/student-centre': typeof AppStudentCentreRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
@@ -124,12 +108,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
-  '/_app/active-students': typeof AppActiveStudentsRoute
   '/_app/applications': typeof AppApplicationsRoute
-  '/_app/deactivated-students': typeof AppDeactivatedStudentsRoute
-  '/_app/payment-centre': typeof AppPaymentCentreRoute
   '/_app/schedule': typeof AppScheduleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/student-centre': typeof AppStudentCentreRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/sign-in': typeof AuthSignInRoute
   '/_auth/sign-up': typeof AuthSignUpRoute
@@ -141,12 +123,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/active-students'
     | '/applications'
-    | '/deactivated-students'
-    | '/payment-centre'
     | '/schedule'
     | '/settings'
+    | '/student-centre'
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
@@ -155,11 +135,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/active-students'
     | '/applications'
-    | '/deactivated-students'
-    | '/payment-centre'
     | '/settings'
+    | '/student-centre'
     | '/onboarding'
     | '/sign-in'
     | '/sign-up'
@@ -169,12 +147,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_auth'
-    | '/_app/active-students'
     | '/_app/applications'
-    | '/_app/deactivated-students'
-    | '/_app/payment-centre'
     | '/_app/schedule'
     | '/_app/settings'
+    | '/_app/student-centre'
     | '/_auth/onboarding'
     | '/_auth/sign-in'
     | '/_auth/sign-up'
@@ -232,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthOnboardingRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_app/student-centre': {
+      id: '/_app/student-centre'
+      path: '/student-centre'
+      fullPath: '/student-centre'
+      preLoaderRoute: typeof AppStudentCentreRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -246,32 +229,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScheduleRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/payment-centre': {
-      id: '/_app/payment-centre'
-      path: '/payment-centre'
-      fullPath: '/payment-centre'
-      preLoaderRoute: typeof AppPaymentCentreRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/deactivated-students': {
-      id: '/_app/deactivated-students'
-      path: '/deactivated-students'
-      fullPath: '/deactivated-students'
-      preLoaderRoute: typeof AppDeactivatedStudentsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/applications': {
       id: '/_app/applications'
       path: '/applications'
       fullPath: '/applications'
       preLoaderRoute: typeof AppApplicationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/active-students': {
-      id: '/_app/active-students'
-      path: '/active-students'
-      fullPath: '/active-students'
-      preLoaderRoute: typeof AppActiveStudentsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/schedule/': {
@@ -306,22 +268,18 @@ const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppActiveStudentsRoute: typeof AppActiveStudentsRoute
   AppApplicationsRoute: typeof AppApplicationsRoute
-  AppDeactivatedStudentsRoute: typeof AppDeactivatedStudentsRoute
-  AppPaymentCentreRoute: typeof AppPaymentCentreRoute
   AppScheduleRoute: typeof AppScheduleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
+  AppStudentCentreRoute: typeof AppStudentCentreRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppActiveStudentsRoute: AppActiveStudentsRoute,
   AppApplicationsRoute: AppApplicationsRoute,
-  AppDeactivatedStudentsRoute: AppDeactivatedStudentsRoute,
-  AppPaymentCentreRoute: AppPaymentCentreRoute,
   AppScheduleRoute: AppScheduleRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
+  AppStudentCentreRoute: AppStudentCentreRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

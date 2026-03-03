@@ -16,7 +16,7 @@ function getTotalHours(student: Student): number {
   return record ? record.hours : 0
 }
 
-function getSemester(student: Student): String {
+function getSemester(student: Student): string {
   const record = MOCK_SEMESTERS.find((s) => s.name === `${student.first_name} ${student.last_name}`)
   return record ? String(record.semester) : "1"
 }
@@ -93,7 +93,7 @@ const filtered = useMemo(() => {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center neutral-500 py-4">No students found</TableCell>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-4">No students found</TableCell>
               </TableRow>
             ) : (
               filtered.map((student) => (
@@ -103,7 +103,7 @@ const filtered = useMemo(() => {
                   </TableCell>
                   <TableCell>
                     <p className="font-medium">{student.first_name} {student.last_name}</p>
-                    <p className="text-xs neutral-500">Level {student.transcript_metadata.current_level}</p>
+                    <p className="text-xs text-muted-foreground">Level {student.transcript_metadata.current_level}</p>
                   </TableCell>
                   <TableCell className="text-sm">
                     {student.email_address}

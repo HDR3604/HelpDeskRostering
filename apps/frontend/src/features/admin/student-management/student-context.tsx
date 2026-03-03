@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useMemo } from "react"
 import { MOCK_STUDENTS } from "@/lib/mock-data"
 import { getApplicationStatus } from "@/types/student"
 import type { Student } from "@/types/student"
@@ -19,16 +19,18 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
 
 const [students, setStudents] = useState<Student[]>(MOCK_STUDENTS)
 const [deactivatedIds, setDeactivatedIds] = useState<Set<number>>(new Set())
+  
+  const activeStudents = useMemo(() =>
+    students.filter((s) =>
+      getApplicationStatus(s) === "accepted" && !deactivatedIds.has(s.student_id)
+    ),
+    [students, deactivatedIds]
+  )
 
-  const activeStudents = students.filter((student) => {
-    const isAccepted = getApplicationStatus(student) === "accepted"
-    const isDeactivated = deactivatedIds.has(student.student_id)
-    return isAccepted && !isDeactivated
-  })
-
-  const deactivatedStudents = students.filter((student) => {
-    return deactivatedIds.has(student.student_id)
-  })
+  const deactivatedStudents = useMemo(() =>
+    students.filter((s) => deactivatedIds.has(s.student_id)),
+    [students, deactivatedIds]
+  )
 
   function handleDeactivate(student: Student) {
     setDeactivatedIds((e) => {
@@ -47,33 +49,19 @@ const [deactivatedIds, setDeactivatedIds] = useState<Set<number>>(new Set())
   }
 
   function handleAccept(studentId: number) {
-    let updatedStudents = [...students];
-
-    let index = updatedStudents.findIndex(
-      (s) => s.student_id === studentId);
-
-    if (index === -1) { return; }
-
-    let student = updatedStudents[index];
-    student.rejected_at = null;
-    student.accepted_at = new Date().toISOString();
-
-    setStudents(updatedStudents);
+    setStudents(prev => prev.map(s =>
+      s.student_id === studentId
+        ? { ...s, accepted_at: new Date().toISOString(), rejected_at: null }
+        : s
+    ))
   }
   
   function handleReject(studentId: number) {
-    let updatedStudents = [...students];
-
-    let index = updatedStudents.findIndex(
-      (s) => s.student_id === studentId);
-
-    if (index === -1) { return; }
-
-    let student = updatedStudents[index];
-    student.rejected_at = new Date().toISOString();
-    student.accepted_at = null;
-
-    setStudents(updatedStudents);
+    setStudents(prev => prev.map(s =>
+      s.student_id === studentId
+        ? { ...s, rejected_at: new Date().toISOString(), accepted_at: null }
+        : s
+    ))
   }
 
   return (
