@@ -714,7 +714,9 @@ function GeneratingView({
                     <Button variant="outline" onClick={onClose}>
                         Close
                     </Button>
-                    <Button onClick={onTryAgain}>Try Again</Button>
+                    <Button variant="outline" onClick={onTryAgain}>
+                        Try Again
+                    </Button>
                 </DialogFooter>
             )}
         </>

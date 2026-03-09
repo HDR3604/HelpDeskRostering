@@ -213,7 +213,7 @@ export function ScheduleEditorToolbar({
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={onBack}>
+                        <AlertDialogAction variant="outline" onClick={onBack}>
                             Discard changes
                         </AlertDialogAction>
                     </AlertDialogFooter>

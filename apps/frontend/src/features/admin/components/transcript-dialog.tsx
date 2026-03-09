@@ -45,7 +45,7 @@ export function TranscriptDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[85vh] flex flex-col gap-0 overflow-hidden p-0">
                 <DialogHeader className="sr-only">
                     <DialogTitle>Student Transcript</DialogTitle>
                     <DialogDescription>
@@ -55,7 +55,7 @@ export function TranscriptDialog({
                 </DialogHeader>
 
                 {/* Header */}
-                <div className="px-6 pt-6 pb-4">
+                <div className="px-4 pt-4 pb-3 sm:px-6 sm:pt-6 sm:pb-4">
                     <div className="flex items-start gap-3.5">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                             {student.first_name[0]}
@@ -130,7 +130,7 @@ export function TranscriptDialog({
 
                 {/* Scrollable body */}
                 <div className="flex-1 overflow-y-auto border-t">
-                    <div className="space-y-5 px-6 pt-4 pb-6">
+                    <div className="space-y-5 px-4 pt-4 pb-6 sm:px-6">
                         {/* Availability heatmap */}
                         <div>
                             <div className="mb-2 flex items-center gap-1.5">
@@ -240,12 +240,12 @@ export function TranscriptDialog({
                                         .map((course) => (
                                             <div
                                                 key={course.code}
-                                                className="flex items-center gap-3 rounded-md px-2.5 py-1.5 text-sm hover:bg-muted/50"
+                                                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50 sm:gap-3 sm:px-2.5"
                                             >
-                                                <span className="w-20 shrink-0 font-mono text-xs text-muted-foreground">
+                                                <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground sm:w-20 sm:text-xs">
                                                     {course.code}
                                                 </span>
-                                                <span className="min-w-0 flex-1 truncate">
+                                                <span className="min-w-0 flex-1 truncate text-xs sm:text-sm">
                                                     {course.title}
                                                 </span>
                                                 <span

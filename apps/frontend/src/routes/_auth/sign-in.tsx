@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 
 import { isAxiosError } from 'axios'
 import { loginUser, type ApiErrorBody } from '@/lib/auth'
+import { FormError } from '@/components/ui/form-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -130,6 +131,7 @@ export function SignInComponent() {
                                                 type="email"
                                                 placeholder="you@uwi.edu"
                                                 autoComplete="email"
+                                                autoFocus
                                                 {...field}
                                             />
                                         </FormControl>
@@ -210,11 +212,7 @@ export function SignInComponent() {
                                 )}
                             />
 
-                            {error && (
-                                <p className="text-sm font-medium text-destructive">
-                                    {error}
-                                </p>
-                            )}
+                            {error && <FormError message={error} />}
 
                             <Button
                                 type="submit"

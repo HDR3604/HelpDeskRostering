@@ -10,7 +10,7 @@ import {
     CardTitle,
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, LoaderCircle } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
 import { getStudentColumns } from '../columns/application-columns'
 import { TranscriptDialog } from '../components/transcript-dialog'
@@ -105,7 +105,12 @@ export function Applications() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative">
+                    {syncing && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-lg bg-background/30 backdrop-blur-[2px]">
+                            <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                    )}
                     <DataTable
                         columns={columns}
                         data={sorted}
