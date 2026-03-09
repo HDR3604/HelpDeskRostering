@@ -6,6 +6,7 @@ import (
 
 	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
+	consentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/consent/handler"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
 	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
@@ -21,6 +22,7 @@ func registerRoutes(
 	cfg Config,
 	authHdl *authHandler.AuthHandler,
 	authSvc authService.AuthServiceInterface,
+	consentHdl *consentHandler.ConsentHandler,
 	transcriptHdl *transcriptHandler.TranscriptHandler,
 	scheduleHdl *scheduleHandler.ScheduleHandler,
 	scheduleGenerationHdl *scheduleHandler.ScheduleGenerationHandler,
@@ -40,6 +42,7 @@ func registerRoutes(
 		r.Group(func(r chi.Router) {
 			r.Use(authMiddleware.RateLimit(cfg.RateLimitRPM))
 			authHdl.RegisterRoutes(r)
+			consentHdl.RegisterRoutes(r)
 			transcriptHdl.RegisterRoutes(r)
 			studentHdl.RegisterPublicRoutes(r)
 			verificationHdl.RegisterRoutes(r)

@@ -14,6 +14,7 @@ func UseSchema(schema string) {
 	BankingDetails = BankingDetails.FromSchema(schema)
 	Payments = Payments.FromSchema(schema)
 	RefreshTokens = RefreshTokens.FromSchema(schema)
+	StudentBankingConsent = StudentBankingConsent.FromSchema(schema)
 	Students = Students.FromSchema(schema)
 	Users = Users.FromSchema(schema)
 }
