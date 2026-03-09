@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-// import { sendPasswordResetEmail } from "@/lib/auth"
+import { forgotPassword } from '@/lib/auth/actions'
 import { FormError } from '@/components/ui/form-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,10 +60,10 @@ export function ForgotPasswordComponent() {
         return () => clearInterval(interval)
     }, [resendTimer])
 
-    const onSubmit = async (_values: ForgotPasswordValues) => {
+    const onSubmit = async (values: ForgotPasswordValues) => {
         setError('')
         try {
-            // await sendPasswordResetEmail(values.email)
+            await forgotPassword(values.email)
             setIsSuccess(true)
             setResendTimer(30)
         } catch {

@@ -4,7 +4,8 @@ import { GraduationCap, Eye, EyeOff, AlertCircle, Check, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-// import { resetPassword } from "@/lib/auth"
+import { isAxiosError } from 'axios'
+import { resetPassword } from '@/lib/auth/actions'
 import { FormError } from '@/components/ui/form-error'
 import {
     passwordSchema,
@@ -111,17 +112,26 @@ export function ResetPasswordComponent() {
         setTokenError(null)
         setError('')
         try {
-            // await resetPassword(token, values.password)
+            await resetPassword(token, values.password)
             setIsSuccess(true)
         } catch (err) {
-            if (err instanceof Error && err.message.includes('token')) {
-                setTokenError(err.message)
+            if (isAxiosError(err)) {
+                const msg = err.response?.data?.error as string | undefined
+                if (
+                    msg &&
+                    (msg.includes('invalid') ||
+                        msg.includes('expired') ||
+                        msg.includes('used'))
+                ) {
+                    setTokenError(msg)
+                } else {
+                    setError(
+                        msg ||
+                            'An unexpected error occurred. Please try again.',
+                    )
+                }
             } else {
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : 'An unexpected error occurred. Please try again.',
-                )
+                setError('An unexpected error occurred. Please try again.')
             }
         }
     }
