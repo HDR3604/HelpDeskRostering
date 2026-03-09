@@ -2,17 +2,21 @@ import * as React from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { toast } from 'sonner'
 import {
-    ArrowLeft,
-    ArrowRight,
+    AlertCircle,
     Check,
     ChevronsUpDown,
-    GraduationCap,
+    Eye,
+    EyeOff,
+    Loader2,
+    ShieldCheck,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
     Form,
     FormControl,
@@ -20,15 +24,7 @@ import {
     FormItem,
     FormLabel,
     FormMessage,
-    FormDescription,
 } from '@/components/ui/form'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
 import {
     Popover,
     PopoverContent,
@@ -62,7 +58,7 @@ const bankingDetailsSchema = z
             .string()
             .min(1, 'Branch name is required')
             .max(100, 'Branch name is too long'),
-        accountType: z.enum(['chequeing', 'savings'], {
+        accountType: z.enum(['chequing', 'savings'], {
             required_error: 'Please select an account type',
         }),
         accountNumber: z
@@ -82,31 +78,27 @@ const bankingDetailsSchema = z
 
 type BankingDetailsValues = z.infer<typeof bankingDetailsSchema>
 
-const STEPS = [
-    {
-        title: 'What bank do you use?',
-        description: 'We need this to route your payments correctly.',
-        fields: ['bankName', 'branchName'] as const,
-    },
-    {
-        title: 'What type of account is it?',
-        description: "Select the account type you'd like to be paid into.",
-        fields: ['accountType'] as const,
-    },
-    {
-        title: "What's your account number?",
-        description: 'This is the account where your salary will be deposited.',
-        fields: ['accountNumber', 'confirmAccountNumber'] as const,
-    },
-] as const
-
 export type { BankingDetailsValues }
+
+interface ConsentData {
+    version: string
+    text: string
+}
 
 interface BankingDetailsFormProps {
     onSubmit?: (values: BankingDetailsValues) => void | Promise<void>
     isSubmitting?: boolean
     submitLabel?: string
     embedded?: boolean
+    /** Pre-fetched consent data. If not provided, a placeholder is shown. */
+    consent?: ConsentData
+    /** Whether the consent text is still loading */
+    consentLoading?: boolean
+    /** Error message if consent text failed to load */
+    consentError?: string
+    /** If true, form is read-only (already submitted) */
+    savedAccountNumber?: string
+    savedDetails?: Omit<BankingDetailsValues, 'confirmAccountNumber'>
 }
 
 export function BankingDetailsForm({
@@ -114,322 +106,451 @@ export function BankingDetailsForm({
     isSubmitting,
     submitLabel,
     embedded,
-}: BankingDetailsFormProps = {}) {
-    const [step, setStep] = React.useState(0)
+    consent,
+    consentLoading,
+    consentError,
+    savedAccountNumber,
+    savedDetails,
+}: BankingDetailsFormProps) {
     const [bankOpen, setBankOpen] = React.useState(false)
+    const [showAccount, setShowAccount] = React.useState(false)
+    const [showConfirmAccount, setShowConfirmAccount] = React.useState(false)
+    const [consentChecked, setConsentChecked] = React.useState(false)
+    const [submitted, setSubmitted] = React.useState(false)
+
+    const isReadOnly = !!savedDetails || submitted
 
     const form = useForm<BankingDetailsValues>({
         resolver: zodResolver(bankingDetailsSchema),
         defaultValues: {
-            bankName: '',
-            branchName: '',
-            accountType: undefined,
-            accountNumber: '',
+            bankName: savedDetails?.bankName ?? '',
+            branchName: savedDetails?.branchName ?? '',
+            accountType: savedDetails?.accountType ?? undefined,
+            accountNumber: savedDetails?.accountNumber ?? '',
             confirmAccountNumber: '',
         },
+        mode: 'onBlur',
     })
 
-    const currentStep = STEPS[step]
-    const isLastStep = step === STEPS.length - 1
+    const canSubmit =
+        consentChecked && !consentLoading && !consentError && !isSubmitting
 
-    async function handleNext() {
-        const valid = await form.trigger(
-            currentStep.fields as unknown as (keyof BankingDetailsValues)[],
-        )
-        if (valid) setStep((s) => s + 1)
-    }
-
-    function handleBack() {
-        setStep((s) => s - 1)
-    }
-
-    function handleKeyDown(e: React.KeyboardEvent<HTMLFormElement>) {
-        if (e.key === 'Enter' && !isLastStep) {
-            e.preventDefault()
-            handleNext()
-        }
-    }
-
-    function onSubmit(values: BankingDetailsValues) {
+    async function onSubmit(values: BankingDetailsValues) {
         if (externalOnSubmit) {
-            externalOnSubmit(values)
-        } else {
-            toast.success('Banking details saved successfully')
+            await externalOnSubmit(values)
         }
+        setSubmitted(true)
     }
 
-    const formContent = (
-        <div className="space-y-6 sm:space-y-8">
-            {!embedded && (
-                <>
-                    {/* Logo + title */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                            <GraduationCap className="size-5" />
+    function maskAccountNumber(num: string) {
+        if (num.length <= 4) return num
+        return '****' + num.slice(-4)
+    }
+
+    // Read-only state: show saved details
+    if (isReadOnly) {
+        const details = savedDetails ?? form.getValues()
+        const maskedAccount = savedAccountNumber
+            ? savedAccountNumber
+            : maskAccountNumber(details.accountNumber)
+
+        return (
+            <div className="space-y-6">
+                <div className="flex items-start gap-3 rounded-lg border border-green-200 bg-green-50/50 px-4 py-3 dark:border-green-800 dark:bg-green-950/30">
+                    <ShieldCheck className="mt-0.5 size-5 shrink-0 text-green-600 dark:text-green-400" />
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                            Banking details saved
+                        </p>
+                        <p className="text-sm text-green-700 dark:text-green-300">
+                            Your banking information has been securely saved and
+                            will be used for payroll disbursement.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="space-y-3 rounded-lg border bg-card p-5">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Bank
+                            </p>
+                            <p className="text-sm font-medium">
+                                {details.bankName}
+                            </p>
                         </div>
-                        <div className="flex flex-col leading-none">
-                            <span className="text-lg font-semibold">
-                                HelpDesk
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                                Rostering
-                            </span>
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Branch
+                            </p>
+                            <p className="text-sm font-medium">
+                                {details.branchName}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Account Type
+                            </p>
+                            <p className="text-sm font-medium capitalize">
+                                {details.accountType}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Account Number
+                            </p>
+                            <p className="text-sm font-medium font-mono">
+                                {maskedAccount}
+                            </p>
                         </div>
                     </div>
+                </div>
+            </div>
+        )
+    }
 
-                    {/* Progress bar */}
-                    <div className="space-y-3">
-                        <div className="flex gap-1.5">
-                            {STEPS.map((_, i) => (
-                                <div
-                                    key={i}
-                                    className={`h-1.5 flex-1 rounded-full transition-colors ${
-                                        i <= step ? 'bg-primary' : 'bg-muted'
-                                    }`}
-                                />
-                            ))}
-                        </div>
-                        <p className="text-sm font-medium text-muted-foreground">
-                            Step {step + 1} of {STEPS.length}
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                {/* Bank & Branch */}
+                <section className="space-y-5">
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-medium">
+                            Bank Information
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                            Select your bank and branch for payment routing.
                         </p>
                     </div>
 
-                    {/* Step heading */}
-                    <div className="space-y-2">
-                        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                            {currentStep.title}
-                        </h1>
-                        <p className="text-muted-foreground">
-                            {currentStep.description}
-                        </p>
-                    </div>
-                </>
-            )}
-
-            {/* Form */}
-            <Form {...form}>
-                <form
-                    onSubmit={form.handleSubmit(onSubmit)}
-                    onKeyDown={handleKeyDown}
-                    className="space-y-8"
-                >
-                    {step === 0 && (
-                        <div className="space-y-5">
-                            <FormField
-                                control={form.control}
-                                name="bankName"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>Bank</FormLabel>
-                                        <Popover
-                                            open={bankOpen}
-                                            onOpenChange={setBankOpen}
-                                        >
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        aria-expanded={bankOpen}
-                                                        className={cn(
-                                                            'w-full justify-between font-normal',
-                                                            !field.value &&
-                                                                'text-muted-foreground',
-                                                        )}
-                                                    >
-                                                        {field.value ||
-                                                            'Search for your bank...'}
-                                                        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent
-                                                className="w-[--radix-popover-trigger-width] p-0"
-                                                align="start"
-                                            >
-                                                <Command>
-                                                    <CommandInput placeholder="Search banks..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>
-                                                            No bank found.
-                                                        </CommandEmpty>
-                                                        <CommandGroup>
-                                                            {TT_BANKS.map(
-                                                                (bank) => (
-                                                                    <CommandItem
-                                                                        key={
-                                                                            bank
-                                                                        }
-                                                                        value={
-                                                                            bank
-                                                                        }
-                                                                        onSelect={() => {
-                                                                            field.onChange(
-                                                                                bank,
-                                                                            )
-                                                                            setBankOpen(
-                                                                                false,
-                                                                            )
-                                                                        }}
-                                                                    >
-                                                                        <Check
-                                                                            className={cn(
-                                                                                'mr-2 size-4',
-                                                                                field.value ===
-                                                                                    bank
-                                                                                    ? 'opacity-100'
-                                                                                    : 'opacity-0',
-                                                                            )}
-                                                                        />
-                                                                        {bank}
-                                                                    </CommandItem>
-                                                                ),
-                                                            )}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="branchName"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Branch Name</FormLabel>
-                                        <FormControl>
-                                            <Input
-                                                placeholder="e.g. St. Augustine"
-                                                {...field}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                    )}
-
-                    {step === 1 && (
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <FormField
                             control={form.control}
-                            name="accountType"
+                            name="bankName"
                             render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Account Type</FormLabel>
-                                    <Select
-                                        onValueChange={field.onChange}
-                                        value={field.value}
+                                <FormItem className="flex flex-col">
+                                    <FormLabel>Bank</FormLabel>
+                                    <Popover
+                                        open={bankOpen}
+                                        onOpenChange={setBankOpen}
                                     >
-                                        <FormControl>
-                                            <SelectTrigger className="w-full">
-                                                <SelectValue placeholder="Select account type" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="chequeing">
-                                                Chequeing
-                                            </SelectItem>
-                                            <SelectItem value="savings">
-                                                Savings
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        Choose whether this is a chequeing or
-                                        savings account.
-                                    </FormDescription>
+                                        <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={bankOpen}
+                                                    className={cn(
+                                                        'w-full justify-between font-normal',
+                                                        !field.value &&
+                                                            'text-muted-foreground',
+                                                    )}
+                                                >
+                                                    {field.value
+                                                        ? (TT_BANKS.find(
+                                                              (b) =>
+                                                                  b ===
+                                                                  field.value,
+                                                          ) ?? field.value)
+                                                        : 'Select a bank...'}
+                                                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                        </PopoverTrigger>
+                                        <PopoverContent
+                                            className="w-[--radix-popover-trigger-width] p-0"
+                                            align="start"
+                                        >
+                                            <Command>
+                                                <CommandInput placeholder="Search banks..." />
+                                                <CommandList>
+                                                    <CommandEmpty>
+                                                        No bank found.
+                                                    </CommandEmpty>
+                                                    <CommandGroup>
+                                                        {TT_BANKS.map(
+                                                            (bank) => (
+                                                                <CommandItem
+                                                                    key={bank}
+                                                                    value={bank}
+                                                                    onSelect={() => {
+                                                                        field.onChange(
+                                                                            bank,
+                                                                        )
+                                                                        setBankOpen(
+                                                                            false,
+                                                                        )
+                                                                    }}
+                                                                >
+                                                                    <Check
+                                                                        className={cn(
+                                                                            'mr-2 size-4',
+                                                                            field.value ===
+                                                                                bank
+                                                                                ? 'opacity-100'
+                                                                                : 'opacity-0',
+                                                                        )}
+                                                                    />
+                                                                    {bank}
+                                                                </CommandItem>
+                                                            ),
+                                                        )}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-                    )}
 
-                    {step === 2 && (
-                        <div className="space-y-5">
-                            <FormField
-                                control={form.control}
-                                name="accountNumber"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Account Number</FormLabel>
-                                        <FormControl>
+                        <FormField
+                            control={form.control}
+                            name="branchName"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Branch</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            placeholder="e.g. St. Augustine"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </section>
+
+                {/* Account Type */}
+                <section className="space-y-5">
+                    <FormField
+                        control={form.control}
+                        name="accountType"
+                        render={({ field }) => (
+                            <FormItem className="space-y-3">
+                                <FormLabel>Account Type</FormLabel>
+                                <FormControl>
+                                    <RadioGroup
+                                        onValueChange={field.onChange}
+                                        value={field.value}
+                                        className="flex gap-4"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <RadioGroupItem
+                                                value="chequing"
+                                                id="chequing"
+                                            />
+                                            <Label
+                                                htmlFor="chequing"
+                                                className="font-normal"
+                                            >
+                                                Chequing
+                                            </Label>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <RadioGroupItem
+                                                value="savings"
+                                                id="savings"
+                                            />
+                                            <Label
+                                                htmlFor="savings"
+                                                className="font-normal"
+                                            >
+                                                Savings
+                                            </Label>
+                                        </div>
+                                    </RadioGroup>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </section>
+
+                {/* Account Number */}
+                <section className="space-y-5">
+                    <div className="space-y-1">
+                        <h3 className="text-sm font-medium">Account Number</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Enter the account number where your salary will be
+                            deposited.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <FormField
+                            control={form.control}
+                            name="accountNumber"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Account Number</FormLabel>
+                                    <FormControl>
+                                        <div className="relative">
                                             <Input
-                                                placeholder="Enter your account number"
+                                                type={
+                                                    showAccount
+                                                        ? 'text'
+                                                        : 'password'
+                                                }
+                                                placeholder="Enter account number"
                                                 inputMode="numeric"
+                                                className="pr-10"
+                                                autoComplete="off"
                                                 {...field}
                                             />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="confirmAccountNumber"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>
-                                            Confirm Account Number
-                                        </FormLabel>
-                                        <FormControl>
+                                            <button
+                                                type="button"
+                                                tabIndex={-1}
+                                                onClick={() =>
+                                                    setShowAccount((v) => !v)
+                                                }
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            >
+                                                {showAccount ? (
+                                                    <EyeOff className="size-4" />
+                                                ) : (
+                                                    <Eye className="size-4" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={form.control}
+                            name="confirmAccountNumber"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>
+                                        Confirm Account Number
+                                    </FormLabel>
+                                    <FormControl>
+                                        <div className="relative">
                                             <Input
-                                                placeholder="Re-enter your account number"
+                                                type={
+                                                    showConfirmAccount
+                                                        ? 'text'
+                                                        : 'password'
+                                                }
+                                                placeholder="Re-enter account number"
                                                 inputMode="numeric"
+                                                className="pr-10"
+                                                autoComplete="off"
                                                 {...field}
                                             />
-                                        </FormControl>
-                                        <FormDescription>
-                                            Please re-enter to make sure it's
-                                            correct.
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                                            <button
+                                                type="button"
+                                                tabIndex={-1}
+                                                onClick={() =>
+                                                    setShowConfirmAccount(
+                                                        (v) => !v,
+                                                    )
+                                                }
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            >
+                                                {showConfirmAccount ? (
+                                                    <EyeOff className="size-4" />
+                                                ) : (
+                                                    <Eye className="size-4" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+                </section>
+
+                {/* Consent Card */}
+                <section className="space-y-4 rounded-lg border bg-card p-5">
+                    <div className="flex items-center gap-2">
+                        <ShieldCheck className="size-4 text-muted-foreground" />
+                        <h3 className="text-sm font-medium">
+                            Data Protection Consent
+                        </h3>
+                    </div>
+
+                    {consentLoading && (
+                        <div className="flex items-center gap-2 py-4">
+                            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">
+                                Loading consent information...
+                            </p>
                         </div>
                     )}
 
-                    {/* Navigation */}
-                    <div className="flex items-center gap-3 pt-2">
-                        {step > 0 && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={handleBack}
-                            >
-                                <ArrowLeft className="size-4" />
-                                Back
-                            </Button>
-                        )}
-                        <div className="flex-1" />
-                        {isLastStep ? (
-                            <Button type="submit" disabled={isSubmitting}>
-                                <Check className="size-4" />
-                                {isSubmitting
-                                    ? 'Submitting...'
-                                    : (submitLabel ?? 'Submit')}
-                            </Button>
+                    {consentError && (
+                        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+                            <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                            <p className="text-sm text-destructive">
+                                {consentError}
+                            </p>
+                        </div>
+                    )}
+
+                    {consent && !consentLoading && (
+                        <>
+                            <div className="max-h-48 overflow-y-auto rounded-md border bg-muted/30 px-4 py-3">
+                                <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+                                    {consent.text}
+                                </p>
+                            </div>
+
+                            <div className="flex items-start gap-3 pt-1">
+                                <Checkbox
+                                    id="consent"
+                                    checked={consentChecked}
+                                    onCheckedChange={(checked) =>
+                                        setConsentChecked(checked === true)
+                                    }
+                                />
+                                <Label
+                                    htmlFor="consent"
+                                    className="text-sm font-normal leading-snug"
+                                >
+                                    I have read and agree to the above
+                                </Label>
+                            </div>
+                        </>
+                    )}
+
+                    {!consent && !consentLoading && !consentError && (
+                        <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+                            <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                            <p className="text-sm text-destructive">
+                                Unable to load consent information. Please
+                                refresh the page and try again.
+                            </p>
+                        </div>
+                    )}
+                </section>
+
+                {/* Submit */}
+                <div className="flex items-center gap-3 pt-2">
+                    <div className="flex-1" />
+                    <Button type="submit" disabled={!canSubmit}>
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="size-4 animate-spin" />
+                                Submitting...
+                            </>
                         ) : (
-                            <Button type="button" onClick={handleNext}>
-                                Continue
-                                <ArrowRight className="size-4" />
-                            </Button>
+                            <>
+                                <Check className="size-4" />
+                                {submitLabel ?? 'Submit'}
+                            </>
                         )}
-                    </div>
-                </form>
-            </Form>
-        </div>
-    )
-
-    if (embedded) return formContent
-
-    return (
-        <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6 sm:py-16">
-            {formContent}
-        </div>
+                    </Button>
+                </div>
+            </form>
+        </Form>
     )
 }
