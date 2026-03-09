@@ -20,6 +20,11 @@ import {
 } from '@/features/student/components/banking-details-form'
 import type { PasswordData } from '@/features/onboarding/lib/onboarding-schemas'
 import { completeOnboarding, validateOnboardingToken } from '@/lib/auth/actions'
+import {
+    upsertMyBankingDetails,
+    getCurrentConsent,
+    type ConsentResponse,
+} from '@/lib/api/students'
 
 const searchSchema = z.object({
     token: z.string().catch(''),
@@ -86,6 +91,9 @@ function OnboardingPage() {
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [error, setError] = React.useState('')
     const [isValidating, setIsValidating] = React.useState(true)
+    const [consent, setConsent] = React.useState<ConsentResponse | null>(null)
+    const [consentLoading, setConsentLoading] = React.useState(false)
+    const [consentError, setConsentError] = React.useState('')
     const [tokenError, setTokenError] = React.useState<{
         icon: React.ReactNode
         title: string
@@ -134,6 +142,30 @@ function OnboardingPage() {
         }
     }, [token])
 
+    // Fetch consent text when moving to banking step
+    React.useEffect(() => {
+        if (step !== 1 || consent) return
+        let cancelled = false
+        setConsentLoading(true)
+        setConsentError('')
+        ;(async () => {
+            try {
+                const data = await getCurrentConsent()
+                if (!cancelled) setConsent(data)
+            } catch {
+                if (!cancelled)
+                    setConsentError(
+                        'Could not load consent information. Please try again.',
+                    )
+            } finally {
+                if (!cancelled) setConsentLoading(false)
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [step, consent])
+
     if (!token || tokenError) {
         return (
             <div className="flex min-h-screen items-center justify-center px-4">
@@ -180,17 +212,23 @@ function OnboardingPage() {
         }
     }
 
-    // Mock consent data — will be replaced with API call in integration ticket
-    const mockConsent = {
-        version: '1.0',
-        text: 'In accordance with the Data Protection Act 2011 (Sections 6(b) and 6(c)), I hereby consent to HelpDesk Rostering collecting, processing, and storing my banking information solely for the purpose of payroll disbursement. My data will be handled securely and will not be shared with third parties without my explicit consent, except as required by law. I understand that I may withdraw this consent at any time by contacting the administrator, and that withdrawal of consent does not affect the lawfulness of processing based on consent before its withdrawal.',
-    }
-
-    async function handleBankingSubmit(_values: BankingDetailsValues) {
-        // Banking persistence is handled on a separate ticket.
-        // For now, just complete onboarding and navigate to dashboard.
-        toast.success('Onboarding complete! Welcome aboard.')
-        navigate({ to: '/' })
+    async function handleBankingSubmit(values: BankingDetailsValues) {
+        try {
+            await upsertMyBankingDetails({
+                bank_name: values.bankName,
+                branch_name: values.branchName,
+                account_type: values.accountType,
+                account_number: values.accountNumber,
+            })
+            toast.success('Onboarding complete! Welcome aboard.')
+            navigate({ to: '/' })
+        } catch (err) {
+            if (isAxiosError(err) && err.response?.data?.error) {
+                toast.error(err.response.data.error)
+            } else {
+                toast.error('Failed to save banking details. Please try again.')
+            }
+        }
     }
 
     const currentStep = STEPS[step]
@@ -251,7 +289,9 @@ function OnboardingPage() {
                         embedded
                         onSubmit={handleBankingSubmit}
                         submitLabel="Complete Onboarding"
-                        consent={mockConsent}
+                        consent={consent ?? undefined}
+                        consentLoading={consentLoading}
+                        consentError={consentError}
                     />
                 )}
             </div>
