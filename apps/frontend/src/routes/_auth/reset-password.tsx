@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 // import { resetPassword } from "@/lib/auth"
+import { FormError } from '@/components/ui/form-error'
 import {
     passwordSchema,
     PASSWORD_RULES,
@@ -58,6 +59,7 @@ export function ResetPasswordComponent() {
     const [isSuccess, setIsSuccess] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [error, setError] = useState('')
     const [tokenError, setTokenError] = useState<string | null>(null)
 
     const form = useForm<ResetPasswordValues>({
@@ -107,15 +109,20 @@ export function ResetPasswordComponent() {
 
     const onSubmit = async (values: ResetPasswordValues) => {
         setTokenError(null)
+        setError('')
         try {
             // await resetPassword(token, values.password)
             setIsSuccess(true)
         } catch (err) {
-            setTokenError(
-                err instanceof Error
-                    ? err.message
-                    : 'An unexpected error occurred. Please try again.',
-            )
+            if (err instanceof Error && err.message.includes('token')) {
+                setTokenError(err.message)
+            } else {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : 'An unexpected error occurred. Please try again.',
+                )
+            }
         }
     }
 
@@ -212,6 +219,7 @@ export function ResetPasswordComponent() {
                                                     }
                                                     placeholder="••••••••"
                                                     autoComplete="new-password"
+                                                    autoFocus
                                                     {...field}
                                                 />
                                                 <button
@@ -322,6 +330,8 @@ export function ResetPasswordComponent() {
                                     </FormItem>
                                 )}
                             />
+
+                            {error && <FormError message={error} />}
 
                             <Button
                                 type="submit"

@@ -408,6 +408,11 @@ export function BankingDetailsForm({
                                                     setShowAccount((v) => !v)
                                                 }
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                aria-label={
+                                                    showAccount
+                                                        ? 'Hide account number'
+                                                        : 'Show account number'
+                                                }
                                             >
                                                 {showAccount ? (
                                                     <EyeOff className="size-4" />
@@ -453,6 +458,11 @@ export function BankingDetailsForm({
                                                     )
                                                 }
                                                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                                aria-label={
+                                                    showConfirmAccount
+                                                        ? 'Hide account number'
+                                                        : 'Show account number'
+                                                }
                                             >
                                                 {showConfirmAccount ? (
                                                     <EyeOff className="size-4" />

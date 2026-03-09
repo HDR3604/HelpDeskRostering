@@ -84,6 +84,7 @@ function OnboardingPage() {
 
     const [step, setStep] = React.useState(0)
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [error, setError] = React.useState('')
     const [isValidating, setIsValidating] = React.useState(true)
     const [tokenError, setTokenError] = React.useState<{
         icon: React.ReactNode
@@ -158,20 +159,21 @@ function OnboardingPage() {
 
     async function handlePasswordSubmit(data: PasswordData) {
         setIsSubmitting(true)
+        setError('')
         try {
             await completeOnboarding(token, data.password)
             setStep(1)
-        } catch (error) {
-            if (isAxiosError(error) && error.response?.data?.error) {
-                const msg = error.response.data.error as string
+        } catch (err) {
+            if (isAxiosError(err) && err.response?.data?.error) {
+                const msg = err.response.data.error as string
                 const resolved = resolveTokenError(msg)
                 if (resolved) {
                     setTokenError(resolved)
                 } else {
-                    toast.error(msg)
+                    setError(msg)
                 }
             } else {
-                toast.error('Something went wrong. Please try again.')
+                setError('Something went wrong. Please try again.')
             }
         } finally {
             setIsSubmitting(false)
@@ -241,6 +243,7 @@ function OnboardingPage() {
                     <StepSetPassword
                         onNext={handlePasswordSubmit}
                         isSubmitting={isSubmitting}
+                        error={error}
                     />
                 )}
                 {step === 1 && (
