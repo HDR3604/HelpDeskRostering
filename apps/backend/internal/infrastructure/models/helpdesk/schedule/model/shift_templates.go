@@ -8,9 +8,8 @@
 package model
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+	"time"
 )
 
 // Defines shift slots that need to be staffed. These are inputs to the scheduler.

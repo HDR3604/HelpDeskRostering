@@ -12,12 +12,10 @@ import (
 	"time"
 )
 
-type AuthTokens struct {
-	ID        uuid.UUID `sql:"primary_key"`
-	UserID    uuid.UUID
-	TokenHash string
-	Type      string
-	ExpiresAt time.Time
-	UsedAt    *time.Time
-	CreatedAt time.Time
+type StudentBankingConsent struct {
+	ID             uuid.UUID `sql:"primary_key"`
+	StudentID      int32
+	ConsentedAt    time.Time
+	ConsentVersion string
+	IPAddress      *string
 }

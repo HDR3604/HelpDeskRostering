@@ -8,9 +8,8 @@
 package model
 
 import (
-	"time"
-
 	"github.com/google/uuid"
+	"time"
 )
 
 // Audit log for schedule generation requests.
