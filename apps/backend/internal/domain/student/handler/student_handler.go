@@ -253,6 +253,7 @@ func (h *StudentHandler) UpsertMyBankingDetails(w http.ResponseWriter, r *http.R
 		BranchName:    req.BranchName,
 		AccountType:   req.AccountType,
 		AccountNumber: req.AccountNumber,
+		IPAddress:     parseClientIP(r),
 	}
 
 	bankingDetails, err := h.bankingService.UpsertMyBankingDetails(r.Context(), input)
@@ -301,6 +302,7 @@ func (h *StudentHandler) UpsertBankingDetails(w http.ResponseWriter, r *http.Req
 		BranchName:    req.BranchName,
 		AccountType:   req.AccountType,
 		AccountNumber: req.AccountNumber,
+		IPAddress:     parseClientIP(r),
 	}
 
 	bankingDetails, err := h.bankingService.UpsertBankingDetailsByStudentID(r.Context(), int32(studentID), input)
@@ -448,4 +450,14 @@ func (h *StudentHandler) handleStudentError(w http.ResponseWriter, err error) {
 		h.logger.Error("unhandled service error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal server error")
 	}
+}
+
+// parseClientIP extracts the client IP from the request.
+// chi's RealIP middleware sets RemoteAddr to the real client IP.
+func parseClientIP(r *http.Request) net.IP {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return net.ParseIP(r.RemoteAddr)
+	}
+	return net.ParseIP(host)
 }

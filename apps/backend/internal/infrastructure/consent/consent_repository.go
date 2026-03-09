@@ -38,24 +38,25 @@ func (r *ConsentRepository) Create(
 		ipStr = &s
 	}
 
-	cols := postgres.ColumnList{
-		table.StudentBankingConsent.StudentID,
-		table.StudentBankingConsent.ConsentVersion,
-	}
-	vals := postgres.Row(
-		postgres.Int32(studentID),
-		postgres.String(consentVersion),
-	)
-
+	var stmt postgres.InsertStatement
 	if ipStr != nil {
-		cols = append(cols, table.StudentBankingConsent.IPAddress)
-		vals = append(vals, postgres.String(*ipStr))
+		stmt = table.StudentBankingConsent.
+			INSERT(
+				table.StudentBankingConsent.StudentID,
+				table.StudentBankingConsent.ConsentVersion,
+				table.StudentBankingConsent.IPAddress,
+			).
+			VALUES(studentID, consentVersion, *ipStr).
+			RETURNING(table.StudentBankingConsent.AllColumns)
+	} else {
+		stmt = table.StudentBankingConsent.
+			INSERT(
+				table.StudentBankingConsent.StudentID,
+				table.StudentBankingConsent.ConsentVersion,
+			).
+			VALUES(studentID, consentVersion).
+			RETURNING(table.StudentBankingConsent.AllColumns)
 	}
-
-	stmt := table.StudentBankingConsent.
-		INSERT(cols...).
-		VALUES(vals...).
-		RETURNING(table.StudentBankingConsent.AllColumns)
 
 	var result model.StudentBankingConsent
 	err := stmt.QueryContext(ctx, tx, &result)

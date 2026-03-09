@@ -11,6 +11,7 @@ import (
 
 	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
+	consentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/consent/handler"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
@@ -21,6 +22,7 @@ import (
 	verificationHandler "github.com/HDR3604/HelpDeskApp/internal/domain/verification/handler"
 	verificationService "github.com/HDR3604/HelpDeskApp/internal/domain/verification/service"
 	authRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/auth"
+	consentRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/consent"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
@@ -83,6 +85,7 @@ func NewApp(cfg Config) (*App, error) {
 	shiftTemplateRepo := scheduleRepo.NewShiftTemplateRepository(logger)
 	schedulerConfigRepo := scheduleRepo.NewSchedulerConfigRepository(logger)
 	bankingDetailsRepository := studentRepo.NewBankingDetailsRepository(logger, cfg.EncryptionKey)
+	consentRepository := consentRepo.NewConsentRepository(logger)
 	studentRepository := studentRepo.NewStudentRepository(logger)
 	verificationRepository := verificationInfra.NewVerificationRepository(logger)
 
@@ -124,11 +127,12 @@ func NewApp(cfg Config) (*App, error) {
 	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
 	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
-	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository)
+	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository, consentRepository)
 	studentSvc := studentService.NewStudentService(logger, studentRepository, txManager)
 	verificationSvc := verificationService.NewVerificationService(logger, txManager, verificationRepository, emailSenderSvc, cfg.FromEmail)
 
 	// Handlers
+	consentHdl := consentHandler.NewConsentHandler(logger)
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
 	transcriptHdl := transcriptHandler.NewTranscriptHandler(logger, transcriptsSvc)
 	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, emailSenderSvc, cfg.FromEmail)
@@ -161,7 +165,7 @@ func NewApp(cfg Config) (*App, error) {
 		})
 	})
 
-	registerRoutes(r, cfg, authHdl, authSvc, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, consentHdl, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl)
 
 	app := &App{
 		config:  cfg,
