@@ -178,6 +178,12 @@ function OnboardingPage() {
         }
     }
 
+    // Mock consent data — will be replaced with API call in integration ticket
+    const mockConsent = {
+        version: '1.0',
+        text: 'In accordance with the Data Protection Act 2011 (Sections 6(b) and 6(c)), I hereby consent to HelpDesk Rostering collecting, processing, and storing my banking information solely for the purpose of payroll disbursement. My data will be handled securely and will not be shared with third parties without my explicit consent, except as required by law. I understand that I may withdraw this consent at any time by contacting the administrator, and that withdrawal of consent does not affect the lawfulness of processing based on consent before its withdrawal.',
+    }
+
     async function handleBankingSubmit(_values: BankingDetailsValues) {
         // Banking persistence is handled on a separate ticket.
         // For now, just complete onboarding and navigate to dashboard.
@@ -242,6 +248,7 @@ function OnboardingPage() {
                         embedded
                         onSubmit={handleBankingSubmit}
                         submitLabel="Complete Onboarding"
+                        consent={mockConsent}
                     />
                 )}
             </div>
