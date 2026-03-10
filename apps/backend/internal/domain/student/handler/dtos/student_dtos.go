@@ -23,6 +23,10 @@ type ApplyRequest struct {
 	Availability    json.RawMessage `json:"availability"`
 }
 
+type BulkStudentRequest struct {
+	StudentIDs []int32 `json:"student_ids"`
+}
+
 type UpdateStudentRequest struct {
 	PhoneNumber    *string          `json:"phone_number,omitempty"`
 	Availability   *json.RawMessage `json:"availability,omitempty"`
@@ -94,7 +98,7 @@ func StudentsToResponse(students []*aggregate.Student) []StudentResponse {
 
 func studentStatus(s *aggregate.Student) string {
 	if s.DeletedAt != nil {
-		return "deleted"
+		return "deactivated"
 	}
 	if s.AcceptedAt != nil {
 		return "accepted"

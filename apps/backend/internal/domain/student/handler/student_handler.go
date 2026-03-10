@@ -65,6 +65,10 @@ func (h *StudentHandler) RegisterAdminRoutes(r chi.Router) {
 	r.Get("/students/{id}", h.GetByID)
 	r.Patch("/students/{id}/accept", h.Accept)
 	r.Patch("/students/{id}/reject", h.Reject)
+	r.Patch("/students/{id}/deactivate", h.Deactivate)
+	r.Patch("/students/{id}/activate", h.Activate)
+	r.Patch("/students/bulk-deactivate", h.BulkDeactivate)
+	r.Patch("/students/bulk-activate", h.BulkActivate)
 	r.Get("/students/{studentID}/banking-details", h.GetBankingDetails)
 	r.Put("/students/{studentID}/banking-details", h.UpsertBankingDetails)
 }
@@ -182,6 +186,80 @@ func (h *StudentHandler) Reject(w http.ResponseWriter, r *http.Request) {
 	go h.sendApplicationEmail(context.WithoutCancel(r.Context()), student, templates.TemplateID_ApplicationRejected, "Application Update - DCIT Help Desk")
 
 	writeJSON(w, http.StatusOK, dtos.StudentToResponse(student))
+}
+
+func (h *StudentHandler) Deactivate(w http.ResponseWriter, r *http.Request) {
+	id, err := h.parseID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid student ID")
+		return
+	}
+
+	student, err := h.studentService.Deactivate(r.Context(), id)
+	if err != nil {
+		h.handleStudentError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.StudentToResponse(student))
+}
+
+func (h *StudentHandler) Activate(w http.ResponseWriter, r *http.Request) {
+	id, err := h.parseID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid student ID")
+		return
+	}
+
+	student, err := h.studentService.Activate(r.Context(), id)
+	if err != nil {
+		h.handleStudentError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.StudentToResponse(student))
+}
+
+func (h *StudentHandler) BulkDeactivate(w http.ResponseWriter, r *http.Request) {
+	var req dtos.BulkStudentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid request body", zap.Error(err))
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if len(req.StudentIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "student_ids is required")
+		return
+	}
+
+	students, err := h.studentService.BulkDeactivate(r.Context(), req.StudentIDs)
+	if err != nil {
+		h.handleStudentError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.StudentsToResponse(students))
+}
+
+func (h *StudentHandler) BulkActivate(w http.ResponseWriter, r *http.Request) {
+	var req dtos.BulkStudentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid request body", zap.Error(err))
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if len(req.StudentIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "student_ids is required")
+		return
+	}
+
+	students, err := h.studentService.BulkActivate(r.Context(), req.StudentIDs)
+	if err != nil {
+		h.handleStudentError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.StudentsToResponse(students))
 }
 
 func (h *StudentHandler) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -438,6 +516,10 @@ func (h *StudentHandler) handleStudentError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "student application already rejected")
 	case errors.Is(err, studentErrors.ErrDeleted):
 		writeError(w, http.StatusGone, "student has been deleted")
+	case errors.Is(err, studentErrors.ErrAlreadyDeactivated):
+		writeError(w, http.StatusConflict, "student is already deactivated")
+	case errors.Is(err, studentErrors.ErrNotDeactivated):
+		writeError(w, http.StatusConflict, "student is not deactivated")
 	case errors.Is(err, studentErrors.ErrInvalidEmail):
 		writeError(w, http.StatusBadRequest, "invalid email: must end with @my.uwi.edu")
 	case errors.Is(err, studentErrors.ErrInvalidPhone):

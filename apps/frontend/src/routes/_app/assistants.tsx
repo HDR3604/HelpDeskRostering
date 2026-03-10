@@ -24,7 +24,6 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useStudents } from '@/features/admin/student-management/student-context'
-import { MOCK_HOURS_WORKED } from '@/lib/mock-data'
 import { HOURLY_RATE } from '@/features/admin/columns/payment-columns'
 
 export const Route = createFileRoute('/_app/assistants')({
@@ -155,10 +154,7 @@ function AssistantsLayout() {
                       0,
                   ) / activeCount
                 : 0
-        const totalHours = MOCK_HOURS_WORKED.reduce(
-            (sum, h) => sum + h.hours,
-            0,
-        )
+        const totalHours = 0 // TODO: integrate with time logging API
         const totalPayroll = totalHours * HOURLY_RATE
         return { activeCount, avgGpa, totalHours, totalPayroll }
     }, [activeStudents])
