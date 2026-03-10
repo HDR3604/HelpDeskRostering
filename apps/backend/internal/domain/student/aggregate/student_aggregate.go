@@ -103,12 +103,22 @@ func (s *Student) Reject() error {
 	return nil
 }
 
-func (s *Student) Delete() error {
+func (s *Student) Deactivate() error {
 	if s.DeletedAt != nil {
-		return studentErrors.ErrDeleted
+		return studentErrors.ErrAlreadyDeactivated
 	}
 	now := time.Now()
 	s.DeletedAt = &now
+	s.UpdatedAt = &now
+	return nil
+}
+
+func (s *Student) Activate() error {
+	if s.DeletedAt == nil {
+		return studentErrors.ErrNotDeactivated
+	}
+	now := time.Now()
+	s.DeletedAt = nil
 	s.UpdatedAt = &now
 	return nil
 }

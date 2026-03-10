@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from 'react'
-import { toast } from 'sonner'
 import {
     Card,
     CardContent,
@@ -8,6 +7,7 @@ import {
     CardTitle,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
     Select,
     SelectContent,
@@ -15,10 +15,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import { UserCheck, UserMinus } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
 import { getRosterColumns, type RosterEntry } from '../columns/roster-columns'
 import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
+import {
+    useBulkDeactivateStudents,
+    useBulkActivateStudents,
+} from '@/lib/queries/students'
 import type { Student } from '@/types/student'
+import type { RowSelectionState } from '@tanstack/react-table'
 
 interface AssistantRosterProps {
     activeStudents: Student[]
@@ -37,6 +43,10 @@ export function AssistantRoster({
         null,
     )
     const [statusFilter, setStatusFilter] = useState('all')
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+
+    const bulkDeactivate = useBulkDeactivateStudents()
+    const bulkActivate = useBulkActivateStudents()
 
     const rosterData: RosterEntry[] = useMemo(
         () => [
@@ -54,36 +64,56 @@ export function AssistantRoster({
         return rosterData
     }, [rosterData, statusFilter])
 
+    const selectedEntries = useMemo(
+        () =>
+            Object.keys(rowSelection)
+                .filter((k) => rowSelection[k])
+                .map(Number)
+                .map((i) => filtered[i])
+                .filter(Boolean),
+        [rowSelection, filtered],
+    )
+
+    const selectedActiveIds = useMemo(
+        () =>
+            selectedEntries
+                .filter((e) => !e.isDeactivated)
+                .map((e) => e.student_id),
+        [selectedEntries],
+    )
+
+    const selectedDeactivatedIds = useMemo(
+        () =>
+            selectedEntries
+                .filter((e) => e.isDeactivated)
+                .map((e) => e.student_id),
+        [selectedEntries],
+    )
+
+    function handleBulkDeactivate() {
+        bulkDeactivate.mutate(selectedActiveIds, {
+            onSuccess: () => setRowSelection({}),
+        })
+    }
+
+    function handleBulkActivate() {
+        bulkActivate.mutate(selectedDeactivatedIds, {
+            onSuccess: () => setRowSelection({}),
+        })
+    }
+
     const handleDeactivate = useCallback(
         (student: Student) => {
             onDeactivate(student)
-            toast.success(
-                `${student.first_name} ${student.last_name} deactivated`,
-                {
-                    action: {
-                        label: 'Undo',
-                        onClick: () => onActivate(student),
-                    },
-                },
-            )
         },
-        [onDeactivate, onActivate],
+        [onDeactivate],
     )
 
     const handleActivate = useCallback(
         (student: Student) => {
             onActivate(student)
-            toast.success(
-                `${student.first_name} ${student.last_name} reactivated`,
-                {
-                    action: {
-                        label: 'Undo',
-                        onClick: () => onDeactivate(student),
-                    },
-                },
-            )
         },
-        [onActivate, onDeactivate],
+        [onActivate],
     )
 
     const columns = useMemo(
@@ -119,7 +149,10 @@ export function AssistantRoster({
                         </div>
                         <Select
                             value={statusFilter}
-                            onValueChange={setStatusFilter}
+                            onValueChange={(v) => {
+                                setStatusFilter(v)
+                                setRowSelection({})
+                            }}
                         >
                             <SelectTrigger size="sm" className="w-36 shrink-0">
                                 <SelectValue />
@@ -135,6 +168,35 @@ export function AssistantRoster({
                     </div>
                 </CardHeader>
                 <CardContent>
+                    {selectedEntries.length > 0 && (
+                        <div className="mb-3 flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
+                            <span className="text-sm text-muted-foreground">
+                                {selectedEntries.length} selected
+                            </span>
+                            {selectedActiveIds.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={bulkDeactivate.isPending}
+                                    onClick={handleBulkDeactivate}
+                                >
+                                    <UserMinus className="mr-1 h-3.5 w-3.5" />
+                                    Deactivate ({selectedActiveIds.length})
+                                </Button>
+                            )}
+                            {selectedDeactivatedIds.length > 0 && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={bulkActivate.isPending}
+                                    onClick={handleBulkActivate}
+                                >
+                                    <UserCheck className="mr-1 h-3.5 w-3.5" />
+                                    Activate ({selectedDeactivatedIds.length})
+                                </Button>
+                            )}
+                        </div>
+                    )}
                     <DataTable
                         columns={columns}
                         data={filtered}
@@ -142,6 +204,9 @@ export function AssistantRoster({
                         globalFilter
                         emptyMessage="No assistants found."
                         pageSize={5}
+                        enableRowSelection
+                        rowSelection={rowSelection}
+                        onRowSelectionChange={setRowSelection}
                     />
                 </CardContent>
             </Card>

@@ -44,6 +44,36 @@ export async function rejectStudent(id: number): Promise<Student> {
     return data
 }
 
+export async function deactivateStudent(id: number): Promise<Student> {
+    const { data } = await apiClient.patch<Student>(
+        `/students/${id}/deactivate`,
+    )
+    return data
+}
+
+export async function activateStudent(id: number): Promise<Student> {
+    const { data } = await apiClient.patch<Student>(`/students/${id}/activate`)
+    return data
+}
+
+export async function bulkDeactivateStudents(
+    ids: number[],
+): Promise<Student[]> {
+    const { data } = await apiClient.patch<Student[]>(
+        '/students/bulk-deactivate',
+        { student_ids: ids },
+    )
+    return data ?? []
+}
+
+export async function bulkActivateStudents(ids: number[]): Promise<Student[]> {
+    const { data } = await apiClient.patch<Student[]>(
+        '/students/bulk-activate',
+        { student_ids: ids },
+    )
+    return data ?? []
+}
+
 export async function getMyStudentProfile(): Promise<Student> {
     const { data } = await apiClient.get<Student>('/students/me')
     return data

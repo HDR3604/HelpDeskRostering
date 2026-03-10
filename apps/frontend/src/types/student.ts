@@ -34,10 +34,12 @@ export interface Student {
     status: string
 }
 
-export type ApplicationStatus = 'pending' | 'accepted' | 'rejected'
+export type ApplicationStatus =
+    | 'pending'
+    | 'accepted'
+    | 'rejected'
+    | 'deactivated'
 
 export function getApplicationStatus(student: Student): ApplicationStatus {
-    if (student.accepted_at) return 'accepted'
-    if (student.rejected_at) return 'rejected'
-    return 'pending'
+    return student.status as ApplicationStatus
 }

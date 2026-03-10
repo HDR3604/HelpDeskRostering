@@ -18,6 +18,8 @@ var (
 	ErrAlreadyAccepted        = errors.New("student application already accepted")
 	ErrAlreadyRejected        = errors.New("student application already rejected")
 	ErrDeleted                = errors.New("student has been deleted")
+	ErrAlreadyDeactivated     = errors.New("student is already deactivated")
+	ErrNotDeactivated         = errors.New("student is not deactivated")
 	ErrInvalidEmail           = errors.New("invalid email: must end with @my.uwi.edu")
 	ErrInvalidPhone           = errors.New("invalid phone number")
 	ErrInvalidStudentID       = errors.New("invalid student ID")

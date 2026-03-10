@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -22,32 +21,19 @@ const statusOrder: Record<ApplicationStatus, number> = {
     pending: 0,
     accepted: 1,
     rejected: 2,
+    deactivated: 3,
 }
 
 export function Applications() {
-    const { students, handleAccept, handleReject } = useStudents()
+    const { students, handleAccept, handleReject, refetch, isRefetching } =
+        useStudents()
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
         null,
     )
-    const [syncing, setSyncing] = useState(false)
 
     const pendingCount = students.filter(
         (s) => getApplicationStatus(s) === 'pending',
     ).length
-
-    async function handleSync() {
-        setSyncing(true)
-        try {
-            await new Promise((r) => setTimeout(r, 800))
-            toast.success('Applications synced')
-        } catch {
-            toast.error('Sync failed', {
-                description: 'Could not sync applications. Please try again.',
-            })
-        } finally {
-            setSyncing(false)
-        }
-    }
 
     const sorted = useMemo(
         () =>
@@ -92,13 +78,13 @@ export function Applications() {
                             variant="outline"
                             size="sm"
                             className="shrink-0"
-                            disabled={syncing}
-                            onClick={handleSync}
+                            disabled={isRefetching}
+                            onClick={refetch}
                         >
                             <RefreshCw
                                 className={cn(
                                     'h-3.5 w-3.5',
-                                    syncing && 'animate-spin',
+                                    isRefetching && 'animate-spin',
                                 )}
                             />
                             Sync
@@ -106,7 +92,7 @@ export function Applications() {
                     </div>
                 </CardHeader>
                 <CardContent className="relative">
-                    {syncing && (
+                    {isRefetching && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-lg bg-background/30 backdrop-blur-[2px]">
                             <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
