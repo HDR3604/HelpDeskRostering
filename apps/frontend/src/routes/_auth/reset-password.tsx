@@ -4,7 +4,9 @@ import { GraduationCap, Eye, EyeOff, AlertCircle, Check, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-// import { resetPassword } from "@/lib/auth"
+import { isAxiosError } from 'axios'
+import { resetPassword } from '@/lib/auth/actions'
+import { FormError } from '@/components/ui/form-error'
 import {
     passwordSchema,
     PASSWORD_RULES,
@@ -58,6 +60,7 @@ export function ResetPasswordComponent() {
     const [isSuccess, setIsSuccess] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+    const [error, setError] = useState('')
     const [tokenError, setTokenError] = useState<string | null>(null)
 
     const form = useForm<ResetPasswordValues>({
@@ -107,15 +110,29 @@ export function ResetPasswordComponent() {
 
     const onSubmit = async (values: ResetPasswordValues) => {
         setTokenError(null)
+        setError('')
         try {
-            // await resetPassword(token, values.password)
+            await resetPassword(token, values.password)
             setIsSuccess(true)
         } catch (err) {
-            setTokenError(
-                err instanceof Error
-                    ? err.message
-                    : 'An unexpected error occurred. Please try again.',
-            )
+            if (isAxiosError(err)) {
+                const msg = err.response?.data?.error as string | undefined
+                if (
+                    msg &&
+                    (msg.includes('invalid') ||
+                        msg.includes('expired') ||
+                        msg.includes('used'))
+                ) {
+                    setTokenError(msg)
+                } else {
+                    setError(
+                        msg ||
+                            'An unexpected error occurred. Please try again.',
+                    )
+                }
+            } else {
+                setError('An unexpected error occurred. Please try again.')
+            }
         }
     }
 
@@ -212,6 +229,7 @@ export function ResetPasswordComponent() {
                                                     }
                                                     placeholder="••••••••"
                                                     autoComplete="new-password"
+                                                    autoFocus
                                                     {...field}
                                                 />
                                                 <button
@@ -322,6 +340,8 @@ export function ResetPasswordComponent() {
                                     </FormItem>
                                 )}
                             />
+
+                            {error && <FormError message={error} />}
 
                             <Button
                                 type="submit"

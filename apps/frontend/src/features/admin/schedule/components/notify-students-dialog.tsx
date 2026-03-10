@@ -37,7 +37,7 @@ export function NotifyStudentsDialog({
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={onConfirm}>
+                    <AlertDialogAction variant="outline" onClick={onConfirm}>
                         Send Notifications
                     </AlertDialogAction>
                 </AlertDialogFooter>

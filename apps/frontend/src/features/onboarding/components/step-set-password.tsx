@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, X, Eye, EyeOff, ArrowRight } from 'lucide-react'
 import * as React from 'react'
 
+import { FormError } from '@/components/ui/form-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,11 +23,13 @@ import {
 interface StepSetPasswordProps {
     onNext: (data: PasswordData) => void
     isSubmitting?: boolean
+    error?: string
 }
 
 export function StepSetPassword({
     onNext,
     isSubmitting,
+    error,
 }: StepSetPasswordProps) {
     const [showPassword, setShowPassword] = React.useState(false)
     const [showConfirm, setShowConfirm] = React.useState(false)
@@ -70,6 +73,11 @@ export function StepSetPassword({
                                                 setShowPassword((v) => !v)
                                             }
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            aria-label={
+                                                showPassword
+                                                    ? 'Hide password'
+                                                    : 'Show password'
+                                            }
                                         >
                                             {showPassword ? (
                                                 <EyeOff className="size-4" />
@@ -142,6 +150,11 @@ export function StepSetPassword({
                                                 setShowConfirm((v) => !v)
                                             }
                                             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                            aria-label={
+                                                showConfirm
+                                                    ? 'Hide password'
+                                                    : 'Show password'
+                                            }
                                         >
                                             {showConfirm ? (
                                                 <EyeOff className="size-4" />
@@ -156,6 +169,8 @@ export function StepSetPassword({
                         )}
                     />
                 </div>
+
+                {error && <FormError message={error} />}
 
                 {/* Navigation */}
                 <div className="flex items-center gap-3 pt-2">

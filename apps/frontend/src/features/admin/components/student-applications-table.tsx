@@ -29,6 +29,7 @@ const statusOrder: Record<ApplicationStatus, number> = {
     pending: 0,
     accepted: 1,
     rejected: 2,
+    deactivated: 3,
 }
 
 export function StudentApplicationsTable({

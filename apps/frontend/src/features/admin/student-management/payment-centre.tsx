@@ -18,9 +18,10 @@ import { Separator } from '@/components/ui/separator'
 import { DataTable } from '@/components/ui/data-table'
 import { cn } from '@/lib/utils'
 import { getPaymentColumns, HOURLY_RATE } from '../columns/payment-columns'
-import { MOCK_STUDENTS, MOCK_HOURS_WORKED } from '@/lib/mock-data'
+import { MOCK_HOURS_WORKED } from '@/lib/mock-data'
 import { getApplicationStatus } from '@/types/student'
 import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
+import { useStudents } from '@/features/admin/student-management/student-context'
 import type { PaymentEntry } from '../columns/payment-columns'
 import type { Student } from '@/types/student'
 import type { RowSelectionState } from '@tanstack/react-table'
@@ -82,23 +83,23 @@ function findCurrentPeriodIdx(periods: Period[]): number {
     return idx >= 0 ? idx : periods.length - 1
 }
 
-function buildPaymentData(period: Period): PaymentEntry[] {
-    return MOCK_STUDENTS.filter(
-        (s) => getApplicationStatus(s) === 'accepted',
-    ).map((s) => {
-        const hoursRecord = MOCK_HOURS_WORKED.find(
-            (student) => student.name === `${s.first_name} ${s.last_name}`,
-        )
-        const hours = hoursRecord ? hoursRecord.hours : 0
-        return {
-            student: s,
-            periodStart: period.start,
-            periodEnd: period.end,
-            hoursWorked: hours,
-            grossAmount: hours * HOURLY_RATE,
-            processedAt: null,
-        }
-    })
+function buildPaymentData(period: Period, students: Student[]): PaymentEntry[] {
+    return students
+        .filter((s) => getApplicationStatus(s) === 'accepted')
+        .map((s) => {
+            const hoursRecord = MOCK_HOURS_WORKED.find(
+                (student) => student.name === `${s.first_name} ${s.last_name}`,
+            )
+            const hours = hoursRecord ? hoursRecord.hours : 0
+            return {
+                student: s,
+                periodStart: period.start,
+                periodEnd: period.end,
+                hoursWorked: hours,
+                grossAmount: hours * HOURLY_RATE,
+                processedAt: null,
+            }
+        })
 }
 
 // --- Component ---
@@ -108,6 +109,7 @@ const CURRENT_YEAR_PERIODS = generateFortnightlyPeriods(CURRENT_YEAR)
 const CURRENT_PERIOD_IDX = findCurrentPeriodIdx(CURRENT_YEAR_PERIODS)
 
 export function PaymentsCentre() {
+    const { students } = useStudents()
     const [year, setYear] = useState(CURRENT_YEAR)
     const [periodIdx, setPeriodIdx] = useState(CURRENT_PERIOD_IDX)
     const [pickerOpen, setPickerOpen] = useState(false)
@@ -120,9 +122,14 @@ export function PaymentsCentre() {
     )
     const currentPeriod = periods[periodIdx]
 
-    const [payments, setPayments] = useState<PaymentEntry[]>(() =>
-        buildPaymentData(CURRENT_YEAR_PERIODS[CURRENT_PERIOD_IDX]),
-    )
+    const [payments, setPayments] = useState<PaymentEntry[]>([])
+
+    // Rebuild payment data when students load or period changes
+    useEffect(() => {
+        if (students.length > 0) {
+            setPayments(buildPaymentData(currentPeriod, students))
+        }
+    }, [students, currentPeriod])
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
     const isAtCurrent =
@@ -138,10 +145,8 @@ export function PaymentsCentre() {
     }, [pickerOpen, pickerYear])
 
     function selectPeriod(newYear: number, idx: number) {
-        const newPeriods = generateFortnightlyPeriods(newYear)
         setYear(newYear)
         setPeriodIdx(idx)
-        setPayments(buildPaymentData(newPeriods[idx]))
         setRowSelection({})
         setPickerOpen(false)
     }
@@ -159,10 +164,8 @@ export function PaymentsCentre() {
             newIdx = 0
         }
 
-        const newPeriods = generateFortnightlyPeriods(newYear)
         setYear(newYear)
         setPeriodIdx(newIdx)
-        setPayments(buildPaymentData(newPeriods[newIdx]))
         setRowSelection({})
     }
 

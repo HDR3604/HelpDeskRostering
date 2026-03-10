@@ -13,6 +13,10 @@ import {
     getStudent,
     acceptStudent,
     rejectStudent,
+    deactivateStudent,
+    activateStudent,
+    bulkDeactivateStudents,
+    bulkActivateStudents,
     getMyStudentProfile,
     type ApplyStudentRequest,
 } from '@/lib/api/students'
@@ -117,6 +121,96 @@ export function useRejectStudent() {
                     ? error.response.data.error
                     : 'Failed to reject student.'
             toast.error('Reject failed', { description: message })
+        },
+    })
+}
+
+export function useDeactivateStudent() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: deactivateStudent,
+        onSuccess: (updated) => {
+            queryClient.setQueryData<Student>(
+                studentKeys.detail(updated.student_id),
+                updated,
+            )
+            invalidateLists(queryClient)
+        },
+        onError: (error) => {
+            invalidateLists(queryClient)
+            const message =
+                isAxiosError(error) && error.response?.data?.error
+                    ? error.response.data.error
+                    : 'Failed to deactivate student.'
+            toast.error('Deactivate failed', { description: message })
+        },
+    })
+}
+
+export function useActivateStudent() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: activateStudent,
+        onSuccess: (updated) => {
+            queryClient.setQueryData<Student>(
+                studentKeys.detail(updated.student_id),
+                updated,
+            )
+            invalidateLists(queryClient)
+        },
+        onError: (error) => {
+            invalidateLists(queryClient)
+            const message =
+                isAxiosError(error) && error.response?.data?.error
+                    ? error.response.data.error
+                    : 'Failed to activate student.'
+            toast.error('Activate failed', { description: message })
+        },
+    })
+}
+
+export function useBulkDeactivateStudents() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: bulkDeactivateStudents,
+        onSuccess: (updated) => {
+            invalidateLists(queryClient)
+            toast.success(
+                `Deactivated ${updated.length} student${updated.length > 1 ? 's' : ''}`,
+            )
+        },
+        onError: (error) => {
+            invalidateLists(queryClient)
+            const message =
+                isAxiosError(error) && error.response?.data?.error
+                    ? error.response.data.error
+                    : 'Failed to deactivate students.'
+            toast.error('Bulk deactivate failed', { description: message })
+        },
+    })
+}
+
+export function useBulkActivateStudents() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: bulkActivateStudents,
+        onSuccess: (updated) => {
+            invalidateLists(queryClient)
+            toast.success(
+                `Activated ${updated.length} student${updated.length > 1 ? 's' : ''}`,
+            )
+        },
+        onError: (error) => {
+            invalidateLists(queryClient)
+            const message =
+                isAxiosError(error) && error.response?.data?.error
+                    ? error.response.data.error
+                    : 'Failed to activate students.'
+            toast.error('Bulk activate failed', { description: message })
         },
     })
 }

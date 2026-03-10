@@ -10,13 +10,17 @@ import (
 var _ service.StudentServiceInterface = (*MockStudentService)(nil)
 
 type MockStudentService struct {
-	ApplyFn      func(ctx context.Context, input service.ApplyInput) (*aggregate.Student, error)
-	GetByIDFn    func(ctx context.Context, studentID int32) (*aggregate.Student, error)
-	GetByEmailFn func(ctx context.Context, email string) (*aggregate.Student, error)
-	ListFn       func(ctx context.Context, status string) ([]*aggregate.Student, error)
-	AcceptFn     func(ctx context.Context, studentID int32) (*aggregate.Student, error)
-	RejectFn     func(ctx context.Context, studentID int32) (*aggregate.Student, error)
-	UpdateFn     func(ctx context.Context, studentID int32, input service.UpdateStudentInput) (*aggregate.Student, error)
+	ApplyFn          func(ctx context.Context, input service.ApplyInput) (*aggregate.Student, error)
+	GetByIDFn        func(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	GetByEmailFn     func(ctx context.Context, email string) (*aggregate.Student, error)
+	ListFn           func(ctx context.Context, status string) ([]*aggregate.Student, error)
+	AcceptFn         func(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	RejectFn         func(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	DeactivateFn     func(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	ActivateFn       func(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	BulkDeactivateFn func(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error)
+	BulkActivateFn   func(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error)
+	UpdateFn         func(ctx context.Context, studentID int32, input service.UpdateStudentInput) (*aggregate.Student, error)
 }
 
 func (m *MockStudentService) Apply(ctx context.Context, input service.ApplyInput) (*aggregate.Student, error) {
@@ -41,6 +45,22 @@ func (m *MockStudentService) Accept(ctx context.Context, studentID int32) (*aggr
 
 func (m *MockStudentService) Reject(ctx context.Context, studentID int32) (*aggregate.Student, error) {
 	return m.RejectFn(ctx, studentID)
+}
+
+func (m *MockStudentService) Deactivate(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	return m.DeactivateFn(ctx, studentID)
+}
+
+func (m *MockStudentService) Activate(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	return m.ActivateFn(ctx, studentID)
+}
+
+func (m *MockStudentService) BulkDeactivate(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error) {
+	return m.BulkDeactivateFn(ctx, studentIDs)
+}
+
+func (m *MockStudentService) BulkActivate(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error) {
+	return m.BulkActivateFn(ctx, studentIDs)
 }
 
 func (m *MockStudentService) Update(ctx context.Context, studentID int32, input service.UpdateStudentInput) (*aggregate.Student, error) {

@@ -21,6 +21,10 @@ type StudentServiceInterface interface {
 	List(ctx context.Context, status string) ([]*aggregate.Student, error)
 	Accept(ctx context.Context, studentID int32) (*aggregate.Student, error)
 	Reject(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	Deactivate(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	Activate(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	BulkDeactivate(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error)
+	BulkActivate(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error)
 	Update(ctx context.Context, studentID int32, input UpdateStudentInput) (*aggregate.Student, error)
 }
 
@@ -228,6 +232,124 @@ func (s *StudentService) Reject(ctx context.Context, studentID int32) (*aggregat
 
 	s.logger.Info("student rejected", zap.Int32("studentID", studentID))
 	return result, nil
+}
+
+func (s *StudentService) Deactivate(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	s.logger.Info("deactivating student", zap.Int32("studentID", studentID))
+
+	var result *aggregate.Student
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		student, txErr := s.repository.GetByID(ctx, tx, studentID)
+		if txErr != nil {
+			return txErr
+		}
+
+		if err := student.Deactivate(); err != nil {
+			return err
+		}
+
+		if err := s.repository.Update(ctx, tx, student); err != nil {
+			return err
+		}
+
+		result = student
+		return nil
+	})
+	if err != nil {
+		s.logger.Error("failed to deactivate student", zap.Int32("studentID", studentID), zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("student deactivated", zap.Int32("studentID", studentID))
+	return result, nil
+}
+
+func (s *StudentService) Activate(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	s.logger.Info("activating student", zap.Int32("studentID", studentID))
+
+	var result *aggregate.Student
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		student, txErr := s.repository.GetByIDIncludingDeactivated(ctx, tx, studentID)
+		if txErr != nil {
+			return txErr
+		}
+
+		if err := student.Activate(); err != nil {
+			return err
+		}
+
+		if err := s.repository.Update(ctx, tx, student); err != nil {
+			return err
+		}
+
+		result = student
+		return nil
+	})
+	if err != nil {
+		s.logger.Error("failed to activate student", zap.Int32("studentID", studentID), zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("student activated", zap.Int32("studentID", studentID))
+	return result, nil
+}
+
+func (s *StudentService) BulkDeactivate(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error) {
+	s.logger.Info("bulk deactivating students", zap.Int32s("studentIDs", studentIDs))
+
+	var results []*aggregate.Student
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		for _, id := range studentIDs {
+			student, txErr := s.repository.GetByID(ctx, tx, id)
+			if txErr != nil {
+				return txErr
+			}
+			if err := student.Deactivate(); err != nil {
+				return err
+			}
+			if err := s.repository.Update(ctx, tx, student); err != nil {
+				return err
+			}
+			results = append(results, student)
+		}
+		return nil
+	})
+	if err != nil {
+		s.logger.Error("failed to bulk deactivate students", zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("students bulk deactivated", zap.Int("count", len(results)))
+	return results, nil
+}
+
+func (s *StudentService) BulkActivate(ctx context.Context, studentIDs []int32) ([]*aggregate.Student, error) {
+	s.logger.Info("bulk activating students", zap.Int32s("studentIDs", studentIDs))
+
+	var results []*aggregate.Student
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		for _, id := range studentIDs {
+			student, txErr := s.repository.GetByIDIncludingDeactivated(ctx, tx, id)
+			if txErr != nil {
+				return txErr
+			}
+			if err := student.Activate(); err != nil {
+				return err
+			}
+			if err := s.repository.Update(ctx, tx, student); err != nil {
+				return err
+			}
+			results = append(results, student)
+		}
+		return nil
+	})
+	if err != nil {
+		s.logger.Error("failed to bulk activate students", zap.Error(err))
+		return nil, err
+	}
+
+	s.logger.Info("students bulk activated", zap.Int("count", len(results)))
+	return results, nil
 }
 
 func (s *StudentService) Update(ctx context.Context, studentID int32, input UpdateStudentInput) (*aggregate.Student, error) {
