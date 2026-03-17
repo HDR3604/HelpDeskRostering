@@ -20,6 +20,7 @@ ALTER TABLE "schedule"."time_logs"
 
 -- RLS for clock_in_codes
 ALTER TABLE "schedule"."clock_in_codes" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "schedule"."clock_in_codes" FORCE ROW LEVEL SECURITY;
 GRANT SELECT ON "schedule"."clock_in_codes" TO "authenticated";
 GRANT ALL ON "schedule"."clock_in_codes" TO "internal";
 
@@ -39,4 +40,5 @@ REVOKE SELECT ON "schedule"."clock_in_codes" FROM "authenticated";
 ALTER TABLE "schedule"."time_logs" DROP COLUMN IF EXISTS "flag_reason";
 ALTER TABLE "schedule"."time_logs" DROP COLUMN IF EXISTS "is_flagged";
 DROP INDEX IF EXISTS "schedule"."clock_in_codes_idx_expires_at";
+ALTER TABLE "schedule"."clock_in_codes" NO FORCE ROW LEVEL SECURITY;
 DROP TABLE IF EXISTS "schedule"."clock_in_codes";
