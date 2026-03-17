@@ -78,6 +78,7 @@ tasks:
   # Formatting
   format:
     desc: Format all code
+    silent: true
     cmds:
       - task: format:frontend
       - task: format:backend
@@ -85,14 +86,28 @@ tasks:
   format:frontend:
     desc: Format frontend code with Prettier
     dir: "{{.FRONTEND_DIR}}"
+    silent: true
     cmds:
-      - pnpm exec prettier --write "src/**/*.{ts,tsx,css}"
+      - cmd: |
+          output=$(pnpm exec prettier --write "src/**/*.{ts,tsx,css}" 2>&1)
+          changed=$(echo "$output" | grep -v "(unchanged)" | grep -v "^$" || true)
+          if [ -n "$changed" ]; then
+            echo "Prettier formatted:"
+            echo "$changed"
+          fi
 
   format:backend:
     desc: Format backend code with goimports
     dir: "{{.BACKEND_DIR}}"
+    silent: true
     cmds:
-      - go run golang.org/x/tools/cmd/goimports@v0.31.0 -w .
+      - cmd: |
+          changed=$(go run golang.org/x/tools/cmd/goimports@v0.31.0 -l . 2>&1)
+          if [ -n "$changed" ]; then
+            echo "goimports formatted:"
+            echo "$changed"
+            go run golang.org/x/tools/cmd/goimports@v0.31.0 -w .
+          fi
 
   format:check:
     desc: Check formatting (exits non-zero if unformatted)
@@ -130,20 +145,20 @@ tasks:
     desc: Run backend tests
     dir: "{{.BACKEND_DIR}}"
     cmds:
-      - go test ./...
+      - go run gotest.tools/gotestsum@latest --format pkgname --format-hide-empty-pkg --hide-summary=skipped ./...
 
   test:backend:fresh:
     desc: Clear test cache and run backend tests
     dir: "{{.BACKEND_DIR}}"
     cmds:
       - go clean -testcache
-      - go test ./...
+      - go run gotest.tools/gotestsum@latest --format pkgname --format-hide-empty-pkg --hide-summary=skipped ./...
 
   test:backend:unit:
     desc: Run backend unit tests only
     dir: "{{.BACKEND_DIR}}"
     cmds:
-      - go test ./internal/tests/unit/...
+      - go run gotest.tools/gotestsum@latest --format pkgname --format-hide-empty-pkg --hide-summary=skipped ./internal/tests/unit/...
 
   test:scheduler:
     desc: Run scheduler tests

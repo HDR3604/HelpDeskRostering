@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"strconv"
 
+	consentDomain "github.com/HDR3604/HelpDeskApp/internal/domain/consent"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
 	studentErrors "github.com/HDR3604/HelpDeskApp/internal/domain/student/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/student/repository"
@@ -19,6 +21,7 @@ type UpsertBankingDetailsInput struct {
 	BranchName    string
 	AccountType   string
 	AccountNumber string
+	IPAddress     net.IP
 }
 
 type BankingDetailsServiceInterface interface {
@@ -29,20 +32,23 @@ type BankingDetailsServiceInterface interface {
 }
 
 type BankingDetailsService struct {
-	logger    *zap.Logger
-	txManager database.TxManagerInterface
-	repo      repository.BankingDetailsRepositoryInterface
+	logger      *zap.Logger
+	txManager   database.TxManagerInterface
+	repo        repository.BankingDetailsRepositoryInterface
+	consentRepo consentDomain.RepositoryInterface
 }
 
 func NewBankingDetailsService(
 	logger *zap.Logger,
 	txManager database.TxManagerInterface,
 	repo repository.BankingDetailsRepositoryInterface,
+	consentRepo consentDomain.RepositoryInterface,
 ) BankingDetailsServiceInterface {
 	return &BankingDetailsService{
-		logger:    logger,
-		txManager: txManager,
-		repo:      repo,
+		logger:      logger,
+		txManager:   txManager,
+		repo:        repo,
+		consentRepo: consentRepo,
 	}
 }
 
@@ -113,6 +119,12 @@ func (s *BankingDetailsService) UpsertMyBankingDetails(ctx context.Context, inpu
 	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repo.Upsert(ctx, tx, bankingDetails)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Write consent record atomically in the same transaction
+		_, txErr = s.consentRepo.Create(ctx, tx, studentID, consentDomain.ConsentVersion, input.IPAddress)
 		return txErr
 	})
 
@@ -169,6 +181,12 @@ func (s *BankingDetailsService) UpsertBankingDetailsByStudentID(ctx context.Cont
 	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = s.repo.Upsert(ctx, tx, bankingDetails)
+		if txErr != nil {
+			return txErr
+		}
+
+		// Write consent record atomically in the same transaction
+		_, txErr = s.consentRepo.Create(ctx, tx, studentID, consentDomain.ConsentVersion, input.IPAddress)
 		return txErr
 	})
 

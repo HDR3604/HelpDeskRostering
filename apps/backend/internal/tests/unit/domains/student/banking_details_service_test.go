@@ -47,7 +47,7 @@ func TestGetMyBankingDetails_Success(t *testing.T) {
 
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	result, err := svc.GetMyBankingDetails(ctx)
 
 	if err != nil {
@@ -67,7 +67,7 @@ func TestGetMyBankingDetails_MissingAuthContext(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	_, err := svc.GetMyBankingDetails(ctx)
 
 	if err != errors.ErrMissingAuthContext {
@@ -89,7 +89,7 @@ func TestGetMyBankingDetails_NilStudentID(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	_, err := svc.GetMyBankingDetails(ctx)
 
 	if err != errors.ErrNotAuthorized {
@@ -123,7 +123,7 @@ func TestUpsertMyBankingDetails_Success(t *testing.T) {
 
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
 		BankName:      "Bank A",
 		BranchName:    "Branch 1",
@@ -155,7 +155,7 @@ func TestUpsertMyBankingDetails_InvalidBankName(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
 		BankName:      "",
 		BranchName:    "Branch 1",
@@ -184,7 +184,7 @@ func TestUpsertMyBankingDetails_InvalidAccountNumber(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
 		BankName:      "Bank A",
 		BranchName:    "Branch 1",
@@ -229,7 +229,7 @@ func TestGetBankingDetailsByStudentID_Success(t *testing.T) {
 
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	result, err := svc.GetBankingDetailsByStudentID(ctx, 456)
 
 	if err != nil {
@@ -254,7 +254,7 @@ func TestGetBankingDetailsByStudentID_NotAdmin(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	_, err := svc.GetBankingDetailsByStudentID(ctx, 456)
 
 	if err != errors.ErrNotAuthorized {
@@ -277,7 +277,7 @@ func TestGetMyBankingDetails_InvalidStudentID(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	_, err := svc.GetMyBankingDetails(ctx)
 
 	if err == nil {
@@ -307,7 +307,7 @@ func TestGetBankingDetailsByStudentID_NotFound(t *testing.T) {
 
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	_, err := svc.GetBankingDetailsByStudentID(ctx, 999)
 
 	if err != errors.ErrBankingDetailsNotFound {
@@ -340,7 +340,7 @@ func TestUpsertBankingDetailsByStudentID_Success(t *testing.T) {
 
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
 		BankName:      "Admin Bank",
 		BranchName:    "Admin Branch",
@@ -371,7 +371,7 @@ func TestUpsertBankingDetailsByStudentID_NotAdmin(t *testing.T) {
 	mockRepo := &mocks.MockBankingDetailsRepository{}
 	mockTxManager := &mocks.StubTxManager{}
 
-	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo)
+	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
 		BankName:      "Bank A",
 		BranchName:    "Branch 1",
