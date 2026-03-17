@@ -2,12 +2,11 @@ package errors
 
 import "errors"
 
-// Domain errors for timelog domain
 var (
+	ErrInvalidStudentID   = errors.New("student ID must be positive")
 	ErrTimeLogNotFound    = errors.New("time log not found")
 	ErrAlreadyClockedIn   = errors.New("student already has an open time log")
 	ErrNotClockedIn       = errors.New("no open time log to clock out")
-	ErrInvalidClockInCode = errors.New("clock-in code not found or expired")
 	ErrNoActiveShift      = errors.New("student has no shift assignment right now")
 	ErrInvalidCoordinates = errors.New("longitude or latitude out of range")
 	ErrInvalidFlagReason  = errors.New("flag reason must not be empty")

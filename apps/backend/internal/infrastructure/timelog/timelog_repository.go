@@ -97,23 +97,14 @@ func (r *TimeLogRepository) GetOpenByStudentID(ctx context.Context, tx *sql.Tx, 
 func (r *TimeLogRepository) Update(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error) {
 	m := timeLog.ToModel()
 
-	var exitAt interface{}
-	if m.ExitAt != nil {
-		exitAt = *m.ExitAt
-	}
-	var flagReason interface{}
-	if m.FlagReason != nil {
-		flagReason = *m.FlagReason
-	}
-
 	stmt := table.TimeLogs.UPDATE(
 		table.TimeLogs.ExitAt,
 		table.TimeLogs.IsFlagged,
 		table.TimeLogs.FlagReason,
 	).SET(
-		exitAt,
+		m.ExitAt,
 		m.IsFlagged,
-		flagReason,
+		m.FlagReason,
 	).WHERE(
 		table.TimeLogs.ID.EQ(postgres.UUID(m.ID)),
 	).RETURNING(table.TimeLogs.AllColumns)
@@ -133,19 +124,10 @@ func (r *TimeLogRepository) Update(ctx context.Context, tx *sql.Tx, timeLog *agg
 }
 
 func (r *TimeLogRepository) List(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error) {
-	condition := postgres.Bool(true)
+	condition := buildFilterCondition(filter)
 
 	if filter.StudentID != nil {
 		condition = condition.AND(table.TimeLogs.StudentID.EQ(postgres.Int32(*filter.StudentID)))
-	}
-	if filter.From != nil {
-		condition = condition.AND(table.TimeLogs.EntryAt.GT_EQ(postgres.TimestampzT(*filter.From)))
-	}
-	if filter.To != nil {
-		condition = condition.AND(table.TimeLogs.EntryAt.LT_EQ(postgres.TimestampzT(*filter.To)))
-	}
-	if filter.Flagged != nil {
-		condition = condition.AND(table.TimeLogs.IsFlagged.EQ(postgres.Bool(*filter.Flagged)))
 	}
 
 	// Count total
@@ -160,14 +142,8 @@ func (r *TimeLogRepository) List(ctx context.Context, tx *sql.Tx, filter reposit
 		return nil, 0, fmt.Errorf("failed to count time logs: %w", err)
 	}
 
-	page := filter.Page
-	if page < 1 {
-		page = 1
-	}
-	perPage := filter.PerPage
-	if perPage < 1 {
-		perPage = 20
-	}
+	page := max(filter.Page, 1)
+	perPage := max(filter.PerPage, 20)
 	offset := (page - 1) * perPage
 
 	stmt := table.TimeLogs.
@@ -181,7 +157,7 @@ func (r *TimeLogRepository) List(ctx context.Context, tx *sql.Tx, filter reposit
 	err = stmt.QueryContext(ctx, tx, &results)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			return []*aggregate.TimeLog{}, 0, nil
+			return []*aggregate.TimeLog{}, countResult.Count, nil
 		}
 		r.logger.Error("failed to list time logs", zap.Error(err))
 		return nil, 0, fmt.Errorf("failed to list time logs: %w", err)
@@ -190,8 +166,8 @@ func (r *TimeLogRepository) List(ctx context.Context, tx *sql.Tx, filter reposit
 	return toTimeLogAggregates(results), countResult.Count, nil
 }
 
-func (r *TimeLogRepository) ListByStudentID(ctx context.Context, tx *sql.Tx, studentID int32, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, error) {
-	condition := table.TimeLogs.StudentID.EQ(postgres.Int32(studentID))
+func buildFilterCondition(filter repository.TimeLogFilter) postgres.BoolExpression {
+	condition := postgres.Bool(true)
 
 	if filter.From != nil {
 		condition = condition.AND(table.TimeLogs.EntryAt.GT_EQ(postgres.TimestampzT(*filter.From)))
@@ -203,22 +179,7 @@ func (r *TimeLogRepository) ListByStudentID(ctx context.Context, tx *sql.Tx, stu
 		condition = condition.AND(table.TimeLogs.IsFlagged.EQ(postgres.Bool(*filter.Flagged)))
 	}
 
-	stmt := table.TimeLogs.
-		SELECT(table.TimeLogs.AllColumns).
-		WHERE(condition).
-		ORDER_BY(table.TimeLogs.EntryAt.DESC())
-
-	var results []model.TimeLogs
-	err := stmt.QueryContext(ctx, tx, &results)
-	if err != nil {
-		if errors.Is(err, qrm.ErrNoRows) {
-			return []*aggregate.TimeLog{}, nil
-		}
-		r.logger.Error("failed to list time logs by student ID", zap.Error(err), zap.Int32("student_id", studentID))
-		return nil, fmt.Errorf("failed to list time logs by student ID: %w", err)
-	}
-
-	return toTimeLogAggregates(results), nil
+	return condition
 }
 
 func toTimeLogAggregates(models []model.TimeLogs) []*aggregate.TimeLog {

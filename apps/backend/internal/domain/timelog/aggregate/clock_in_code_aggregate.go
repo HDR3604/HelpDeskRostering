@@ -2,7 +2,7 @@ package aggregate
 
 import (
 	"crypto/rand"
-	"log"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -20,17 +20,22 @@ type ClockInCode struct {
 	CreatedBy uuid.UUID
 }
 
-func NewClockInCode(createdBy uuid.UUID, expiresInMinutes int) *ClockInCode {
+func NewClockInCode(createdBy uuid.UUID, expiresInMinutes int) (*ClockInCode, error) {
 	if expiresInMinutes <= 0 {
-		expiresInMinutes = 60
+		expiresInMinutes = 1
+	}
+
+	code, err := generateCode(8)
+	if err != nil {
+		return nil, err
 	}
 
 	return &ClockInCode{
 		ID:        uuid.New(),
-		Code:      generateCode(8),
+		Code:      code,
 		ExpiresAt: time.Now().UTC().Add(time.Duration(expiresInMinutes) * time.Minute),
 		CreatedBy: createdBy,
-	}
+	}, nil
 }
 
 func (c *ClockInCode) IsExpired() bool {
@@ -57,19 +62,15 @@ func (c *ClockInCode) ToModel() model.ClockInCodes {
 	}
 }
 
-func generateCode(length int) string {
+func generateCode(length int) (string, error) {
 	b := make([]byte, length)
-	charsetLen := int64(len(codeCharset))
+	charsetLen := big.NewInt(int64(len(codeCharset)))
 	for i := range b {
-		n, err := rand.Int(rand.Reader, big.NewInt(charsetLen))
+		n, err := rand.Int(rand.Reader, charsetLen)
 		if err != nil {
-			// Fallback to a deterministic but safe value to avoid panics if rand.Reader fails.
-			log.Printf("failed to generate secure random int for clock-in code: %v", err)
-			fallbackIdx := int64(i) % charsetLen
-			b[i] = codeCharset[fallbackIdx]
-			continue
+			return "", fmt.Errorf("failed to generate secure random code: %w", err)
 		}
 		b[i] = codeCharset[n.Int64()]
 	}
-	return string(b)
+	return string(b), nil
 }

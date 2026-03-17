@@ -26,7 +26,7 @@ GRANT ALL ON "schedule"."clock_in_codes" TO "internal";
 
 CREATE POLICY "clock_in_codes_select" ON "schedule"."clock_in_codes"
     FOR SELECT TO "authenticated"
-    USING (user_has_role('admin'));
+    USING (true);
 
 CREATE POLICY "internal_bypass_clock_in_codes" ON "schedule"."clock_in_codes"
     FOR ALL TO "internal"

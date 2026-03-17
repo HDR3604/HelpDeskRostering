@@ -63,7 +63,7 @@ func (r *ClockInCodeRepository) GetByCode(ctx context.Context, tx *sql.Tx, code 
 		if errors.Is(err, qrm.ErrNoRows) {
 			return nil, timelogErrors.ErrInvalidClockInCode
 		}
-		r.logger.Error("failed to get clock-in code", zap.Error(err), zap.String("code", code))
+		r.logger.Error("failed to get clock-in code", zap.Error(err))
 		return nil, fmt.Errorf("failed to get clock-in code: %w", err)
 	}
 
@@ -84,7 +84,7 @@ func (r *ClockInCodeRepository) GetActive(ctx context.Context, tx *sql.Tx) (*agg
 	err := stmt.QueryContext(ctx, tx, &result)
 	if err != nil {
 		if errors.Is(err, qrm.ErrNoRows) {
-			return nil, timelogErrors.ErrInvalidClockInCode
+			return nil, timelogErrors.ErrNoActiveClockInCode
 		}
 		r.logger.Error("failed to get active clock-in code", zap.Error(err))
 		return nil, fmt.Errorf("failed to get active clock-in code: %w", err)

@@ -22,6 +22,9 @@ type TimeLog struct {
 }
 
 func NewTimeLog(studentID int32, longitude, latitude, distanceMeters float64) (*TimeLog, error) {
+	if studentID <= 0 {
+		return nil, errors.ErrInvalidStudentID
+	}
 	if longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90 {
 		return nil, errors.ErrInvalidCoordinates
 	}

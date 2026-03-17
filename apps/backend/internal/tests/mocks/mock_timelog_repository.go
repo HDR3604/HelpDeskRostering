@@ -19,7 +19,6 @@ type MockTimeLogRepository struct {
 	GetOpenByStudentIDFn func(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.TimeLog, error)
 	UpdateFn             func(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error)
 	ListFn               func(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error)
-	ListByStudentIDFn    func(ctx context.Context, tx *sql.Tx, studentID int32, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, error)
 }
 
 func (m *MockTimeLogRepository) Create(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error) {
@@ -40,8 +39,4 @@ func (m *MockTimeLogRepository) Update(ctx context.Context, tx *sql.Tx, timeLog 
 
 func (m *MockTimeLogRepository) List(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error) {
 	return m.ListFn(ctx, tx, filter)
-}
-
-func (m *MockTimeLogRepository) ListByStudentID(ctx context.Context, tx *sql.Tx, studentID int32, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, error) {
-	return m.ListByStudentIDFn(ctx, tx, studentID, filter)
 }
