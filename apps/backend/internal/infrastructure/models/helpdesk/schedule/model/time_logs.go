@@ -22,4 +22,6 @@ type TimeLogs struct {
 	Longitude      float64
 	Latitude       float64
 	DistanceMeters float64 // A pre-calculated distance based on the longitude and latitude to be later used to flag suspicious entries.
+	IsFlagged      bool
+	FlagReason     *string
 }
