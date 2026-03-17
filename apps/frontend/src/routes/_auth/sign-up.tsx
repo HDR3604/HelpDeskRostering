@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
+import { getApiErrorMessage } from '@/lib/error-messages'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { extractTranscript } from '@/features/sign-up/lib/extract-transcript'
 import {
@@ -134,11 +135,12 @@ function SignUpPage() {
             await verifyVerificationCode(contactData.email, code)
             setIsEmailVerified(true)
         } catch (err) {
-            if (isAxiosError(err) && err.response?.data?.error) {
-                setVerifyError(err.response.data.error)
-            } else {
-                setVerifyError('Invalid or expired code. Please try again.')
-            }
+            setVerifyError(
+                getApiErrorMessage(
+                    err,
+                    'Invalid or expired code. Please try again.',
+                ),
+            )
         } finally {
             setIsVerifyingCode(false)
         }

@@ -26,7 +26,7 @@ import {
     useRejectStudent,
 } from '@/lib/queries/students'
 
-const TOAST_DURATION = 5000
+const TOAST_DURATION = 3000
 
 export function AdminDashboard() {
     const studentsQuery = useStudents()

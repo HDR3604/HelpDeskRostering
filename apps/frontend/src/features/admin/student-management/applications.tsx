@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -26,9 +27,9 @@ const statusOrder: Record<ApplicationStatus, number> = {
     deactivated: 3,
 }
 
+const UNDO_DELAY = 3000
+
 type ConfirmAction =
-    | { type: 'accept'; studentId: number }
-    | { type: 'reject'; studentId: number }
     | { type: 'bulk-accept'; studentIds: number[] }
     | { type: 'bulk-reject'; studentIds: number[] }
 
@@ -49,18 +50,34 @@ export function Applications() {
     )
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
-    const pendingCount = students.filter(
+    // Optimistic updates: overlay on top of server data
+    const [optimisticUpdates, setOptimisticUpdates] = useState<
+        Map<number, { accepted_at: string | null; rejected_at: string | null }>
+    >(new Map())
+    const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+        new Map(),
+    )
+
+    const displayStudents = useMemo(() => {
+        if (optimisticUpdates.size === 0) return students
+        return students.map((s) => {
+            const update = optimisticUpdates.get(s.student_id)
+            return update ? { ...s, ...update } : s
+        })
+    }, [students, optimisticUpdates])
+
+    const pendingCount = displayStudents.filter(
         (s) => getApplicationStatus(s) === 'pending',
     ).length
 
     const sorted = useMemo(
         () =>
-            [...students].sort(
+            [...displayStudents].sort(
                 (a, b) =>
                     statusOrder[getApplicationStatus(a)] -
                     statusOrder[getApplicationStatus(b)],
             ),
-        [students],
+        [displayStudents],
     )
 
     const selectedPendingIds = useMemo(() => {
@@ -72,13 +89,107 @@ export function Applications() {
             .map((s) => s.student_id)
     }, [rowSelection, sorted])
 
-    const onAccept = useCallback((studentId: number) => {
-        setConfirmAction({ type: 'accept', studentId })
-    }, [])
+    function scheduleCommit(studentId: number, action: 'accept' | 'reject') {
+        const existing = pendingTimers.current.get(studentId)
+        if (existing) clearTimeout(existing)
 
-    const onReject = useCallback((studentId: number) => {
-        setConfirmAction({ type: 'reject', studentId })
-    }, [])
+        const timer = setTimeout(() => {
+            pendingTimers.current.delete(studentId)
+
+            const onSettled = () => {
+                setOptimisticUpdates((prev) => {
+                    const next = new Map(prev)
+                    next.delete(studentId)
+                    return next
+                })
+            }
+
+            if (action === 'accept') {
+                handleAccept(studentId)
+            } else {
+                handleReject(studentId)
+            }
+
+            // Clear optimistic state after a short delay to let the mutation settle
+            setTimeout(onSettled, 1000)
+        }, UNDO_DELAY)
+
+        pendingTimers.current.set(studentId, timer)
+    }
+
+    function cancelCommit(studentId: number) {
+        const timer = pendingTimers.current.get(studentId)
+        if (timer) {
+            clearTimeout(timer)
+            pendingTimers.current.delete(studentId)
+        }
+        setOptimisticUpdates((prev) => {
+            const next = new Map(prev)
+            next.delete(studentId)
+            return next
+        })
+    }
+
+    const onAccept = useCallback(
+        (studentId: number) => {
+            const student = displayStudents.find(
+                (s) => s.student_id === studentId,
+            )
+            if (!student) return
+
+            setOptimisticUpdates((m) => {
+                const next = new Map(m)
+                next.set(studentId, {
+                    accepted_at: new Date().toISOString(),
+                    rejected_at: null,
+                })
+                return next
+            })
+
+            scheduleCommit(studentId, 'accept')
+            toast.success(
+                `${student.first_name} ${student.last_name} accepted`,
+                {
+                    duration: UNDO_DELAY,
+                    action: {
+                        label: 'Undo',
+                        onClick: () => cancelCommit(studentId),
+                    },
+                },
+            )
+        },
+        [displayStudents],
+    )
+
+    const onReject = useCallback(
+        (studentId: number) => {
+            const student = displayStudents.find(
+                (s) => s.student_id === studentId,
+            )
+            if (!student) return
+
+            setOptimisticUpdates((m) => {
+                const next = new Map(m)
+                next.set(studentId, {
+                    rejected_at: new Date().toISOString(),
+                    accepted_at: null,
+                })
+                return next
+            })
+
+            scheduleCommit(studentId, 'reject')
+            toast.error(`${student.first_name} ${student.last_name} rejected`, {
+                duration: UNDO_DELAY,
+                action: {
+                    label: 'Undo',
+                    onClick: () => cancelCommit(studentId),
+                },
+            })
+        },
+        [displayStudents],
+    )
+
+    const hasPendingOptimistic = optimisticUpdates.size > 0
 
     const columns = useMemo(
         () =>
@@ -86,21 +197,15 @@ export function Applications() {
                 onAccept,
                 onReject,
                 onViewTranscript: setTranscriptStudent,
-                isMutating,
+                isMutating: isMutating || hasPendingOptimistic,
             }),
-        [onAccept, onReject, isMutating],
+        [onAccept, onReject, isMutating, hasPendingOptimistic],
     )
 
-    function handleConfirm() {
+    function handleBulkConfirm() {
         if (!confirmAction) return
 
         switch (confirmAction.type) {
-            case 'accept':
-                handleAccept(confirmAction.studentId)
-                break
-            case 'reject':
-                handleReject(confirmAction.studentId)
-                break
             case 'bulk-accept':
                 for (const id of confirmAction.studentIds) {
                     handleAccept(id)
@@ -134,30 +239,6 @@ export function Applications() {
         }
 
         switch (confirmAction.type) {
-            case 'accept': {
-                const s = students.find(
-                    (s) => s.student_id === confirmAction.studentId,
-                )
-                const name = s ? `${s.first_name} ${s.last_name}` : ''
-                return {
-                    title: 'Accept Application',
-                    description: `Are you sure you want to accept ${name}? They will be added to the active roster.`,
-                    confirmLabel: 'Accept',
-                    destructive: false,
-                }
-            }
-            case 'reject': {
-                const s = students.find(
-                    (s) => s.student_id === confirmAction.studentId,
-                )
-                const name = s ? `${s.first_name} ${s.last_name}` : ''
-                return {
-                    title: 'Reject Application',
-                    description: `Are you sure you want to reject ${name}?`,
-                    confirmLabel: 'Reject',
-                    destructive: true,
-                }
-            }
             case 'bulk-accept':
                 return {
                     title: 'Accept Applications',
@@ -276,7 +357,7 @@ export function Applications() {
                 title={confirmProps.title}
                 description={confirmProps.description}
                 confirmLabel={confirmProps.confirmLabel}
-                onConfirm={handleConfirm}
+                onConfirm={handleBulkConfirm}
                 destructive={confirmProps.destructive}
                 loading={isMutating}
             />

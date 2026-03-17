@@ -4,7 +4,6 @@ import {
     useQueryClient,
     type QueryClient,
 } from '@tanstack/react-query'
-import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
 import type { Student } from '@/types/student'
 import {
@@ -20,6 +19,7 @@ import {
     getMyStudentProfile,
     type ApplyStudentRequest,
 } from '@/lib/api/students'
+import { getApiErrorMessage } from '@/lib/error-messages'
 
 // ── Key Factory ──────────────────────────────────────────────────────
 
@@ -70,11 +70,9 @@ export function useApplyAsStudent() {
     return useMutation({
         mutationFn: (req: ApplyStudentRequest) => applyAsStudent(req),
         onError: (error) => {
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Something went wrong. Please try again.'
-            toast.error('Application failed', { description: message })
+            toast.error('Application failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }
@@ -94,11 +92,9 @@ export function useAcceptStudent() {
         },
         onError: (error) => {
             invalidateLists(queryClient)
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Failed to accept student.'
-            toast.error('Accept failed', { description: message })
+            toast.error('Accept failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }
@@ -118,11 +114,9 @@ export function useRejectStudent() {
         },
         onError: (error) => {
             invalidateLists(queryClient)
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Failed to reject student.'
-            toast.error('Reject failed', { description: message })
+            toast.error('Reject failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }
@@ -144,11 +138,9 @@ export function useDeactivateStudent() {
         },
         onError: (error) => {
             invalidateLists(queryClient)
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Failed to deactivate student.'
-            toast.error('Deactivate failed', { description: message })
+            toast.error('Deactivate failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }
@@ -170,11 +162,9 @@ export function useActivateStudent() {
         },
         onError: (error) => {
             invalidateLists(queryClient)
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Failed to activate student.'
-            toast.error('Activate failed', { description: message })
+            toast.error('Activate failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }
@@ -192,11 +182,9 @@ export function useBulkDeactivateStudents() {
         },
         onError: (error) => {
             invalidateLists(queryClient)
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Failed to deactivate students.'
-            toast.error('Bulk deactivate failed', { description: message })
+            toast.error('Bulk deactivate failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }
@@ -214,11 +202,9 @@ export function useBulkActivateStudents() {
         },
         onError: (error) => {
             invalidateLists(queryClient)
-            const message =
-                isAxiosError(error) && error.response?.data?.error
-                    ? error.response.data.error
-                    : 'Failed to activate students.'
-            toast.error('Bulk activate failed', { description: message })
+            toast.error('Bulk activate failed', {
+                description: getApiErrorMessage(error),
+            })
         },
     })
 }

@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
 import { isAxiosError } from 'axios'
+import { friendlyError } from '@/lib/error-messages'
 import { resetPassword } from '@/lib/auth/actions'
 import { FormError } from '@/components/ui/form-error'
 import {
@@ -123,11 +124,12 @@ export function ResetPasswordComponent() {
                         msg.includes('expired') ||
                         msg.includes('used'))
                 ) {
-                    setTokenError(msg)
+                    setTokenError(friendlyError(msg))
                 } else {
                     setError(
-                        msg ||
-                            'An unexpected error occurred. Please try again.',
+                        msg
+                            ? friendlyError(msg)
+                            : 'An unexpected error occurred. Please try again.',
                     )
                 }
             } else {

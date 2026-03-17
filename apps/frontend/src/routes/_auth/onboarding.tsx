@@ -3,6 +3,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { isAxiosError } from 'axios'
+import { friendlyError, getApiErrorMessage } from '@/lib/error-messages'
 import {
     AlertCircle,
     GraduationCap,
@@ -202,7 +203,7 @@ function OnboardingPage() {
                 if (resolved) {
                     setTokenError(resolved)
                 } else {
-                    setError(msg)
+                    setError(friendlyError(msg))
                 }
             } else {
                 setError('Something went wrong. Please try again.')
@@ -223,11 +224,12 @@ function OnboardingPage() {
             toast.success('Onboarding complete! Welcome aboard.')
             navigate({ to: '/' })
         } catch (err) {
-            if (isAxiosError(err) && err.response?.data?.error) {
-                toast.error(err.response.data.error)
-            } else {
-                toast.error('Failed to save banking details. Please try again.')
-            }
+            toast.error(
+                getApiErrorMessage(
+                    err,
+                    'Failed to save banking details. Please try again.',
+                ),
+            )
         }
     }
 

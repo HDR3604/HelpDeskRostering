@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Search, Settings, LogOut } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -22,7 +23,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
 import { useUser, useLogout } from '@/lib/auth'
-import { MOCK_SCHEDULES } from '@/lib/mock-data'
+import { scheduleKeys } from '@/lib/queries/schedules'
+import type { ScheduleResponse } from '@/types/schedule'
 
 const PAGE_TITLES: Record<string, string> = {
     '/': 'Dashboard',
@@ -31,7 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/assistants/payments': 'Payroll',
     '/schedule': 'Schedule',
     '/settings': 'Settings',
-    '/onboarding': 'Onboarding',
+    '/complete-onboarding': 'Complete Onboarding',
 }
 
 interface Crumb {
@@ -39,13 +41,16 @@ interface Crumb {
     to?: string
 }
 
-function buildBreadcrumbs(pathname: string): Crumb[] {
+function buildBreadcrumbs(
+    pathname: string,
+    resolveScheduleTitle?: (id: string) => string | undefined,
+): Crumb[] {
     const segments = pathname.split('/').filter(Boolean)
     if (segments.length === 0) return [{ label: 'Dashboard' }]
 
     // Single segment — exact match, no link
-    if (segments.length === 1 && PAGE_TITLES[pathname]) {
-        return [{ label: PAGE_TITLES[pathname] }]
+    if (segments.length === 1 && PAGE_TITLES['/' + segments[0]]) {
+        return [{ label: PAGE_TITLES['/' + segments[0]] }]
     }
 
     const crumbs: Crumb[] = []
@@ -67,12 +72,9 @@ function buildBreadcrumbs(pathname: string): Crumb[] {
 
     let lastLabel: string | undefined = PAGE_TITLES[fullPath]
 
-    // Schedule editor: resolve schedule title from ID
-    if (!lastLabel && parentPath === '/schedule') {
-        const schedule = MOCK_SCHEDULES.find(
-            (s) => s.schedule_id === lastSegment,
-        )
-        lastLabel = schedule?.title
+    // Schedule editor: resolve schedule title from query cache
+    if (!lastLabel && parentPath === '/schedule' && resolveScheduleTitle) {
+        lastLabel = resolveScheduleTitle(lastSegment)
     }
 
     crumbs.push({ label: lastLabel ?? lastSegment })
@@ -83,6 +85,7 @@ export function SiteHeader() {
     const router = useRouterState()
     const currentPath = router.location.pathname
     const { firstName, lastName, email } = useUser()
+    const queryClient = useQueryClient()
 
     const logout = useLogout()
     const displayName =
@@ -92,7 +95,23 @@ export function SiteHeader() {
             ? `${firstName[0]}${lastName[0]}`.toUpperCase()
             : (email ?? '').slice(0, 2).toUpperCase()
 
-    const crumbs = useMemo(() => buildBreadcrumbs(currentPath), [currentPath])
+    const crumbs = useMemo(() => {
+        const resolveScheduleTitle = (id: string): string | undefined => {
+            // Check detail cache first
+            const detail = queryClient.getQueryData<ScheduleResponse>(
+                scheduleKeys.detail(id),
+            )
+            if (detail?.title) return detail.title
+
+            // Fall back to list cache
+            const lists = queryClient.getQueryData<ScheduleResponse[]>(
+                scheduleKeys.list('all'),
+            )
+            return lists?.find((s) => s.schedule_id === id)?.title
+        }
+
+        return buildBreadcrumbs(currentPath, resolveScheduleTitle)
+    }, [currentPath, queryClient])
 
     return (
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">

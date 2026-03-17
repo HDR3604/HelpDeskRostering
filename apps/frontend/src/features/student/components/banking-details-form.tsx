@@ -58,7 +58,7 @@ const bankingDetailsSchema = z
             .string()
             .min(1, 'Branch name is required')
             .max(100, 'Branch name is too long'),
-        accountType: z.enum(['chequing', 'savings'], {
+        accountType: z.enum(['chequeing', 'savings'], {
             required_error: 'Please select an account type',
         }),
         accountNumber: z
@@ -340,11 +340,11 @@ export function BankingDetailsForm({
                                     >
                                         <div className="flex items-center gap-2">
                                             <RadioGroupItem
-                                                value="chequing"
-                                                id="chequing"
+                                                value="chequeing"
+                                                id="chequeing"
                                             />
                                             <Label
-                                                htmlFor="chequing"
+                                                htmlFor="chequeing"
                                                 className="font-normal"
                                             >
                                                 Chequing

@@ -1,13 +1,39 @@
-import { Outlet, createFileRoute, useLocation } from '@tanstack/react-router'
+import {
+    Outlet,
+    createFileRoute,
+    redirect,
+    useLocation,
+} from '@tanstack/react-router'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SiteHeader } from '@/components/layout/site-header'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { StudentProvider } from '@/features/admin/student-management/student-context'
-import { requireAuth } from '@/lib/auth'
+import { requireAuth, getTokenPayload } from '@/lib/auth'
+import { getMyBankingDetails } from '@/lib/api/students'
+import {
+    isOnboardingVerified,
+    markOnboardingVerified,
+} from '@/lib/auth/onboarding-check'
 
 export const Route = createFileRoute('/_app')({
-    beforeLoad: requireAuth,
+    beforeLoad: async (ctx) => {
+        await requireAuth(ctx)
+
+        const payload = getTokenPayload()
+        if (
+            payload?.role === 'student' &&
+            !isOnboardingVerified() &&
+            ctx.location.pathname !== '/complete-onboarding'
+        ) {
+            try {
+                await getMyBankingDetails()
+                markOnboardingVerified()
+            } catch {
+                throw redirect({ to: '/complete-onboarding' })
+            }
+        }
+    },
     component: AppLayout,
 })
 
