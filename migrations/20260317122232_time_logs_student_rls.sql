@@ -1,4 +1,4 @@
--- +migrate Up
+-- +goose Up
 
 -- Grant UPDATE on time_logs to authenticated role (needed for student clock-out)
 GRANT UPDATE ON schedule.time_logs TO authenticated;
@@ -30,7 +30,7 @@ CREATE POLICY time_logs_update ON schedule.time_logs
         user_has_role('admin') OR student_owns_record(student_id)
     );
 
--- +migrate Down
+-- +goose Down
 
 DROP POLICY IF EXISTS time_logs_update ON schedule.time_logs;
 DROP POLICY IF EXISTS time_logs_insert ON schedule.time_logs;
