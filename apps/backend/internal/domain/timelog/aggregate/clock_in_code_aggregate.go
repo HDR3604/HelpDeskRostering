@@ -2,6 +2,7 @@ package aggregate
 
 import (
 	"crypto/rand"
+	"log"
 	"math/big"
 	"time"
 
@@ -58,8 +59,16 @@ func (c *ClockInCode) ToModel() model.ClockInCodes {
 
 func generateCode(length int) string {
 	b := make([]byte, length)
+	charsetLen := int64(len(codeCharset))
 	for i := range b {
-		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(codeCharset))))
+		n, err := rand.Int(rand.Reader, big.NewInt(charsetLen))
+		if err != nil {
+			// Fallback to a deterministic but safe value to avoid panics if rand.Reader fails.
+			log.Printf("failed to generate secure random int for clock-in code: %v", err)
+			fallbackIdx := int64(i) % charsetLen
+			b[i] = codeCharset[fallbackIdx]
+			continue
+		}
 		b[i] = codeCharset[n.Int64()]
 	}
 	return string(b)
