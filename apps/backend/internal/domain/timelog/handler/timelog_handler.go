@@ -34,6 +34,9 @@ func (h *TimeLogHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/me/status", h.GetMyStatus)
 		r.Get("/me", h.ListMyTimeLogs)
 	})
+}
+
+func (h *TimeLogHandler) RegisterAdminRoutes(r chi.Router) {
 	r.Route("/clock-in-codes", func(r chi.Router) {
 		r.Post("/", h.GenerateClockInCode)
 		r.Get("/active", h.GetActiveCode)

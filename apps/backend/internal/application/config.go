@@ -131,15 +131,25 @@ func LoadConfig() (Config, error) {
 	// Help Desk location (defaults to UWI St Augustine campus)
 	cfg.HelpDeskLongitude = -61.277001
 	if v := os.Getenv("HELPDESK_LONGITUDE"); v != "" {
-		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
-			cfg.HelpDeskLongitude = parsed
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HELPDESK_LONGITUDE %q: %w", v, err)
 		}
+		if parsed < -180 || parsed > 180 {
+			return Config{}, fmt.Errorf("HELPDESK_LONGITUDE must be in range [-180, 180], got %f", parsed)
+		}
+		cfg.HelpDeskLongitude = parsed
 	}
 	cfg.HelpDeskLatitude = 10.642707
 	if v := os.Getenv("HELPDESK_LATITUDE"); v != "" {
-		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
-			cfg.HelpDeskLatitude = parsed
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HELPDESK_LATITUDE %q: %w", v, err)
 		}
+		if parsed < -90 || parsed > 90 {
+			return Config{}, fmt.Errorf("HELPDESK_LATITUDE must be in range [-90, 90], got %f", parsed)
+		}
+		cfg.HelpDeskLatitude = parsed
 	}
 
 	return cfg, nil

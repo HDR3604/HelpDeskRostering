@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"time"
 
+	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/aggregate"
 	timelogErrors "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/errors"
@@ -91,30 +93,45 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 
 	var result *aggregate.TimeLog
 
-	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		// a. Validate the clock-in code
 		code, err := s.clockInCodeRepo.GetByCode(ctx, tx, input.Code)
-		if err != nil || code == nil || code.IsExpired() {
+		if err != nil {
+			if errors.Is(err, timelogErrors.ErrInvalidClockInCode) {
+				return timelogErrors.ErrInvalidClockInCode
+			}
+			return err
+		}
+		if code == nil || code.IsExpired() {
 			return timelogErrors.ErrInvalidClockInCode
 		}
 
 		// b. Check no open log
 		existing, err := s.timeLogRepo.GetOpenByStudentID(ctx, tx, int32(studentID))
-		if err == nil && existing != nil {
+		if err != nil {
+			if !errors.Is(err, timelogErrors.ErrTimeLogNotFound) {
+				return err
+			}
+		} else if existing != nil {
 			return timelogErrors.ErrAlreadyClockedIn
 		}
 
 		// c. Check student has an active shift now (±10 min early)
 		activeSchedule, err := s.scheduleRepo.GetActive(ctx, tx)
-		if err != nil || activeSchedule == nil {
+		if err != nil {
+			if errors.Is(err, scheduleErrors.ErrNotFound) {
+				return timelogErrors.ErrNoActiveShift
+			}
+			return err
+		}
+		if activeSchedule == nil {
 			return timelogErrors.ErrNoActiveShift
 		}
 
-		shiftInfo, hasShift := hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
+		_, hasShift := hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
 		if !hasShift {
 			return timelogErrors.ErrNoActiveShift
 		}
-		_ = shiftInfo
 
 		// d. Calculate distance
 		distanceMeters := haversineDistance(input.Latitude, input.Longitude, s.helpDeskLat, s.helpDeskLon)
@@ -152,10 +169,16 @@ func (s *TimeLogService) ClockOut(ctx context.Context) (*aggregate.TimeLog, erro
 
 	var result *aggregate.TimeLog
 
-	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		// a. Get open log
 		openLog, err := s.timeLogRepo.GetOpenByStudentID(ctx, tx, int32(studentID))
-		if err != nil || openLog == nil {
+		if err != nil {
+			if errors.Is(err, timelogErrors.ErrTimeLogNotFound) {
+				return timelogErrors.ErrNotClockedIn
+			}
+			return err
+		}
+		if openLog == nil {
 			return timelogErrors.ErrNotClockedIn
 		}
 
@@ -194,13 +217,23 @@ func (s *TimeLogService) GetMyStatus(ctx context.Context) (*ClockInStatus, error
 
 	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
 		openLog, err := s.timeLogRepo.GetOpenByStudentID(ctx, tx, int32(studentID))
-		if err == nil && openLog != nil {
+		if err != nil {
+			if errors.Is(err, timelogErrors.ErrTimeLogNotFound) {
+				return nil
+			}
+			return err
+		}
+		if openLog != nil {
 			status.IsClockedIn = true
 			status.CurrentLog = openLog
 
 			// Look up the matching shift from active schedule
 			activeSchedule, err := s.scheduleRepo.GetActive(ctx, tx)
-			if err == nil && activeSchedule != nil {
+			if err != nil {
+				if !errors.Is(err, scheduleErrors.ErrNotFound) {
+					return err
+				}
+			} else if activeSchedule != nil {
 				shiftInfo, ok := hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
 				if ok {
 					status.CurrentShift = shiftInfo
@@ -328,6 +361,7 @@ type assignmentEntry struct {
 func hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool) {
 	var entries []assignmentEntry
 	if err := json.Unmarshal(assignments, &entries); err != nil {
+		zap.L().Error("failed to unmarshal schedule assignments", zap.Error(err))
 		return nil, false
 	}
 

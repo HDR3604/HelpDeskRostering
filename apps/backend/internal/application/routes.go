@@ -76,6 +76,7 @@ func registerRoutes(
 				studentHdl.RegisterAdminRoutes(r)
 				userHdl.RegisterAdminRoutes(r)
 				userHdl.RegisterRoutes(r)
+				timeLogHdl.RegisterAdminRoutes(r)
 			})
 		})
 	})
