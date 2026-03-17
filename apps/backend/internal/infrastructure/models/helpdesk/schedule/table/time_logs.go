@@ -25,6 +25,8 @@ type timeLogsTable struct {
 	Longitude      postgres.ColumnFloat
 	Latitude       postgres.ColumnFloat
 	DistanceMeters postgres.ColumnFloat // A pre-calculated distance based on the longitude and latitude to be later used to flag suspicious entries.
+	IsFlagged      postgres.ColumnBool
+	FlagReason     postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -74,9 +76,11 @@ func newTimeLogsTableImpl(schemaName, tableName, alias string) timeLogsTable {
 		LongitudeColumn      = postgres.FloatColumn("longitude")
 		LatitudeColumn       = postgres.FloatColumn("latitude")
 		DistanceMetersColumn = postgres.FloatColumn("distance_meters")
-		allColumns           = postgres.ColumnList{IDColumn, StudentIDColumn, EntryAtColumn, ExitAtColumn, CreatedAtColumn, LongitudeColumn, LatitudeColumn, DistanceMetersColumn}
-		mutableColumns       = postgres.ColumnList{StudentIDColumn, EntryAtColumn, ExitAtColumn, CreatedAtColumn, LongitudeColumn, LatitudeColumn, DistanceMetersColumn}
-		defaultColumns       = postgres.ColumnList{IDColumn, CreatedAtColumn}
+		IsFlaggedColumn      = postgres.BoolColumn("is_flagged")
+		FlagReasonColumn     = postgres.StringColumn("flag_reason")
+		allColumns           = postgres.ColumnList{IDColumn, StudentIDColumn, EntryAtColumn, ExitAtColumn, CreatedAtColumn, LongitudeColumn, LatitudeColumn, DistanceMetersColumn, IsFlaggedColumn, FlagReasonColumn}
+		mutableColumns       = postgres.ColumnList{StudentIDColumn, EntryAtColumn, ExitAtColumn, CreatedAtColumn, LongitudeColumn, LatitudeColumn, DistanceMetersColumn, IsFlaggedColumn, FlagReasonColumn}
+		defaultColumns       = postgres.ColumnList{IDColumn, CreatedAtColumn, IsFlaggedColumn}
 	)
 
 	return timeLogsTable{
@@ -91,6 +95,8 @@ func newTimeLogsTableImpl(schemaName, tableName, alias string) timeLogsTable {
 		Longitude:      LongitudeColumn,
 		Latitude:       LatitudeColumn,
 		DistanceMeters: DistanceMetersColumn,
+		IsFlagged:      IsFlaggedColumn,
+		FlagReason:     FlagReasonColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
