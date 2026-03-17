@@ -38,6 +38,7 @@ func (s *TimeLogHandlerTestSuite) SetupTest() {
 	s.router = chi.NewRouter()
 	s.router.Route("/api/v1", func(r chi.Router) {
 		hdl.RegisterRoutes(r)
+		hdl.RegisterAdminRoutes(r)
 	})
 }
 

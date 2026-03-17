@@ -112,7 +112,7 @@ func (s *TimeLogServiceTestSuite) TestClockIn_Success() {
 		return s.validCode(), nil
 	}
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, sid int32) (*aggregate.TimeLog, error) {
-		return nil, timelogErrors.ErrNotClockedIn
+		return nil, timelogErrors.ErrTimeLogNotFound
 	}
 	s.scheduleRepo.GetActiveFn = func(_ context.Context, _ *sql.Tx) (*scheduleAggregate.Schedule, error) {
 		return schedule, nil
@@ -198,7 +198,7 @@ func (s *TimeLogServiceTestSuite) TestClockIn_NoActiveShift() {
 		return s.validCode(), nil
 	}
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, _ int32) (*aggregate.TimeLog, error) {
-		return nil, timelogErrors.ErrNotClockedIn
+		return nil, timelogErrors.ErrTimeLogNotFound
 	}
 	s.scheduleRepo.GetActiveFn = func(_ context.Context, _ *sql.Tx) (*scheduleAggregate.Schedule, error) {
 		return schedule, nil
@@ -237,7 +237,7 @@ func (s *TimeLogServiceTestSuite) TestClockIn_10MinEarly_Allowed() {
 		return s.validCode(), nil
 	}
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, _ int32) (*aggregate.TimeLog, error) {
-		return nil, timelogErrors.ErrNotClockedIn
+		return nil, timelogErrors.ErrTimeLogNotFound
 	}
 	s.scheduleRepo.GetActiveFn = func(_ context.Context, _ *sql.Tx) (*scheduleAggregate.Schedule, error) {
 		return schedule, nil
@@ -280,7 +280,7 @@ func (s *TimeLogServiceTestSuite) TestClockIn_ShiftEnded_Rejected() {
 		return s.validCode(), nil
 	}
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, _ int32) (*aggregate.TimeLog, error) {
-		return nil, timelogErrors.ErrNotClockedIn
+		return nil, timelogErrors.ErrTimeLogNotFound
 	}
 	s.scheduleRepo.GetActiveFn = func(_ context.Context, _ *sql.Tx) (*scheduleAggregate.Schedule, error) {
 		return schedule, nil
@@ -330,7 +330,7 @@ func (s *TimeLogServiceTestSuite) TestClockOut_Success() {
 
 func (s *TimeLogServiceTestSuite) TestClockOut_NotClockedIn() {
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, _ int32) (*aggregate.TimeLog, error) {
-		return nil, timelogErrors.ErrNotClockedIn
+		return nil, timelogErrors.ErrTimeLogNotFound
 	}
 
 	result, err := s.service.ClockOut(s.studentCtx)
@@ -371,7 +371,7 @@ func (s *TimeLogServiceTestSuite) TestGetMyStatus_ClockedIn() {
 
 func (s *TimeLogServiceTestSuite) TestGetMyStatus_NotClockedIn() {
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, _ int32) (*aggregate.TimeLog, error) {
-		return nil, timelogErrors.ErrNotClockedIn
+		return nil, timelogErrors.ErrTimeLogNotFound
 	}
 
 	status, err := s.service.GetMyStatus(s.studentCtx)
