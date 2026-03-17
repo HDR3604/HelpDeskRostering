@@ -24,6 +24,8 @@ ALTER TABLE "schedule"."clock_in_codes" FORCE ROW LEVEL SECURITY;
 GRANT SELECT ON "schedule"."clock_in_codes" TO "authenticated";
 GRANT ALL ON "schedule"."clock_in_codes" TO "internal";
 
+-- Students need SELECT to validate their clock-in code during InAuthTx.
+-- Only admins can generate or view codes (enforced at the service layer).
 CREATE POLICY "clock_in_codes_select" ON "schedule"."clock_in_codes"
     FOR SELECT TO "authenticated"
     USING (true);
