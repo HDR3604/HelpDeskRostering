@@ -1,1 +1,2 @@
 task format
+git add -u

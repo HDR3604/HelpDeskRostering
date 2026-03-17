@@ -80,6 +80,7 @@ export function ActivateScheduleDialog({
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
+                        variant="outline"
                         onClick={() => onConfirm(notify === 'yes')}
                     >
                         Activate

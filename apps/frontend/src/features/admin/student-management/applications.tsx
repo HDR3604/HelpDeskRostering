@@ -1,5 +1,4 @@
-import { useState, useMemo } from 'react'
-import { toast } from 'sonner'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -10,44 +9,49 @@ import {
     CardTitle,
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, LoaderCircle, Check, X } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { getStudentColumns } from '../columns/application-columns'
 import { TranscriptDialog } from '../components/transcript-dialog'
 import { useStudents } from '@/features/admin/student-management/student-context'
 import type { Student } from '@/types/student'
 import { getApplicationStatus, type ApplicationStatus } from '@/types/student'
+import type { RowSelectionState } from '@tanstack/react-table'
 
 const statusOrder: Record<ApplicationStatus, number> = {
     pending: 0,
     accepted: 1,
     rejected: 2,
+    deactivated: 3,
 }
 
+type ConfirmAction =
+    | { type: 'accept'; studentId: number }
+    | { type: 'reject'; studentId: number }
+    | { type: 'bulk-accept'; studentIds: number[] }
+    | { type: 'bulk-reject'; studentIds: number[] }
+
 export function Applications() {
-    const { students, handleAccept, handleReject } = useStudents()
+    const {
+        students,
+        handleAccept,
+        handleReject,
+        refetch,
+        isRefetching,
+        isMutating,
+    } = useStudents()
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
         null,
     )
-    const [syncing, setSyncing] = useState(false)
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+        null,
+    )
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
     const pendingCount = students.filter(
         (s) => getApplicationStatus(s) === 'pending',
     ).length
-
-    async function handleSync() {
-        setSyncing(true)
-        try {
-            await new Promise((r) => setTimeout(r, 800))
-            toast.success('Applications synced')
-        } catch {
-            toast.error('Sync failed', {
-                description: 'Could not sync applications. Please try again.',
-            })
-        } finally {
-            setSyncing(false)
-        }
-    }
 
     const sorted = useMemo(
         () =>
@@ -59,15 +63,120 @@ export function Applications() {
         [students],
     )
 
+    const selectedPendingIds = useMemo(() => {
+        return Object.keys(rowSelection)
+            .filter((k) => rowSelection[k])
+            .map(Number)
+            .map((i) => sorted[i])
+            .filter((s) => s && getApplicationStatus(s) === 'pending')
+            .map((s) => s.student_id)
+    }, [rowSelection, sorted])
+
+    const onAccept = useCallback((studentId: number) => {
+        setConfirmAction({ type: 'accept', studentId })
+    }, [])
+
+    const onReject = useCallback((studentId: number) => {
+        setConfirmAction({ type: 'reject', studentId })
+    }, [])
+
     const columns = useMemo(
         () =>
             getStudentColumns({
-                onAccept: handleAccept,
-                onReject: handleReject,
+                onAccept,
+                onReject,
                 onViewTranscript: setTranscriptStudent,
+                isMutating,
             }),
-        [handleAccept, handleReject],
+        [onAccept, onReject, isMutating],
     )
+
+    function handleConfirm() {
+        if (!confirmAction) return
+
+        switch (confirmAction.type) {
+            case 'accept':
+                handleAccept(confirmAction.studentId)
+                break
+            case 'reject':
+                handleReject(confirmAction.studentId)
+                break
+            case 'bulk-accept':
+                for (const id of confirmAction.studentIds) {
+                    handleAccept(id)
+                }
+                setRowSelection({})
+                break
+            case 'bulk-reject':
+                for (const id of confirmAction.studentIds) {
+                    handleReject(id)
+                }
+                setRowSelection({})
+                break
+        }
+
+        setConfirmAction(null)
+    }
+
+    function getConfirmProps(): {
+        title: string
+        description: React.ReactNode
+        confirmLabel: string
+        destructive: boolean
+    } {
+        if (!confirmAction) {
+            return {
+                title: '',
+                description: '',
+                confirmLabel: '',
+                destructive: false,
+            }
+        }
+
+        switch (confirmAction.type) {
+            case 'accept': {
+                const s = students.find(
+                    (s) => s.student_id === confirmAction.studentId,
+                )
+                const name = s ? `${s.first_name} ${s.last_name}` : ''
+                return {
+                    title: 'Accept Application',
+                    description: `Are you sure you want to accept ${name}? They will be added to the active roster.`,
+                    confirmLabel: 'Accept',
+                    destructive: false,
+                }
+            }
+            case 'reject': {
+                const s = students.find(
+                    (s) => s.student_id === confirmAction.studentId,
+                )
+                const name = s ? `${s.first_name} ${s.last_name}` : ''
+                return {
+                    title: 'Reject Application',
+                    description: `Are you sure you want to reject ${name}?`,
+                    confirmLabel: 'Reject',
+                    destructive: true,
+                }
+            }
+            case 'bulk-accept':
+                return {
+                    title: 'Accept Applications',
+                    description: `Are you sure you want to accept ${confirmAction.studentIds.length} applicant${confirmAction.studentIds.length > 1 ? 's' : ''}? They will be added to the active roster.`,
+                    confirmLabel: `Accept (${confirmAction.studentIds.length})`,
+                    destructive: false,
+                }
+            case 'bulk-reject':
+                return {
+                    title: 'Reject Applications',
+                    description: `Are you sure you want to reject ${confirmAction.studentIds.length} applicant${confirmAction.studentIds.length > 1 ? 's' : ''}?`,
+                    confirmLabel: `Reject (${confirmAction.studentIds.length})`,
+                    destructive: true,
+                }
+        }
+    }
+
+    const confirmProps = getConfirmProps()
+    const hasSelection = Object.values(rowSelection).some(Boolean)
 
     return (
         <>
@@ -92,20 +201,60 @@ export function Applications() {
                             variant="outline"
                             size="sm"
                             className="shrink-0"
-                            disabled={syncing}
-                            onClick={handleSync}
+                            disabled={isRefetching}
+                            onClick={refetch}
                         >
                             <RefreshCw
                                 className={cn(
                                     'h-3.5 w-3.5',
-                                    syncing && 'animate-spin',
+                                    isRefetching && 'animate-spin',
                                 )}
                             />
                             Sync
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="relative">
+                    {isRefetching && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-lg bg-background/30 backdrop-blur-[2px]">
+                            <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                    )}
+                    {hasSelection && selectedPendingIds.length > 0 && (
+                        <div className="mb-3 flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
+                            <span className="text-sm text-muted-foreground">
+                                {selectedPendingIds.length} pending selected
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isMutating}
+                                onClick={() =>
+                                    setConfirmAction({
+                                        type: 'bulk-accept',
+                                        studentIds: selectedPendingIds,
+                                    })
+                                }
+                            >
+                                <Check className="mr-1 h-3.5 w-3.5" />
+                                Accept ({selectedPendingIds.length})
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isMutating}
+                                onClick={() =>
+                                    setConfirmAction({
+                                        type: 'bulk-reject',
+                                        studentIds: selectedPendingIds,
+                                    })
+                                }
+                            >
+                                <X className="mr-1 h-3.5 w-3.5" />
+                                Reject ({selectedPendingIds.length})
+                            </Button>
+                        </div>
+                    )}
                     <DataTable
                         columns={columns}
                         data={sorted}
@@ -113,9 +262,24 @@ export function Applications() {
                         globalFilter
                         pageSize={10}
                         emptyMessage="No applications yet."
+                        enableRowSelection
+                        rowSelection={rowSelection}
+                        onRowSelectionChange={setRowSelection}
                     />
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={confirmAction !== null}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+                title={confirmProps.title}
+                description={confirmProps.description}
+                confirmLabel={confirmProps.confirmLabel}
+                onConfirm={handleConfirm}
+                destructive={confirmProps.destructive}
+                loading={isMutating}
+            />
             <TranscriptDialog
                 student={transcriptStudent}
                 open={transcriptStudent !== null}

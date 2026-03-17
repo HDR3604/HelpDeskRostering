@@ -164,17 +164,20 @@ export function AdminDashboard() {
 
         const timer = setTimeout(() => {
             pendingTimers.current.delete(studentId)
-            // Clear the optimistic update — server data will take over after refetch
-            setOptimisticUpdates((prev) => {
-                const next = new Map(prev)
-                next.delete(studentId)
-                return next
-            })
+
+            // Clear optimistic state only after mutation settles (success or error)
+            const onSettled = () => {
+                setOptimisticUpdates((prev) => {
+                    const next = new Map(prev)
+                    next.delete(studentId)
+                    return next
+                })
+            }
 
             if (action === 'accept') {
-                acceptMutation.mutate(studentId)
+                acceptMutation.mutate(studentId, { onSettled })
             } else {
-                rejectMutation.mutate(studentId)
+                rejectMutation.mutate(studentId, { onSettled })
             }
         }, TOAST_DURATION)
 

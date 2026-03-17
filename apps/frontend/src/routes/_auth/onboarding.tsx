@@ -20,6 +20,11 @@ import {
 } from '@/features/student/components/banking-details-form'
 import type { PasswordData } from '@/features/onboarding/lib/onboarding-schemas'
 import { completeOnboarding, validateOnboardingToken } from '@/lib/auth/actions'
+import {
+    upsertMyBankingDetails,
+    getCurrentConsent,
+    type ConsentResponse,
+} from '@/lib/api/students'
 
 const searchSchema = z.object({
     token: z.string().catch(''),
@@ -84,7 +89,11 @@ function OnboardingPage() {
 
     const [step, setStep] = React.useState(0)
     const [isSubmitting, setIsSubmitting] = React.useState(false)
+    const [error, setError] = React.useState('')
     const [isValidating, setIsValidating] = React.useState(true)
+    const [consent, setConsent] = React.useState<ConsentResponse | null>(null)
+    const [consentLoading, setConsentLoading] = React.useState(false)
+    const [consentError, setConsentError] = React.useState('')
     const [tokenError, setTokenError] = React.useState<{
         icon: React.ReactNode
         title: string
@@ -133,6 +142,30 @@ function OnboardingPage() {
         }
     }, [token])
 
+    // Fetch consent text when moving to banking step
+    React.useEffect(() => {
+        if (step !== 1 || consent) return
+        let cancelled = false
+        setConsentLoading(true)
+        setConsentError('')
+        ;(async () => {
+            try {
+                const data = await getCurrentConsent()
+                if (!cancelled) setConsent(data)
+            } catch {
+                if (!cancelled)
+                    setConsentError(
+                        'Could not load consent information. Please try again.',
+                    )
+            } finally {
+                if (!cancelled) setConsentLoading(false)
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
+    }, [step, consent])
+
     if (!token || tokenError) {
         return (
             <div className="flex min-h-screen items-center justify-center px-4">
@@ -158,31 +191,44 @@ function OnboardingPage() {
 
     async function handlePasswordSubmit(data: PasswordData) {
         setIsSubmitting(true)
+        setError('')
         try {
             await completeOnboarding(token, data.password)
             setStep(1)
-        } catch (error) {
-            if (isAxiosError(error) && error.response?.data?.error) {
-                const msg = error.response.data.error as string
+        } catch (err) {
+            if (isAxiosError(err) && err.response?.data?.error) {
+                const msg = err.response.data.error as string
                 const resolved = resolveTokenError(msg)
                 if (resolved) {
                     setTokenError(resolved)
                 } else {
-                    toast.error(msg)
+                    setError(msg)
                 }
             } else {
-                toast.error('Something went wrong. Please try again.')
+                setError('Something went wrong. Please try again.')
             }
         } finally {
             setIsSubmitting(false)
         }
     }
 
-    async function handleBankingSubmit(_values: BankingDetailsValues) {
-        // Banking persistence is handled on a separate ticket.
-        // For now, just complete onboarding and navigate to dashboard.
-        toast.success('Onboarding complete! Welcome aboard.')
-        navigate({ to: '/' })
+    async function handleBankingSubmit(values: BankingDetailsValues) {
+        try {
+            await upsertMyBankingDetails({
+                bank_name: values.bankName,
+                branch_name: values.branchName,
+                account_type: values.accountType,
+                account_number: values.accountNumber,
+            })
+            toast.success('Onboarding complete! Welcome aboard.')
+            navigate({ to: '/' })
+        } catch (err) {
+            if (isAxiosError(err) && err.response?.data?.error) {
+                toast.error(err.response.data.error)
+            } else {
+                toast.error('Failed to save banking details. Please try again.')
+            }
+        }
     }
 
     const currentStep = STEPS[step]
@@ -235,6 +281,7 @@ function OnboardingPage() {
                     <StepSetPassword
                         onNext={handlePasswordSubmit}
                         isSubmitting={isSubmitting}
+                        error={error}
                     />
                 )}
                 {step === 1 && (
@@ -242,6 +289,9 @@ function OnboardingPage() {
                         embedded
                         onSubmit={handleBankingSubmit}
                         submitLabel="Complete Onboarding"
+                        consent={consent ?? undefined}
+                        consentLoading={consentLoading}
+                        consentError={consentError}
                     />
                 )}
             </div>

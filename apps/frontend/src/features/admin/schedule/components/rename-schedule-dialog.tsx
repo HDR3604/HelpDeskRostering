@@ -68,6 +68,7 @@ export function RenameScheduleDialog({
                         </Button>
                         <Button
                             type="submit"
+                            variant="outline"
                             disabled={
                                 !title.trim() || title.trim() === currentTitle
                             }

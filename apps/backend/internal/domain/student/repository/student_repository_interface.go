@@ -10,6 +10,7 @@ import (
 type StudentRepositoryInterface interface {
 	Create(ctx context.Context, tx *sql.Tx, student *aggregate.Student) (*aggregate.Student, error)
 	GetByID(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.Student, error)
+	GetByIDIncludingDeactivated(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.Student, error)
 	GetByEmail(ctx context.Context, tx *sql.Tx, email string) (*aggregate.Student, error)
 	Update(ctx context.Context, tx *sql.Tx, student *aggregate.Student) error
 	List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Student, error)

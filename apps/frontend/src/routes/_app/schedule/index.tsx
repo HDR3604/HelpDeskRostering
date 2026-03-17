@@ -24,7 +24,7 @@ import { ScheduleListSkeleton } from '@/features/admin/skeletons/schedule-list-s
 import { RenameScheduleDialog } from '@/features/admin/schedule/components/rename-schedule-dialog'
 import { ActivateScheduleDialog } from '@/features/admin/schedule/components/activate-schedule-dialog'
 import { NotifyStudentsDialog } from '@/features/admin/schedule/components/notify-students-dialog'
-import { ConfirmDialog } from '@/features/admin/schedule/components/confirm-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ErrorState } from '@/components/layout/error-state'
 
 const CreateScheduleDialog = lazy(() =>
@@ -299,6 +299,7 @@ function ScheduleListPage() {
                     </>
                 }
                 confirmLabel="Archive"
+                destructive
                 onConfirm={() => {
                     if (!archiveTarget) return
                     const title = archiveTarget.title
@@ -330,6 +331,7 @@ function ScheduleListPage() {
                     </>
                 }
                 confirmLabel="Deactivate"
+                destructive
                 onConfirm={() => {
                     if (!deactivateTarget) return
                     const title = deactivateTarget.title

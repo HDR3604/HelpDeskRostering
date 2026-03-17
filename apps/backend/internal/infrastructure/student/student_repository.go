@@ -79,6 +79,22 @@ func (r *StudentRepository) GetByID(ctx context.Context, tx *sql.Tx, studentID i
 	return r.toDomain(&m)
 }
 
+func (r *StudentRepository) GetByIDIncludingDeactivated(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.Student, error) {
+	stmt := table.Students.SELECT(table.Students.AllColumns).
+		WHERE(table.Students.StudentID.EQ(postgres.Int32(studentID)))
+
+	var m model.Students
+	if err := stmt.QueryContext(ctx, tx, &m); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, studentErrors.ErrNotFound
+		}
+		r.logger.Error("failed to get student by ID (including deactivated)", zap.Error(err))
+		return nil, fmt.Errorf("failed to get student by ID: %w", err)
+	}
+
+	return r.toDomain(&m)
+}
+
 func (r *StudentRepository) GetByEmail(ctx context.Context, tx *sql.Tx, email string) (*aggregate.Student, error) {
 	stmt := table.Students.SELECT(table.Students.AllColumns).
 		WHERE(
@@ -133,7 +149,6 @@ func (r *StudentRepository) Update(ctx context.Context, tx *sql.Tx, student *agg
 
 func (r *StudentRepository) List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Student, error) {
 	stmt := table.Students.SELECT(table.Students.AllColumns).
-		WHERE(table.Students.DeletedAt.IS_NULL()).
 		ORDER_BY(table.Students.CreatedAt.DESC())
 
 	var models []model.Students
@@ -162,6 +177,8 @@ func (r *StudentRepository) ListByStatus(ctx context.Context, tx *sql.Tx, status
 	case "rejected":
 		condition = table.Students.RejectedAt.IS_NOT_NULL().
 			AND(table.Students.DeletedAt.IS_NULL())
+	case "deactivated":
+		condition = table.Students.DeletedAt.IS_NOT_NULL()
 	default:
 		return r.List(ctx, tx)
 	}

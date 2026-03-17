@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { FormError } from '@/components/ui/form-error'
 import { Button } from '@/components/ui/button'
 import {
     InputOTP,
@@ -134,11 +135,7 @@ export function StepEmailVerify({
                                     Verifying...
                                 </div>
                             )}
-                            {error && (
-                                <p className="text-sm text-destructive">
-                                    {error}
-                                </p>
-                            )}
+                            {error && <FormError message={error} />}
                         </div>
 
                         <div className="flex flex-col items-center gap-2 pt-1">

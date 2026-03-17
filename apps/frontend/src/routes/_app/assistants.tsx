@@ -7,10 +7,10 @@ import {
     useRouterState,
 } from '@tanstack/react-router'
 import { useDocumentTitle } from '@/hooks/use-document-title'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+import { StatCard, StatCardSkeleton } from '@/components/ui/stat-card'
 import {
     Users,
     GraduationCap,
@@ -24,7 +24,6 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useStudents } from '@/features/admin/student-management/student-context'
-import { MOCK_HOURS_WORKED } from '@/lib/mock-data'
 import { HOURLY_RATE } from '@/features/admin/columns/payment-columns'
 
 export const Route = createFileRoute('/_app/assistants')({
@@ -58,25 +57,12 @@ function StatCardsSkeleton() {
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {STAT_CARDS.map((card) => (
-                <Card key={card.title} className="gap-3 py-4">
-                    <CardHeader className="flex flex-row items-center justify-between pb-0">
-                        <CardTitle className="text-xs font-medium text-muted-foreground">
-                            {card.title}
-                        </CardTitle>
-                        <div
-                            className={cn(
-                                'flex h-7 w-7 items-center justify-center rounded-md',
-                                card.iconClassName,
-                            )}
-                        >
-                            <card.icon className="h-3.5 w-3.5" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <Skeleton className="h-8 w-16" />
-                        <Skeleton className="mt-1 h-3.5 w-28" />
-                    </CardContent>
-                </Card>
+                <StatCardSkeleton
+                    key={card.title}
+                    title={card.title}
+                    icon={card.icon}
+                    iconClassName={card.iconClassName}
+                />
             ))}
         </div>
     )
@@ -155,10 +141,7 @@ function AssistantsLayout() {
                       0,
                   ) / activeCount
                 : 0
-        const totalHours = MOCK_HOURS_WORKED.reduce(
-            (sum, h) => sum + h.hours,
-            0,
-        )
+        const totalHours = 0 // TODO: integrate with time logging API
         const totalPayroll = totalHours * HOURLY_RATE
         return { activeCount, avgGpa, totalHours, totalPayroll }
     }, [activeStudents])
@@ -260,29 +243,14 @@ function AssistantsLayout() {
                 ) : (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                         {STAT_CARDS.map((card, i) => (
-                            <Card key={card.title} className="gap-3 py-4">
-                                <CardHeader className="flex flex-row items-center justify-between pb-0">
-                                    <CardTitle className="text-xs font-medium text-muted-foreground">
-                                        {card.title}
-                                    </CardTitle>
-                                    <div
-                                        className={cn(
-                                            'flex h-7 w-7 items-center justify-center rounded-md',
-                                            card.iconClassName,
-                                        )}
-                                    >
-                                        <card.icon className="h-3.5 w-3.5" />
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold tracking-tight">
-                                        {cardValues[i].value}
-                                    </div>
-                                    <p className="mt-0.5 text-xs text-muted-foreground">
-                                        {cardValues[i].subtitle}
-                                    </p>
-                                </CardContent>
-                            </Card>
+                            <StatCard
+                                key={card.title}
+                                title={card.title}
+                                value={cardValues[i].value}
+                                subtitle={cardValues[i].subtitle}
+                                icon={card.icon}
+                                iconClassName={card.iconClassName}
+                            />
                         ))}
                     </div>
                 )}

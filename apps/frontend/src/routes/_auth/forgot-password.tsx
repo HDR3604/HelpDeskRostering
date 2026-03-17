@@ -4,9 +4,9 @@ import { GraduationCap } from 'lucide-react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { toast } from 'sonner'
 
-// import { sendPasswordResetEmail } from "@/lib/auth"
+import { forgotPassword } from '@/lib/auth/actions'
+import { FormError } from '@/components/ui/form-error'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -40,6 +40,7 @@ type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>
 
 export function ForgotPasswordComponent() {
     const [isSuccess, setIsSuccess] = useState(false)
+    const [error, setError] = useState('')
     const [resendTimer, setResendTimer] = useState(0)
 
     const form = useForm<ForgotPasswordValues>({
@@ -60,14 +61,13 @@ export function ForgotPasswordComponent() {
     }, [resendTimer])
 
     const onSubmit = async (values: ForgotPasswordValues) => {
+        setError('')
         try {
-            // await sendPasswordResetEmail(values.email)
+            await forgotPassword(values.email)
             setIsSuccess(true)
             setResendTimer(30)
         } catch {
-            toast.error(
-                'Failed to send password reset email. Please try again.',
-            )
+            setError('Failed to send password reset email. Please try again.')
         }
     }
 
@@ -118,6 +118,7 @@ export function ForgotPasswordComponent() {
                                                 type="email"
                                                 placeholder="you@uwi.edu"
                                                 autoComplete="email"
+                                                autoFocus
                                                 disabled={
                                                     isSuccess ||
                                                     form.formState.isSubmitting
@@ -129,6 +130,8 @@ export function ForgotPasswordComponent() {
                                     </FormItem>
                                 )}
                             />
+
+                            {error && <FormError message={error} />}
 
                             <Button
                                 type="submit"

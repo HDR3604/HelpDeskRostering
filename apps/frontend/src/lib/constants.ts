@@ -48,4 +48,5 @@ export const APPLICATION_STATUS_STYLES: Record<string, string> = {
     pending: 'bg-amber-500/15 text-amber-500 hover:bg-amber-500/15',
     accepted: 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15',
     rejected: 'bg-red-500/15 text-red-500 hover:bg-red-500/15',
+    deactivated: 'bg-muted text-muted-foreground hover:bg-muted',
 }

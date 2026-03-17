@@ -36,6 +36,20 @@ export async function completeOnboarding(
     return payload
 }
 
+export async function forgotPassword(email: string): Promise<void> {
+    await authHttpClient.post('/auth/forgot-password', { email })
+}
+
+export async function resetPassword(
+    token: string,
+    newPassword: string,
+): Promise<void> {
+    await authHttpClient.post('/auth/reset-password', {
+        token,
+        new_password: newPassword,
+    })
+}
+
 export async function logoutUser(): Promise<void> {
     const refreshToken = getRefreshToken()
     if (refreshToken) {

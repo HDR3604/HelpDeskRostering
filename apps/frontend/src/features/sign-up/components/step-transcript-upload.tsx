@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Upload, FileText, X, ArrowRight, Loader2 } from 'lucide-react'
+import { FormError } from '@/components/ui/form-error'
 import { cn } from '@/lib/utils'
 
 interface StepTranscriptUploadProps {
@@ -143,7 +144,7 @@ export function StepTranscriptUpload({
                 }}
             />
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <FormError message={error} />}
 
             <div className="flex justify-end">
                 <Button type="submit" disabled={isProcessing}>

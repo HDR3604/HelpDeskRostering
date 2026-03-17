@@ -1,6 +1,11 @@
-import { createContext, useContext, useState, useMemo, useEffect } from 'react'
-import { MOCK_STUDENTS } from '@/lib/mock-data'
-import { getApplicationStatus } from '@/types/student'
+import { createContext, useContext, useMemo } from 'react'
+import {
+    useStudents as useStudentsQuery,
+    useAcceptStudent,
+    useRejectStudent,
+    useDeactivateStudent,
+    useActivateStudent,
+} from '@/lib/queries/students'
 import type { Student } from '@/types/student'
 
 type StudentContextValue = {
@@ -12,82 +17,61 @@ type StudentContextValue = {
     handleActivate: (student: Student) => void
     handleReject: (studentId: number) => void
     handleAccept: (studentId: number) => void
+    refetch: () => void
+    isRefetching: boolean
+    isMutating: boolean
 }
 
 export const StudentContext = createContext<StudentContextValue | null>(null)
 
 export function StudentProvider({ children }: { children: React.ReactNode }) {
-    const [students, setStudents] = useState<Student[]>([])
-    const [deactivatedIds, setDeactivatedIds] = useState<Set<number>>(new Set())
-    const [isLoading, setIsLoading] = useState(true)
+    const {
+        data: students = [],
+        isLoading,
+        isRefetching,
+        refetch: refetchQuery,
+    } = useStudentsQuery()
 
-    useEffect(() => {
-        // Simulate API fetch
-        const timer = setTimeout(() => {
-            setStudents(MOCK_STUDENTS)
-            setIsLoading(false)
-        }, 800)
-        return () => clearTimeout(timer)
-    }, [])
+    const acceptMutation = useAcceptStudent()
+    const rejectMutation = useRejectStudent()
+    const deactivateMutation = useDeactivateStudent()
+    const activateMutation = useActivateStudent()
 
     const activeStudents = useMemo(
-        () =>
-            students.filter(
-                (s) =>
-                    getApplicationStatus(s) === 'accepted' &&
-                    !deactivatedIds.has(s.student_id),
-            ),
-        [students, deactivatedIds],
+        () => students.filter((s) => s.status === 'accepted'),
+        [students],
     )
 
     const deactivatedStudents = useMemo(
-        () => students.filter((s) => deactivatedIds.has(s.student_id)),
-        [students, deactivatedIds],
+        () => students.filter((s) => s.status === 'deactivated'),
+        [students],
     )
 
     function handleDeactivate(student: Student) {
-        setDeactivatedIds((e) => {
-            const updated = new Set(e)
-            updated.add(student.student_id)
-            return updated
-        })
+        deactivateMutation.mutate(student.student_id)
     }
 
     function handleActivate(student: Student) {
-        setDeactivatedIds((e) => {
-            const updated = new Set(e)
-            updated.delete(student.student_id)
-            return updated
-        })
+        activateMutation.mutate(student.student_id)
     }
 
     function handleAccept(studentId: number) {
-        setStudents((prev) =>
-            prev.map((s) =>
-                s.student_id === studentId
-                    ? {
-                          ...s,
-                          accepted_at: new Date().toISOString(),
-                          rejected_at: null,
-                      }
-                    : s,
-            ),
-        )
+        acceptMutation.mutate(studentId)
     }
 
     function handleReject(studentId: number) {
-        setStudents((prev) =>
-            prev.map((s) =>
-                s.student_id === studentId
-                    ? {
-                          ...s,
-                          rejected_at: new Date().toISOString(),
-                          accepted_at: null,
-                      }
-                    : s,
-            ),
-        )
+        rejectMutation.mutate(studentId)
     }
+
+    function handleRefetch() {
+        refetchQuery()
+    }
+
+    const isMutating =
+        acceptMutation.isPending ||
+        rejectMutation.isPending ||
+        deactivateMutation.isPending ||
+        activateMutation.isPending
 
     return (
         <StudentContext.Provider
@@ -100,6 +84,9 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
                 handleActivate,
                 handleReject,
                 handleAccept,
+                refetch: handleRefetch,
+                isRefetching,
+                isMutating,
             }}
         >
             {children}

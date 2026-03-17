@@ -16,11 +16,13 @@ import {
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { DataTable } from '@/components/ui/data-table'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
 import { getPaymentColumns, HOURLY_RATE } from '../columns/payment-columns'
-import { MOCK_STUDENTS, MOCK_HOURS_WORKED } from '@/lib/mock-data'
+import { MOCK_HOURS_WORKED } from '@/lib/mock-data'
 import { getApplicationStatus } from '@/types/student'
 import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
+import { useStudents } from '@/features/admin/student-management/student-context'
 import type { PaymentEntry } from '../columns/payment-columns'
 import type { Student } from '@/types/student'
 import type { RowSelectionState } from '@tanstack/react-table'
@@ -30,6 +32,7 @@ import {
     ChevronLeft,
     ChevronRight,
     CalendarDays,
+    DollarSign,
 } from 'lucide-react'
 
 // --- Period utilities ---
@@ -82,23 +85,23 @@ function findCurrentPeriodIdx(periods: Period[]): number {
     return idx >= 0 ? idx : periods.length - 1
 }
 
-function buildPaymentData(period: Period): PaymentEntry[] {
-    return MOCK_STUDENTS.filter(
-        (s) => getApplicationStatus(s) === 'accepted',
-    ).map((s) => {
-        const hoursRecord = MOCK_HOURS_WORKED.find(
-            (student) => student.name === `${s.first_name} ${s.last_name}`,
-        )
-        const hours = hoursRecord ? hoursRecord.hours : 0
-        return {
-            student: s,
-            periodStart: period.start,
-            periodEnd: period.end,
-            hoursWorked: hours,
-            grossAmount: hours * HOURLY_RATE,
-            processedAt: null,
-        }
-    })
+function buildPaymentData(period: Period, students: Student[]): PaymentEntry[] {
+    return students
+        .filter((s) => getApplicationStatus(s) === 'accepted')
+        .map((s) => {
+            const hoursRecord = MOCK_HOURS_WORKED.find(
+                (student) => student.name === `${s.first_name} ${s.last_name}`,
+            )
+            const hours = hoursRecord ? hoursRecord.hours : 0
+            return {
+                student: s,
+                periodStart: period.start,
+                periodEnd: period.end,
+                hoursWorked: hours,
+                grossAmount: hours * HOURLY_RATE,
+                processedAt: null,
+            }
+        })
 }
 
 // --- Component ---
@@ -108,6 +111,7 @@ const CURRENT_YEAR_PERIODS = generateFortnightlyPeriods(CURRENT_YEAR)
 const CURRENT_PERIOD_IDX = findCurrentPeriodIdx(CURRENT_YEAR_PERIODS)
 
 export function PaymentsCentre() {
+    const { students } = useStudents()
     const [year, setYear] = useState(CURRENT_YEAR)
     const [periodIdx, setPeriodIdx] = useState(CURRENT_PERIOD_IDX)
     const [pickerOpen, setPickerOpen] = useState(false)
@@ -120,10 +124,21 @@ export function PaymentsCentre() {
     )
     const currentPeriod = periods[periodIdx]
 
-    const [payments, setPayments] = useState<PaymentEntry[]>(() =>
-        buildPaymentData(CURRENT_YEAR_PERIODS[CURRENT_PERIOD_IDX]),
-    )
+    const [payments, setPayments] = useState<PaymentEntry[]>([])
+
+    // Rebuild payment data when students load or period changes
+    useEffect(() => {
+        if (students.length > 0) {
+            setPayments(buildPaymentData(currentPeriod, students))
+        }
+    }, [students, currentPeriod])
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+    const [confirmAction, setConfirmAction] = useState<
+        | { type: 'process'; entry: PaymentEntry }
+        | { type: 'revert'; entry: PaymentEntry }
+        | { type: 'bulk-process'; indices: number[] }
+        | null
+    >(null)
 
     const isAtCurrent =
         year === CURRENT_YEAR && periodIdx === CURRENT_PERIOD_IDX
@@ -138,10 +153,8 @@ export function PaymentsCentre() {
     }, [pickerOpen, pickerYear])
 
     function selectPeriod(newYear: number, idx: number) {
-        const newPeriods = generateFortnightlyPeriods(newYear)
         setYear(newYear)
         setPeriodIdx(idx)
-        setPayments(buildPaymentData(newPeriods[idx]))
         setRowSelection({})
         setPickerOpen(false)
     }
@@ -159,10 +172,8 @@ export function PaymentsCentre() {
             newIdx = 0
         }
 
-        const newPeriods = generateFortnightlyPeriods(newYear)
         setYear(newYear)
         setPeriodIdx(newIdx)
-        setPayments(buildPaymentData(newPeriods[newIdx]))
         setRowSelection({})
     }
 
@@ -175,16 +186,7 @@ export function PaymentsCentre() {
         .map(Number)
 
     function handleProcessSelected() {
-        const now = new Date().toISOString()
-        setPayments((prev) =>
-            prev.map((p, i) =>
-                selectedIndices.includes(i) ? { ...p, processedAt: now } : p,
-            ),
-        )
-        setRowSelection({})
-        toast.success(
-            `Processed ${selectedIndices.length} payment${selectedIndices.length > 1 ? 's' : ''}`,
-        )
+        setConfirmAction({ type: 'bulk-process', indices: selectedIndices })
     }
 
     function handleGenerateSheet() {
@@ -215,31 +217,97 @@ export function PaymentsCentre() {
     )
 
     const handleProcess = useCallback((entry: PaymentEntry) => {
-        const now = new Date().toISOString()
-        setPayments((prev) =>
-            prev.map((p) =>
-                p.student.student_id === entry.student.student_id
-                    ? { ...p, processedAt: now }
-                    : p,
-            ),
-        )
-        toast.success(
-            `Processed payment for ${entry.student.first_name} ${entry.student.last_name}`,
-        )
+        setConfirmAction({ type: 'process', entry })
     }, [])
 
     const handleRevert = useCallback((entry: PaymentEntry) => {
-        setPayments((prev) =>
-            prev.map((p) =>
-                p.student.student_id === entry.student.student_id
-                    ? { ...p, processedAt: null }
-                    : p,
-            ),
-        )
-        toast.success(
-            `Reverted payment for ${entry.student.first_name} ${entry.student.last_name}`,
-        )
+        setConfirmAction({ type: 'revert', entry })
     }, [])
+
+    function handleConfirm() {
+        if (!confirmAction) return
+
+        switch (confirmAction.type) {
+            case 'process': {
+                const now = new Date().toISOString()
+                setPayments((prev) =>
+                    prev.map((p) =>
+                        p.student.student_id ===
+                        confirmAction.entry.student.student_id
+                            ? { ...p, processedAt: now }
+                            : p,
+                    ),
+                )
+                toast.success(
+                    `Processed payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
+                )
+                break
+            }
+            case 'revert': {
+                setPayments((prev) =>
+                    prev.map((p) =>
+                        p.student.student_id ===
+                        confirmAction.entry.student.student_id
+                            ? { ...p, processedAt: null }
+                            : p,
+                    ),
+                )
+                toast.success(
+                    `Reverted payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
+                )
+                break
+            }
+            case 'bulk-process': {
+                const now = new Date().toISOString()
+                setPayments((prev) =>
+                    prev.map((p, i) =>
+                        confirmAction.indices.includes(i)
+                            ? { ...p, processedAt: now }
+                            : p,
+                    ),
+                )
+                setRowSelection({})
+                toast.success(
+                    `Processed ${confirmAction.indices.length} payment${confirmAction.indices.length > 1 ? 's' : ''}`,
+                )
+                break
+            }
+        }
+
+        setConfirmAction(null)
+    }
+
+    function getConfirmProps(): {
+        title: string
+        description: React.ReactNode
+        confirmLabel: string
+    } {
+        if (!confirmAction)
+            return { title: '', description: '', confirmLabel: '' }
+
+        switch (confirmAction.type) {
+            case 'process':
+                return {
+                    title: 'Process Payment',
+                    description: `Are you sure you want to mark the payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name} as processed?`,
+                    confirmLabel: 'Process',
+                }
+            case 'revert':
+                return {
+                    title: 'Revert Payment',
+                    description: `Are you sure you want to revert the payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name} back to pending?`,
+                    confirmLabel: 'Revert',
+                }
+            case 'bulk-process':
+                return {
+                    title: 'Process Payments',
+                    description: `Are you sure you want to mark ${confirmAction.indices.length} payment${confirmAction.indices.length > 1 ? 's' : ''} as processed?`,
+                    confirmLabel: `Process (${confirmAction.indices.length})`,
+                }
+        }
+    }
+
+    const confirmProps = getConfirmProps()
 
     const columns = useMemo(
         () =>
@@ -250,6 +318,31 @@ export function PaymentsCentre() {
             }),
         [handleProcess, handleRevert],
     )
+
+    if (payments.length === 0) {
+        return (
+            <Card>
+                <CardContent className="py-16">
+                    <div className="flex flex-col items-center justify-center text-center">
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                            <DollarSign className="size-7 text-primary" />
+                        </div>
+                        <h2 className="mt-5 text-base font-semibold">
+                            No payroll data
+                        </h2>
+                        <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+                            There are no accepted assistants for this period.
+                            Accept applications from the{' '}
+                            <span className="font-medium text-foreground">
+                                Applications
+                            </span>{' '}
+                            page to see payroll records here.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
 
     return (
         <>
@@ -447,6 +540,17 @@ export function PaymentsCentre() {
                     </div>
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={confirmAction !== null}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+                title={confirmProps.title}
+                description={confirmProps.description}
+                confirmLabel={confirmProps.confirmLabel}
+                onConfirm={handleConfirm}
+                destructive={confirmAction?.type === 'revert'}
+            />
             <TranscriptDialog
                 student={transcriptStudent}
                 open={transcriptStudent !== null}
