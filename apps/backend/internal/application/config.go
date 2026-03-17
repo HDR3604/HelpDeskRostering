@@ -25,6 +25,8 @@ type Config struct {
 	SeedAdminLastName    string
 	SeedAdminEmail       string
 	SeedAdminPassword    string
+	HelpDeskLongitude    float64
+	HelpDeskLatitude     float64
 }
 
 func LoadConfig() (Config, error) {
@@ -125,6 +127,20 @@ func LoadConfig() (Config, error) {
 	cfg.SeedAdminLastName = os.Getenv("SEED_ADMIN_LAST_NAME")
 	cfg.SeedAdminEmail = os.Getenv("SEED_ADMIN_EMAIL")
 	cfg.SeedAdminPassword = os.Getenv("SEED_ADMIN_PASSWORD")
+
+	// Help Desk location (defaults to UWI St Augustine campus)
+	cfg.HelpDeskLongitude = -61.277001
+	if v := os.Getenv("HELPDESK_LONGITUDE"); v != "" {
+		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.HelpDeskLongitude = parsed
+		}
+	}
+	cfg.HelpDeskLatitude = 10.642707
+	if v := os.Getenv("HELPDESK_LATITUDE"); v != "" {
+		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.HelpDeskLatitude = parsed
+		}
+	}
 
 	return cfg, nil
 }

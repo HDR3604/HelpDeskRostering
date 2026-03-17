@@ -9,6 +9,7 @@ import (
 	consentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/consent/handler"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
+	timelogHandler "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/handler"
 	transcriptHandler "github.com/HDR3604/HelpDeskApp/internal/domain/transcript/handler"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	userHandler "github.com/HDR3604/HelpDeskApp/internal/domain/user/handler"
@@ -31,6 +32,7 @@ func registerRoutes(
 	studentHdl *studentHandler.StudentHandler,
 	userHdl *userHandler.UserHandler,
 	verificationHdl *verificationHandler.VerificationHandler,
+	timeLogHdl *timelogHandler.TimeLogHandler,
 ) {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -61,6 +63,7 @@ func registerRoutes(
 			scheduleHdl.RegisterRoutes(r)
 			shiftTemplateHdl.RegisterReadRoutes(r)
 			studentHdl.RegisterRoutes(r)
+			timeLogHdl.RegisterRoutes(r)
 
 			// Admin-only routes
 			r.Group(func(r chi.Router) {
