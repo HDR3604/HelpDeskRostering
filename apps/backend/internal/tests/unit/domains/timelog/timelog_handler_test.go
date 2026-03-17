@@ -132,6 +132,20 @@ func (s *TimeLogHandlerTestSuite) TestClockIn_EmptyCode() {
 	s.Equal(http.StatusBadRequest, rr.Code)
 }
 
+func (s *TimeLogHandlerTestSuite) TestClockIn_ZeroCoordinates() {
+	rr := s.doRequest("POST", "/api/v1/time-logs/clock-in", `{
+		"code": "A1B2C3D4",
+		"longitude": 0,
+		"latitude": 0
+	}`)
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+
+	var resp map[string]string
+	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
+	s.Equal("longitude and latitude are required", resp["error"])
+}
+
 func (s *TimeLogHandlerTestSuite) TestClockIn_InvalidCode() {
 	s.mockSvc.ClockInFn = func(_ context.Context, _ service.ClockInInput) (*aggregate.TimeLog, error) {
 		return nil, timelogErrors.ErrInvalidClockInCode

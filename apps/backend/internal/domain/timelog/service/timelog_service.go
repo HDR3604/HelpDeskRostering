@@ -60,6 +60,7 @@ type TimeLogService struct {
 	scheduleRepo    scheduleRepo.ScheduleRepositoryInterface
 	helpDeskLon     float64
 	helpDeskLat     float64
+	nowFn           func() time.Time
 }
 
 func NewTimeLogService(
@@ -78,7 +79,13 @@ func NewTimeLogService(
 		scheduleRepo:    scheduleRepo,
 		helpDeskLon:     helpDeskLon,
 		helpDeskLat:     helpDeskLat,
+		nowFn:           func() time.Time { return time.Now().UTC() },
 	}
+}
+
+// WithNowFn sets a custom time function, useful for testing.
+func (s *TimeLogService) WithNowFn(fn func() time.Time) {
+	s.nowFn = fn
 }
 
 func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggregate.TimeLog, error) {
@@ -129,7 +136,7 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 			return timelogErrors.ErrNoActiveShift
 		}
 
-		_, hasShift := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
+		_, hasShift := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
 		if !hasShift {
 			return timelogErrors.ErrNoActiveShift
 		}
@@ -235,7 +242,7 @@ func (s *TimeLogService) GetMyStatus(ctx context.Context) (*ClockInStatus, error
 					return err
 				}
 			} else if activeSchedule != nil {
-				shiftInfo, ok := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
+				shiftInfo, ok := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
 				if ok {
 					status.CurrentShift = shiftInfo
 				}
@@ -359,6 +366,8 @@ type assignmentEntry struct {
 
 // hasActiveShift checks if the given student has a shift assignment right now
 // (within earlyMinutes before the shift start up to the shift end).
+// NOTE: Shifts that span midnight (e.g. 23:00–01:00) are not supported because
+// time comparison is done lexicographically on "HH:MM:SS" strings within a single day.
 func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool) {
 	var entries []assignmentEntry
 	if err := json.Unmarshal(assignments, &entries); err != nil {

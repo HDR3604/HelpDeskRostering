@@ -216,12 +216,14 @@ func (s *TimeLogServiceTestSuite) TestClockIn_NoActiveShift() {
 }
 
 func (s *TimeLogServiceTestSuite) TestClockIn_10MinEarly_Allowed() {
-	now := time.Now().UTC()
-	scheduleDay := (int(now.Weekday()) + 6) % 7
+	// Use a fixed time to avoid race conditions between test setup and service call
+	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
+	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
+	scheduleDay := (int(fixedNow.Weekday()) + 6) % 7
 
-	// Shift starts 8 minutes from now, ends 60 minutes from now
-	start := now.Add(8 * time.Minute).Format("15:04:05")
-	end := now.Add(60 * time.Minute).Format("15:04:05")
+	// Shift starts 8 minutes from fixedNow, ends 60 minutes from fixedNow
+	start := fixedNow.Add(8 * time.Minute).Format("15:04:05")
+	end := fixedNow.Add(60 * time.Minute).Format("15:04:05")
 
 	assignments, _ := json.Marshal([]map[string]any{
 		{
@@ -244,7 +246,7 @@ func (s *TimeLogServiceTestSuite) TestClockIn_10MinEarly_Allowed() {
 		return schedule, nil
 	}
 	s.timeLogRepo.CreateFn = func(_ context.Context, _ *sql.Tx, tl *aggregate.TimeLog) (*aggregate.TimeLog, error) {
-		tl.CreatedAt = now
+		tl.CreatedAt = fixedNow
 		return tl, nil
 	}
 
@@ -259,12 +261,13 @@ func (s *TimeLogServiceTestSuite) TestClockIn_10MinEarly_Allowed() {
 }
 
 func (s *TimeLogServiceTestSuite) TestClockIn_ShiftEnded_Rejected() {
-	now := time.Now().UTC()
-	scheduleDay := (int(now.Weekday()) + 6) % 7
+	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
+	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
+	scheduleDay := (int(fixedNow.Weekday()) + 6) % 7
 
 	// Shift ended 30 minutes ago
-	start := now.Add(-90 * time.Minute).Format("15:04:05")
-	end := now.Add(-30 * time.Minute).Format("15:04:05")
+	start := fixedNow.Add(-90 * time.Minute).Format("15:04:05")
+	end := fixedNow.Add(-30 * time.Minute).Format("15:04:05")
 
 	assignments, _ := json.Marshal([]map[string]any{
 		{

@@ -55,6 +55,11 @@ func (h *TimeLogHandler) ClockIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Longitude == 0 && req.Latitude == 0 {
+		writeError(w, http.StatusBadRequest, "longitude and latitude are required")
+		return
+	}
+
 	tl, err := h.service.ClockIn(r.Context(), service.ClockInInput{
 		Code:      req.Code,
 		Longitude: req.Longitude,
