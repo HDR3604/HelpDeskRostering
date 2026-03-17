@@ -32,6 +32,7 @@ import {
     ChevronLeft,
     ChevronRight,
     CalendarDays,
+    DollarSign,
 } from 'lucide-react'
 
 // --- Period utilities ---
@@ -317,6 +318,31 @@ export function PaymentsCentre() {
             }),
         [handleProcess, handleRevert],
     )
+
+    if (payments.length === 0) {
+        return (
+            <Card>
+                <CardContent className="py-16">
+                    <div className="flex flex-col items-center justify-center text-center">
+                        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                            <DollarSign className="size-7 text-primary" />
+                        </div>
+                        <h2 className="mt-5 text-base font-semibold">
+                            No payroll data
+                        </h2>
+                        <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+                            There are no accepted assistants for this period.
+                            Accept applications from the{' '}
+                            <span className="font-medium text-foreground">
+                                Applications
+                            </span>{' '}
+                            page to see payroll records here.
+                        </p>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
 
     return (
         <>

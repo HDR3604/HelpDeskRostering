@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { LoaderCircle } from 'lucide-react'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,6 +19,7 @@ interface ConfirmDialogProps {
     confirmLabel: string
     onConfirm: () => void
     destructive?: boolean
+    loading?: boolean
 }
 
 export function ConfirmDialog({
@@ -28,6 +30,7 @@ export function ConfirmDialog({
     confirmLabel,
     onConfirm,
     destructive,
+    loading,
 }: ConfirmDialogProps) {
     const lastProps = useRef({ title, description, confirmLabel, destructive })
 
@@ -49,13 +52,19 @@ export function ConfirmDialog({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel disabled={loading}>
+                        Cancel
+                    </AlertDialogCancel>
                     <AlertDialogAction
                         variant={
                             display.destructive ? 'destructive' : 'outline'
                         }
                         onClick={onConfirm}
+                        disabled={loading}
                     >
+                        {loading && (
+                            <LoaderCircle className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        )}
                         {display.confirmLabel}
                     </AlertDialogAction>
                 </AlertDialogFooter>

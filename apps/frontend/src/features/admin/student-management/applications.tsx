@@ -9,7 +9,7 @@ import {
     CardTitle,
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { RefreshCw, LoaderCircle } from 'lucide-react'
+import { RefreshCw, LoaderCircle, Check, X } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { getStudentColumns } from '../columns/application-columns'
@@ -17,6 +17,7 @@ import { TranscriptDialog } from '../components/transcript-dialog'
 import { useStudents } from '@/features/admin/student-management/student-context'
 import type { Student } from '@/types/student'
 import { getApplicationStatus, type ApplicationStatus } from '@/types/student'
+import type { RowSelectionState } from '@tanstack/react-table'
 
 const statusOrder: Record<ApplicationStatus, number> = {
     pending: 0,
@@ -28,16 +29,25 @@ const statusOrder: Record<ApplicationStatus, number> = {
 type ConfirmAction =
     | { type: 'accept'; studentId: number }
     | { type: 'reject'; studentId: number }
+    | { type: 'bulk-accept'; studentIds: number[] }
+    | { type: 'bulk-reject'; studentIds: number[] }
 
 export function Applications() {
-    const { students, handleAccept, handleReject, refetch, isRefetching } =
-        useStudents()
+    const {
+        students,
+        handleAccept,
+        handleReject,
+        refetch,
+        isRefetching,
+        isMutating,
+    } = useStudents()
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
         null,
     )
     const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
         null,
     )
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
     const pendingCount = students.filter(
         (s) => getApplicationStatus(s) === 'pending',
@@ -53,6 +63,15 @@ export function Applications() {
         [students],
     )
 
+    const selectedPendingIds = useMemo(() => {
+        return Object.keys(rowSelection)
+            .filter((k) => rowSelection[k])
+            .map(Number)
+            .map((i) => sorted[i])
+            .filter((s) => s && getApplicationStatus(s) === 'pending')
+            .map((s) => s.student_id)
+    }, [rowSelection, sorted])
+
     const onAccept = useCallback((studentId: number) => {
         setConfirmAction({ type: 'accept', studentId })
     }, [])
@@ -67,28 +86,97 @@ export function Applications() {
                 onAccept,
                 onReject,
                 onViewTranscript: setTranscriptStudent,
+                isMutating,
             }),
-        [onAccept, onReject],
+        [onAccept, onReject, isMutating],
     )
 
     function handleConfirm() {
         if (!confirmAction) return
 
-        if (confirmAction.type === 'accept') {
-            handleAccept(confirmAction.studentId)
-        } else {
-            handleReject(confirmAction.studentId)
+        switch (confirmAction.type) {
+            case 'accept':
+                handleAccept(confirmAction.studentId)
+                break
+            case 'reject':
+                handleReject(confirmAction.studentId)
+                break
+            case 'bulk-accept':
+                for (const id of confirmAction.studentIds) {
+                    handleAccept(id)
+                }
+                setRowSelection({})
+                break
+            case 'bulk-reject':
+                for (const id of confirmAction.studentIds) {
+                    handleReject(id)
+                }
+                setRowSelection({})
+                break
         }
 
         setConfirmAction(null)
     }
 
-    const confirmStudent = confirmAction
-        ? students.find((s) => s.student_id === confirmAction.studentId)
-        : null
-    const confirmName = confirmStudent
-        ? `${confirmStudent.first_name} ${confirmStudent.last_name}`
-        : ''
+    function getConfirmProps(): {
+        title: string
+        description: React.ReactNode
+        confirmLabel: string
+        destructive: boolean
+    } {
+        if (!confirmAction) {
+            return {
+                title: '',
+                description: '',
+                confirmLabel: '',
+                destructive: false,
+            }
+        }
+
+        switch (confirmAction.type) {
+            case 'accept': {
+                const s = students.find(
+                    (s) => s.student_id === confirmAction.studentId,
+                )
+                const name = s ? `${s.first_name} ${s.last_name}` : ''
+                return {
+                    title: 'Accept Application',
+                    description: `Are you sure you want to accept ${name}? They will be added to the active roster.`,
+                    confirmLabel: 'Accept',
+                    destructive: false,
+                }
+            }
+            case 'reject': {
+                const s = students.find(
+                    (s) => s.student_id === confirmAction.studentId,
+                )
+                const name = s ? `${s.first_name} ${s.last_name}` : ''
+                return {
+                    title: 'Reject Application',
+                    description: `Are you sure you want to reject ${name}?`,
+                    confirmLabel: 'Reject',
+                    destructive: true,
+                }
+            }
+            case 'bulk-accept':
+                return {
+                    title: 'Accept Applications',
+                    description: `Are you sure you want to accept ${confirmAction.studentIds.length} applicant${confirmAction.studentIds.length > 1 ? 's' : ''}? They will be added to the active roster.`,
+                    confirmLabel: `Accept (${confirmAction.studentIds.length})`,
+                    destructive: false,
+                }
+            case 'bulk-reject':
+                return {
+                    title: 'Reject Applications',
+                    description: `Are you sure you want to reject ${confirmAction.studentIds.length} applicant${confirmAction.studentIds.length > 1 ? 's' : ''}?`,
+                    confirmLabel: `Reject (${confirmAction.studentIds.length})`,
+                    destructive: true,
+                }
+        }
+    }
+
+    const confirmProps = getConfirmProps()
+    const hasSelection = Object.values(rowSelection).some(Boolean)
 
     return (
         <>
@@ -132,6 +220,41 @@ export function Applications() {
                             <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
                     )}
+                    {hasSelection && selectedPendingIds.length > 0 && (
+                        <div className="mb-3 flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
+                            <span className="text-sm text-muted-foreground">
+                                {selectedPendingIds.length} pending selected
+                            </span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isMutating}
+                                onClick={() =>
+                                    setConfirmAction({
+                                        type: 'bulk-accept',
+                                        studentIds: selectedPendingIds,
+                                    })
+                                }
+                            >
+                                <Check className="mr-1 h-3.5 w-3.5" />
+                                Accept ({selectedPendingIds.length})
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isMutating}
+                                onClick={() =>
+                                    setConfirmAction({
+                                        type: 'bulk-reject',
+                                        studentIds: selectedPendingIds,
+                                    })
+                                }
+                            >
+                                <X className="mr-1 h-3.5 w-3.5" />
+                                Reject ({selectedPendingIds.length})
+                            </Button>
+                        </div>
+                    )}
                     <DataTable
                         columns={columns}
                         data={sorted}
@@ -139,6 +262,9 @@ export function Applications() {
                         globalFilter
                         pageSize={10}
                         emptyMessage="No applications yet."
+                        enableRowSelection
+                        rowSelection={rowSelection}
+                        onRowSelectionChange={setRowSelection}
                     />
                 </CardContent>
             </Card>
@@ -147,21 +273,12 @@ export function Applications() {
                 onOpenChange={(open) => {
                     if (!open) setConfirmAction(null)
                 }}
-                title={
-                    confirmAction?.type === 'accept'
-                        ? 'Accept Application'
-                        : 'Reject Application'
-                }
-                description={
-                    confirmAction?.type === 'accept'
-                        ? `Are you sure you want to accept ${confirmName}? They will be added to the active roster.`
-                        : `Are you sure you want to reject ${confirmName}?`
-                }
-                confirmLabel={
-                    confirmAction?.type === 'accept' ? 'Accept' : 'Reject'
-                }
+                title={confirmProps.title}
+                description={confirmProps.description}
+                confirmLabel={confirmProps.confirmLabel}
                 onConfirm={handleConfirm}
-                destructive={confirmAction?.type === 'reject'}
+                destructive={confirmProps.destructive}
+                loading={isMutating}
             />
             <TranscriptDialog
                 student={transcriptStudent}

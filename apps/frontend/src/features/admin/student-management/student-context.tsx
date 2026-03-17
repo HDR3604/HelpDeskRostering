@@ -1,12 +1,10 @@
 import { createContext, useContext, useMemo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import {
     useStudents as useStudentsQuery,
     useAcceptStudent,
     useRejectStudent,
     useDeactivateStudent,
     useActivateStudent,
-    studentKeys,
 } from '@/lib/queries/students'
 import type { Student } from '@/types/student'
 
@@ -21,13 +19,18 @@ type StudentContextValue = {
     handleAccept: (studentId: number) => void
     refetch: () => void
     isRefetching: boolean
+    isMutating: boolean
 }
 
 export const StudentContext = createContext<StudentContextValue | null>(null)
 
 export function StudentProvider({ children }: { children: React.ReactNode }) {
-    const { data: students = [], isLoading, isRefetching } = useStudentsQuery()
-    const queryClient = useQueryClient()
+    const {
+        data: students = [],
+        isLoading,
+        isRefetching,
+        refetch: refetchQuery,
+    } = useStudentsQuery()
 
     const acceptMutation = useAcceptStudent()
     const rejectMutation = useRejectStudent()
@@ -61,8 +64,14 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
     }
 
     function handleRefetch() {
-        queryClient.invalidateQueries({ queryKey: studentKeys.all() })
+        refetchQuery()
     }
+
+    const isMutating =
+        acceptMutation.isPending ||
+        rejectMutation.isPending ||
+        deactivateMutation.isPending ||
+        activateMutation.isPending
 
     return (
         <StudentContext.Provider
@@ -77,6 +86,7 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
                 handleAccept,
                 refetch: handleRefetch,
                 isRefetching,
+                isMutating,
             }}
         >
             {children}

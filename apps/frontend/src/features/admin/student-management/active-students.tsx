@@ -288,6 +288,7 @@ export function AssistantRoster({
                     confirmAction?.type === 'deactivate' ||
                     confirmAction?.type === 'bulk-deactivate'
                 }
+                loading={bulkDeactivate.isPending || bulkActivate.isPending}
             />
             <TranscriptDialog
                 student={transcriptStudent}
