@@ -9,16 +9,16 @@ set -eu
 # Requires DATABASE_URL to be set (or sourced from .env.local).
 #
 # Dokploy (inside backend container terminal):
-#   ./seed_admin.sh Admin User admin@example.com 'YourPassword'
-
-# RUN command (from bin/sh):
-# SEED_ADMIN_FIRST_NAME=Terrence SEED_ADMIN_LAST_NAME=Murray SEED_ADMIN_EMAIL=terrencemurray004@gmail.com SEED_ADMIN_PASSWORD=Admin123! ./seed-admin
+#   ./seed_admin.sh Admin User admin@example.com '<password>'
+#
+# Environment variables (from bin/sh):
+#   SEED_ADMIN_FIRST_NAME=Admin SEED_ADMIN_LAST_NAME=User SEED_ADMIN_EMAIL=admin@example.com SEED_ADMIN_PASSWORD='<password>' ./seed-admin
 #
 # Docker exec (from host):
 #   docker exec -e SEED_ADMIN_FIRST_NAME='Admin' \
 #               -e SEED_ADMIN_LAST_NAME='User' \
 #               -e SEED_ADMIN_EMAIL='admin@example.com' \
-#               -e SEED_ADMIN_PASSWORD='YourPassword' \
+#               -e SEED_ADMIN_PASSWORD='<password>' \
 #               <backend-container> ./seed-admin
 
 if [ $# -lt 4 ]; then

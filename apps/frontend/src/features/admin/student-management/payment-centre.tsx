@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/popover'
 import { Separator } from '@/components/ui/separator'
 import { DataTable } from '@/components/ui/data-table'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
 import { getPaymentColumns, HOURLY_RATE } from '../columns/payment-columns'
 import { MOCK_HOURS_WORKED } from '@/lib/mock-data'
@@ -131,6 +132,12 @@ export function PaymentsCentre() {
         }
     }, [students, currentPeriod])
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+    const [confirmAction, setConfirmAction] = useState<
+        | { type: 'process'; entry: PaymentEntry }
+        | { type: 'revert'; entry: PaymentEntry }
+        | { type: 'bulk-process'; indices: number[] }
+        | null
+    >(null)
 
     const isAtCurrent =
         year === CURRENT_YEAR && periodIdx === CURRENT_PERIOD_IDX
@@ -178,16 +185,7 @@ export function PaymentsCentre() {
         .map(Number)
 
     function handleProcessSelected() {
-        const now = new Date().toISOString()
-        setPayments((prev) =>
-            prev.map((p, i) =>
-                selectedIndices.includes(i) ? { ...p, processedAt: now } : p,
-            ),
-        )
-        setRowSelection({})
-        toast.success(
-            `Processed ${selectedIndices.length} payment${selectedIndices.length > 1 ? 's' : ''}`,
-        )
+        setConfirmAction({ type: 'bulk-process', indices: selectedIndices })
     }
 
     function handleGenerateSheet() {
@@ -218,31 +216,97 @@ export function PaymentsCentre() {
     )
 
     const handleProcess = useCallback((entry: PaymentEntry) => {
-        const now = new Date().toISOString()
-        setPayments((prev) =>
-            prev.map((p) =>
-                p.student.student_id === entry.student.student_id
-                    ? { ...p, processedAt: now }
-                    : p,
-            ),
-        )
-        toast.success(
-            `Processed payment for ${entry.student.first_name} ${entry.student.last_name}`,
-        )
+        setConfirmAction({ type: 'process', entry })
     }, [])
 
     const handleRevert = useCallback((entry: PaymentEntry) => {
-        setPayments((prev) =>
-            prev.map((p) =>
-                p.student.student_id === entry.student.student_id
-                    ? { ...p, processedAt: null }
-                    : p,
-            ),
-        )
-        toast.success(
-            `Reverted payment for ${entry.student.first_name} ${entry.student.last_name}`,
-        )
+        setConfirmAction({ type: 'revert', entry })
     }, [])
+
+    function handleConfirm() {
+        if (!confirmAction) return
+
+        switch (confirmAction.type) {
+            case 'process': {
+                const now = new Date().toISOString()
+                setPayments((prev) =>
+                    prev.map((p) =>
+                        p.student.student_id ===
+                        confirmAction.entry.student.student_id
+                            ? { ...p, processedAt: now }
+                            : p,
+                    ),
+                )
+                toast.success(
+                    `Processed payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
+                )
+                break
+            }
+            case 'revert': {
+                setPayments((prev) =>
+                    prev.map((p) =>
+                        p.student.student_id ===
+                        confirmAction.entry.student.student_id
+                            ? { ...p, processedAt: null }
+                            : p,
+                    ),
+                )
+                toast.success(
+                    `Reverted payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
+                )
+                break
+            }
+            case 'bulk-process': {
+                const now = new Date().toISOString()
+                setPayments((prev) =>
+                    prev.map((p, i) =>
+                        confirmAction.indices.includes(i)
+                            ? { ...p, processedAt: now }
+                            : p,
+                    ),
+                )
+                setRowSelection({})
+                toast.success(
+                    `Processed ${confirmAction.indices.length} payment${confirmAction.indices.length > 1 ? 's' : ''}`,
+                )
+                break
+            }
+        }
+
+        setConfirmAction(null)
+    }
+
+    function getConfirmProps(): {
+        title: string
+        description: React.ReactNode
+        confirmLabel: string
+    } {
+        if (!confirmAction)
+            return { title: '', description: '', confirmLabel: '' }
+
+        switch (confirmAction.type) {
+            case 'process':
+                return {
+                    title: 'Process Payment',
+                    description: `Are you sure you want to mark the payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name} as processed?`,
+                    confirmLabel: 'Process',
+                }
+            case 'revert':
+                return {
+                    title: 'Revert Payment',
+                    description: `Are you sure you want to revert the payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name} back to pending?`,
+                    confirmLabel: 'Revert',
+                }
+            case 'bulk-process':
+                return {
+                    title: 'Process Payments',
+                    description: `Are you sure you want to mark ${confirmAction.indices.length} payment${confirmAction.indices.length > 1 ? 's' : ''} as processed?`,
+                    confirmLabel: `Process (${confirmAction.indices.length})`,
+                }
+        }
+    }
+
+    const confirmProps = getConfirmProps()
 
     const columns = useMemo(
         () =>
@@ -450,6 +514,17 @@ export function PaymentsCentre() {
                     </div>
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={confirmAction !== null}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+                title={confirmProps.title}
+                description={confirmProps.description}
+                confirmLabel={confirmProps.confirmLabel}
+                onConfirm={handleConfirm}
+                destructive={confirmAction?.type === 'revert'}
+            />
             <TranscriptDialog
                 student={transcriptStudent}
                 open={transcriptStudent !== null}

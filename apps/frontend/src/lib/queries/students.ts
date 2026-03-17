@@ -90,6 +90,7 @@ export function useAcceptStudent() {
                 updated,
             )
             invalidateLists(queryClient)
+            toast.success(`Accepted ${updated.first_name} ${updated.last_name}`)
         },
         onError: (error) => {
             invalidateLists(queryClient)
@@ -113,6 +114,7 @@ export function useRejectStudent() {
                 updated,
             )
             invalidateLists(queryClient)
+            toast.success(`Rejected ${updated.first_name} ${updated.last_name}`)
         },
         onError: (error) => {
             invalidateLists(queryClient)
@@ -136,6 +138,9 @@ export function useDeactivateStudent() {
                 updated,
             )
             invalidateLists(queryClient)
+            toast.success(
+                `Deactivated ${updated.first_name} ${updated.last_name}`,
+            )
         },
         onError: (error) => {
             invalidateLists(queryClient)
@@ -159,6 +164,9 @@ export function useActivateStudent() {
                 updated,
             )
             invalidateLists(queryClient)
+            toast.success(
+                `Activated ${updated.first_name} ${updated.last_name}`,
+            )
         },
         onError: (error) => {
             invalidateLists(queryClient)

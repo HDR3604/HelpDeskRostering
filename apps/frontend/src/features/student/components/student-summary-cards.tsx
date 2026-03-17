@@ -1,13 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { cn } from '@/lib/utils'
-import {
-    Clock,
-    CalendarCheck,
-    CalendarClock,
-    CircleDot,
-    TrendingUp,
-    Minus,
-} from 'lucide-react'
+import { Clock, CalendarCheck, CalendarClock, CircleDot } from 'lucide-react'
+import { StatCard } from '@/components/ui/stat-card'
 import { MOCK_HOURS_WORKED, MOCK_MISSED_SHIFTS } from '@/lib/mock-data'
 import { ALL_DAYS_SHORT } from '@/lib/constants'
 import { formatHour, getScheduledHours } from '@/lib/format'
@@ -22,14 +14,6 @@ interface StudentSummaryCardsProps {
     assignments: Assignment[]
     shiftTemplates: ShiftTemplate[]
     timeLogs: TimeLog[]
-}
-
-interface StatCard {
-    title: string
-    value: string
-    icon: React.ElementType
-    trend?: { value: string; direction: 'up' | 'neutral' }
-    iconClassName: string
 }
 
 function formatDuration(ms: number): string {
@@ -78,99 +62,58 @@ export function StudentSummaryCards({
     const latestLog = myLogs[0] ?? null
     const isOnClock = !!latestLog && latestLog.exit_at === null
 
-    let clockTrend: string
+    let clockSubtitle: string
     if (isOnClock) {
         const elapsed = Date.now() - new Date(latestLog.entry_at).getTime()
-        clockTrend = `Clocked in ${formatDuration(elapsed)} ago`
+        clockSubtitle = `Clocked in ${formatDuration(elapsed)} ago`
     } else if (latestLog?.exit_at) {
         const since = Date.now() - new Date(latestLog.exit_at).getTime()
-        clockTrend = `Last clocked out ${formatDuration(since)} ago`
+        clockSubtitle = `Last clocked out ${formatDuration(since)} ago`
     } else if (next) {
-        clockTrend = `Next: ${ALL_DAYS_SHORT[next.day_of_week]} ${formatHour(next.start)}`
+        clockSubtitle = `Next: ${ALL_DAYS_SHORT[next.day_of_week]} ${formatHour(next.start)}`
     } else {
-        clockTrend = 'No shifts scheduled'
+        clockSubtitle = 'No shifts scheduled'
     }
 
-    const cards: StatCard[] = [
+    const cards = [
         {
             title: 'Hours This Week',
             value: hasData ? `${hoursWorked} / ${scheduledHours}` : '—',
+            subtitle: hasData ? `${hoursPct}% of scheduled hours` : '',
             icon: Clock,
             iconClassName: 'bg-blue-500/10 text-blue-500',
-            trend: hasData
-                ? { value: `${hoursPct}% of scheduled hours`, direction: 'up' }
-                : undefined,
         },
         {
             title: 'Shifts Completed',
             value: hasData ? `${completedShifts} / ${totalShifts}` : '—',
+            subtitle: hasData ? `${attendanceRate}% attendance` : '',
             icon: CalendarCheck,
             iconClassName: 'bg-emerald-500/10 text-emerald-500',
-            trend: hasData
-                ? { value: `${attendanceRate}% attendance`, direction: 'up' }
-                : undefined,
         },
         {
             title: 'Next Shift',
             value: next
                 ? `${ALL_DAYS_SHORT[next.day_of_week]} ${formatHour(next.start)}`
                 : '—',
+            subtitle: template?.name ?? '',
             icon: CalendarClock,
             iconClassName: 'bg-violet-500/10 text-violet-500',
-            trend: template
-                ? { value: template.name, direction: 'neutral' }
-                : undefined,
         },
         {
             title: 'Clock Status',
             value: isOnClock ? 'On Clock' : 'Off Clock',
+            subtitle: clockSubtitle,
             icon: CircleDot,
             iconClassName: isOnClock
                 ? 'bg-emerald-500/10 text-emerald-500'
                 : 'bg-muted text-muted-foreground',
-            trend: {
-                value: clockTrend,
-                direction: isOnClock ? 'up' : 'neutral',
-            },
         },
     ]
 
     return (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-                <Card key={card.title}>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
-                            {card.title}
-                        </CardTitle>
-                        <div
-                            className={cn(
-                                'flex h-8 w-8 items-center justify-center rounded-lg',
-                                card.iconClassName,
-                            )}
-                        >
-                            <card.icon className="h-4 w-4" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold tracking-tight sm:text-3xl">
-                            {card.value}
-                        </div>
-                        <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                            {card.trend && (
-                                <>
-                                    {card.trend.direction === 'up' && (
-                                        <TrendingUp className="h-3 w-3 text-emerald-500" />
-                                    )}
-                                    {card.trend.direction === 'neutral' && (
-                                        <Minus className="h-3 w-3 text-amber-500" />
-                                    )}
-                                    <span>{card.trend.value}</span>
-                                </>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                <StatCard key={card.title} {...card} />
             ))}
         </div>
     )

@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { UserCheck, UserMinus } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { getRosterColumns, type RosterEntry } from '../columns/roster-columns'
 import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
 import {
@@ -33,6 +34,12 @@ interface AssistantRosterProps {
     onActivate: (student: Student) => void
 }
 
+type ConfirmAction =
+    | { type: 'deactivate'; student: Student }
+    | { type: 'activate'; student: Student }
+    | { type: 'bulk-deactivate'; ids: number[] }
+    | { type: 'bulk-activate'; ids: number[] }
+
 export function AssistantRoster({
     activeStudents,
     deactivatedStudents,
@@ -44,6 +51,9 @@ export function AssistantRoster({
     )
     const [statusFilter, setStatusFilter] = useState('all')
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+        null,
+    )
 
     const bulkDeactivate = useBulkDeactivateStudents()
     const bulkActivate = useBulkActivateStudents()
@@ -90,31 +100,38 @@ export function AssistantRoster({
         [selectedEntries],
     )
 
-    function handleBulkDeactivate() {
-        bulkDeactivate.mutate(selectedActiveIds, {
-            onSuccess: () => setRowSelection({}),
-        })
+    function handleConfirm() {
+        if (!confirmAction) return
+
+        switch (confirmAction.type) {
+            case 'deactivate':
+                onDeactivate(confirmAction.student)
+                break
+            case 'activate':
+                onActivate(confirmAction.student)
+                break
+            case 'bulk-deactivate':
+                bulkDeactivate.mutate(confirmAction.ids, {
+                    onSuccess: () => setRowSelection({}),
+                })
+                break
+            case 'bulk-activate':
+                bulkActivate.mutate(confirmAction.ids, {
+                    onSuccess: () => setRowSelection({}),
+                })
+                break
+        }
+
+        setConfirmAction(null)
     }
 
-    function handleBulkActivate() {
-        bulkActivate.mutate(selectedDeactivatedIds, {
-            onSuccess: () => setRowSelection({}),
-        })
-    }
+    const handleDeactivate = useCallback((student: Student) => {
+        setConfirmAction({ type: 'deactivate', student })
+    }, [])
 
-    const handleDeactivate = useCallback(
-        (student: Student) => {
-            onDeactivate(student)
-        },
-        [onDeactivate],
-    )
-
-    const handleActivate = useCallback(
-        (student: Student) => {
-            onActivate(student)
-        },
-        [onActivate],
-    )
+    const handleActivate = useCallback((student: Student) => {
+        setConfirmAction({ type: 'activate', student })
+    }, [])
 
     const columns = useMemo(
         () =>
@@ -125,6 +142,44 @@ export function AssistantRoster({
             }),
         [handleDeactivate, handleActivate],
     )
+
+    function getConfirmProps(): {
+        title: string
+        description: React.ReactNode
+        confirmLabel: string
+    } {
+        if (!confirmAction)
+            return { title: '', description: '', confirmLabel: '' }
+
+        switch (confirmAction.type) {
+            case 'deactivate':
+                return {
+                    title: 'Deactivate Assistant',
+                    description: `Are you sure you want to deactivate ${confirmAction.student.first_name} ${confirmAction.student.last_name}? They will no longer appear in active schedules.`,
+                    confirmLabel: 'Deactivate',
+                }
+            case 'activate':
+                return {
+                    title: 'Activate Assistant',
+                    description: `Are you sure you want to reactivate ${confirmAction.student.first_name} ${confirmAction.student.last_name}?`,
+                    confirmLabel: 'Activate',
+                }
+            case 'bulk-deactivate':
+                return {
+                    title: 'Deactivate Assistants',
+                    description: `Are you sure you want to deactivate ${confirmAction.ids.length} assistant${confirmAction.ids.length > 1 ? 's' : ''}? They will no longer appear in active schedules.`,
+                    confirmLabel: `Deactivate (${confirmAction.ids.length})`,
+                }
+            case 'bulk-activate':
+                return {
+                    title: 'Activate Assistants',
+                    description: `Are you sure you want to reactivate ${confirmAction.ids.length} assistant${confirmAction.ids.length > 1 ? 's' : ''}?`,
+                    confirmLabel: `Activate (${confirmAction.ids.length})`,
+                }
+        }
+    }
+
+    const confirmProps = getConfirmProps()
 
     return (
         <>
@@ -178,7 +233,12 @@ export function AssistantRoster({
                                     variant="outline"
                                     size="sm"
                                     disabled={bulkDeactivate.isPending}
-                                    onClick={handleBulkDeactivate}
+                                    onClick={() =>
+                                        setConfirmAction({
+                                            type: 'bulk-deactivate',
+                                            ids: selectedActiveIds,
+                                        })
+                                    }
                                 >
                                     <UserMinus className="mr-1 h-3.5 w-3.5" />
                                     Deactivate ({selectedActiveIds.length})
@@ -189,7 +249,12 @@ export function AssistantRoster({
                                     variant="outline"
                                     size="sm"
                                     disabled={bulkActivate.isPending}
-                                    onClick={handleBulkActivate}
+                                    onClick={() =>
+                                        setConfirmAction({
+                                            type: 'bulk-activate',
+                                            ids: selectedDeactivatedIds,
+                                        })
+                                    }
                                 >
                                     <UserCheck className="mr-1 h-3.5 w-3.5" />
                                     Activate ({selectedDeactivatedIds.length})
@@ -210,6 +275,20 @@ export function AssistantRoster({
                     />
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={confirmAction !== null}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+                title={confirmProps.title}
+                description={confirmProps.description}
+                confirmLabel={confirmProps.confirmLabel}
+                onConfirm={handleConfirm}
+                destructive={
+                    confirmAction?.type === 'deactivate' ||
+                    confirmAction?.type === 'bulk-deactivate'
+                }
+            />
             <TranscriptDialog
                 student={transcriptStudent}
                 open={transcriptStudent !== null}

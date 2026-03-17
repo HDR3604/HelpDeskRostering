@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -16,6 +17,7 @@ interface ConfirmDialogProps {
     description: React.ReactNode
     confirmLabel: string
     onConfirm: () => void
+    destructive?: boolean
 }
 
 export function ConfirmDialog({
@@ -25,20 +27,36 @@ export function ConfirmDialog({
     description,
     confirmLabel,
     onConfirm,
+    destructive,
 }: ConfirmDialogProps) {
+    const lastProps = useRef({ title, description, confirmLabel, destructive })
+
+    if (open) {
+        lastProps.current = { title, description, confirmLabel, destructive }
+    }
+
+    const display = open
+        ? { title, description, confirmLabel, destructive }
+        : lastProps.current
+
     return (
         <AlertDialog open={open} onOpenChange={onOpenChange}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>{title}</AlertDialogTitle>
+                    <AlertDialogTitle>{display.title}</AlertDialogTitle>
                     <AlertDialogDescription asChild>
-                        <div>{description}</div>
+                        <div>{display.description}</div>
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction variant="outline" onClick={onConfirm}>
-                        {confirmLabel}
+                    <AlertDialogAction
+                        variant={
+                            display.destructive ? 'destructive' : 'outline'
+                        }
+                        onClick={onConfirm}
+                    >
+                        {display.confirmLabel}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

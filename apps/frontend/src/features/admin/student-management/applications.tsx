@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/utils'
 import { RefreshCw, LoaderCircle } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { getStudentColumns } from '../columns/application-columns'
 import { TranscriptDialog } from '../components/transcript-dialog'
 import { useStudents } from '@/features/admin/student-management/student-context'
@@ -24,10 +25,17 @@ const statusOrder: Record<ApplicationStatus, number> = {
     deactivated: 3,
 }
 
+type ConfirmAction =
+    | { type: 'accept'; studentId: number }
+    | { type: 'reject'; studentId: number }
+
 export function Applications() {
     const { students, handleAccept, handleReject, refetch, isRefetching } =
         useStudents()
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
+        null,
+    )
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
         null,
     )
 
@@ -45,15 +53,42 @@ export function Applications() {
         [students],
     )
 
+    const onAccept = useCallback((studentId: number) => {
+        setConfirmAction({ type: 'accept', studentId })
+    }, [])
+
+    const onReject = useCallback((studentId: number) => {
+        setConfirmAction({ type: 'reject', studentId })
+    }, [])
+
     const columns = useMemo(
         () =>
             getStudentColumns({
-                onAccept: handleAccept,
-                onReject: handleReject,
+                onAccept,
+                onReject,
                 onViewTranscript: setTranscriptStudent,
             }),
-        [handleAccept, handleReject],
+        [onAccept, onReject],
     )
+
+    function handleConfirm() {
+        if (!confirmAction) return
+
+        if (confirmAction.type === 'accept') {
+            handleAccept(confirmAction.studentId)
+        } else {
+            handleReject(confirmAction.studentId)
+        }
+
+        setConfirmAction(null)
+    }
+
+    const confirmStudent = confirmAction
+        ? students.find((s) => s.student_id === confirmAction.studentId)
+        : null
+    const confirmName = confirmStudent
+        ? `${confirmStudent.first_name} ${confirmStudent.last_name}`
+        : ''
 
     return (
         <>
@@ -107,6 +142,27 @@ export function Applications() {
                     />
                 </CardContent>
             </Card>
+            <ConfirmDialog
+                open={confirmAction !== null}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+                title={
+                    confirmAction?.type === 'accept'
+                        ? 'Accept Application'
+                        : 'Reject Application'
+                }
+                description={
+                    confirmAction?.type === 'accept'
+                        ? `Are you sure you want to accept ${confirmName}? They will be added to the active roster.`
+                        : `Are you sure you want to reject ${confirmName}?`
+                }
+                confirmLabel={
+                    confirmAction?.type === 'accept' ? 'Accept' : 'Reject'
+                }
+                onConfirm={handleConfirm}
+                destructive={confirmAction?.type === 'reject'}
+            />
             <TranscriptDialog
                 student={transcriptStudent}
                 open={transcriptStudent !== null}
