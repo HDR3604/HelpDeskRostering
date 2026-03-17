@@ -19,6 +19,7 @@ import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-password'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
+import { Route as AppCompleteOnboardingRouteImport } from './routes/_app/complete-onboarding'
 import { Route as AppAssistantsRouteImport } from './routes/_app/assistants'
 import { Route as AppApplicationsRouteImport } from './routes/_app/applications'
 import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/index'
@@ -74,6 +75,11 @@ const AppScheduleRoute = AppScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCompleteOnboardingRoute = AppCompleteOnboardingRouteImport.update({
+  id: '/complete-onboarding',
+  path: '/complete-onboarding',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssistantsRoute = AppAssistantsRouteImport.update({
   id: '/assistants',
   path: '/assistants',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/applications': typeof AppApplicationsRoute
   '/assistants': typeof AppAssistantsRouteWithChildren
+  '/complete-onboarding': typeof AppCompleteOnboardingRoute
   '/schedule': typeof AppScheduleRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/applications': typeof AppApplicationsRoute
+  '/complete-onboarding': typeof AppCompleteOnboardingRoute
   '/settings': typeof AppSettingsRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/onboarding': typeof AuthOnboardingRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_app/applications': typeof AppApplicationsRoute
   '/_app/assistants': typeof AppAssistantsRouteWithChildren
+  '/_app/complete-onboarding': typeof AppCompleteOnboardingRoute
   '/_app/schedule': typeof AppScheduleRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/_auth/forgot-password': typeof AuthForgotPasswordRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications'
     | '/assistants'
+    | '/complete-onboarding'
     | '/schedule'
     | '/settings'
     | '/forgot-password'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/applications'
+    | '/complete-onboarding'
     | '/settings'
     | '/forgot-password'
     | '/onboarding'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_app/applications'
     | '/_app/assistants'
+    | '/_app/complete-onboarding'
     | '/_app/schedule'
     | '/_app/settings'
     | '/_auth/forgot-password'
@@ -282,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScheduleRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/complete-onboarding': {
+      id: '/_app/complete-onboarding'
+      path: '/complete-onboarding'
+      fullPath: '/complete-onboarding'
+      preLoaderRoute: typeof AppCompleteOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/assistants': {
       id: '/_app/assistants'
       path: '/assistants'
@@ -358,6 +377,7 @@ const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
 interface AppRouteChildren {
   AppApplicationsRoute: typeof AppApplicationsRoute
   AppAssistantsRoute: typeof AppAssistantsRouteWithChildren
+  AppCompleteOnboardingRoute: typeof AppCompleteOnboardingRoute
   AppScheduleRoute: typeof AppScheduleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -366,6 +386,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppApplicationsRoute: AppApplicationsRoute,
   AppAssistantsRoute: AppAssistantsRouteWithChildren,
+  AppCompleteOnboardingRoute: AppCompleteOnboardingRoute,
   AppScheduleRoute: AppScheduleRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,

@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import { toast } from 'sonner'
+import { getApiErrorMessage } from '@/lib/error-messages'
 import type { ScheduleResponse, Assignment } from '@/types/schedule'
 import {
     listSchedules,
@@ -40,13 +41,6 @@ function invalidateSchedules(queryClient: QueryClient) {
     queryClient.invalidateQueries({ queryKey: scheduleKeys.active() })
 }
 
-function getErrorMessage(error: unknown, fallback: string): string {
-    if (isAxiosError(error) && error.response?.data?.error) {
-        return error.response.data.error
-    }
-    return fallback
-}
-
 function handleTransitionError(
     error: unknown,
     queryClient: QueryClient,
@@ -54,12 +48,12 @@ function handleTransitionError(
 ) {
     if (isAxiosError(error) && error.response?.status === 409) {
         toast.error(`Cannot ${action}`, {
-            description: getErrorMessage(error, 'Invalid state transition.'),
+            description: getApiErrorMessage(error, 'Invalid state transition.'),
         })
         invalidateSchedules(queryClient)
     } else {
         toast.error(`Failed to ${action}`, {
-            description: 'Something went wrong. Please try again.',
+            description: getApiErrorMessage(error),
         })
     }
 }
