@@ -51,6 +51,13 @@ func studentContext() *database.AuthContext {
 	}
 }
 
+func adminContext() *database.AuthContext {
+	return &database.AuthContext{
+		UserID: uuid.New().String(),
+		Role:   "admin",
+	}
+}
+
 func (s *TimeLogHandlerTestSuite) doRequest(method, path string, body string) *httptest.ResponseRecorder {
 	return s.doRequestAs(method, path, body, studentContext())
 }
@@ -286,7 +293,7 @@ func (s *TimeLogHandlerTestSuite) TestGenerateClockInCode_Success() {
 		}, nil
 	}
 
-	rr := s.doRequest("POST", "/api/v1/clock-in-codes", `{"expires_in_minutes": 60}`)
+	rr := s.doRequestAs("POST", "/api/v1/clock-in-codes", `{"expires_in_minutes": 60}`, adminContext())
 
 	s.Equal(http.StatusCreated, rr.Code)
 
@@ -308,7 +315,7 @@ func (s *TimeLogHandlerTestSuite) TestGetActiveCode_Success() {
 		}, nil
 	}
 
-	rr := s.doRequest("GET", "/api/v1/clock-in-codes/active", "")
+	rr := s.doRequestAs("GET", "/api/v1/clock-in-codes/active", "", adminContext())
 
 	s.Equal(http.StatusOK, rr.Code)
 
@@ -322,7 +329,7 @@ func (s *TimeLogHandlerTestSuite) TestGetActiveCode_NoActive() {
 		return nil, timelogErrors.ErrNoActiveClockInCode
 	}
 
-	rr := s.doRequest("GET", "/api/v1/clock-in-codes/active", "")
+	rr := s.doRequestAs("GET", "/api/v1/clock-in-codes/active", "", adminContext())
 
 	s.Equal(http.StatusNotFound, rr.Code)
 }

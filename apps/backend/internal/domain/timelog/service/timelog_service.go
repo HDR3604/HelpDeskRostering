@@ -13,6 +13,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/aggregate"
 	timelogErrors "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/repository"
+	userAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/user/aggregate"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -284,7 +285,7 @@ func (s *TimeLogService) GenerateClockInCode(ctx context.Context, expiresInMinut
 		return nil, timelogErrors.ErrMissingAuthContext
 	}
 
-	if authCtx.Role != "admin" {
+	if authCtx.Role != string(userAggregate.Role_Admin) {
 		return nil, timelogErrors.ErrNotAuthorized
 	}
 
@@ -326,7 +327,7 @@ func (s *TimeLogService) GetActiveClockInCode(ctx context.Context) (*aggregate.C
 		return nil, timelogErrors.ErrMissingAuthContext
 	}
 
-	if authCtx.Role != "admin" {
+	if authCtx.Role != string(userAggregate.Role_Admin) {
 		return nil, timelogErrors.ErrNotAuthorized
 	}
 
@@ -400,7 +401,7 @@ func subtractMinutes(timeStr string, minutes int) string {
 	}
 	result := t.Add(-time.Duration(minutes) * time.Minute)
 	// Clamp: if the subtraction wrapped to the previous day, use midnight
-	if result.After(t) {
+	if result.Day() != t.Day() {
 		return "00:00:00"
 	}
 	return result.Format("15:04:05")

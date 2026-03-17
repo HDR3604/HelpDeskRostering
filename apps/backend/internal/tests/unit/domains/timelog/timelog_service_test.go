@@ -87,7 +87,8 @@ func (s *TimeLogServiceTestSuite) buildAssignments(studentID string, now time.Ti
 			"end":          end,
 		},
 	}
-	data, _ := json.Marshal(assignments)
+	data, err := json.Marshal(assignments)
+	s.Require().NoError(err, "failed to marshal assignments")
 	return data
 }
 
