@@ -129,7 +129,7 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 			return timelogErrors.ErrNoActiveShift
 		}
 
-		_, hasShift := hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
+		_, hasShift := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
 		if !hasShift {
 			return timelogErrors.ErrNoActiveShift
 		}
@@ -235,7 +235,7 @@ func (s *TimeLogService) GetMyStatus(ctx context.Context) (*ClockInStatus, error
 					return err
 				}
 			} else if activeSchedule != nil {
-				shiftInfo, ok := hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
+				shiftInfo, ok := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), time.Now().UTC(), 10)
 				if ok {
 					status.CurrentShift = shiftInfo
 				}
@@ -359,10 +359,10 @@ type assignmentEntry struct {
 
 // hasActiveShift checks if the given student has a shift assignment right now
 // (within earlyMinutes before the shift start up to the shift end).
-func hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool) {
+func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool) {
 	var entries []assignmentEntry
 	if err := json.Unmarshal(assignments, &entries); err != nil {
-		zap.L().Error("failed to unmarshal schedule assignments", zap.Error(err))
+		s.logger.Error("failed to unmarshal schedule assignments", zap.Error(err))
 		return nil, false
 	}
 
