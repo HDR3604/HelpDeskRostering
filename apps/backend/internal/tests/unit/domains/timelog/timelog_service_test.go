@@ -104,8 +104,9 @@ func (s *TimeLogServiceTestSuite) activeScheduleWith(assignments json.RawMessage
 // --- ClockIn ---
 
 func (s *TimeLogServiceTestSuite) TestClockIn_Success() {
-	now := time.Now().UTC()
-	assignments := s.buildAssignments("12345", now)
+	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
+	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
+	assignments := s.buildAssignments("12345", fixedNow)
 	schedule := s.activeScheduleWith(assignments)
 
 	s.clockInCodeRepo.GetByCodeFn = func(_ context.Context, _ *sql.Tx, code string) (*aggregate.ClockInCode, error) {
@@ -122,7 +123,7 @@ func (s *TimeLogServiceTestSuite) TestClockIn_Success() {
 		s.Equal(int32(12345), tl.StudentID)
 		s.Equal(-61.277001, tl.Longitude)
 		s.Equal(10.642707, tl.Latitude)
-		tl.CreatedAt = now
+		tl.CreatedAt = fixedNow
 		return tl, nil
 	}
 
@@ -191,8 +192,9 @@ func (s *TimeLogServiceTestSuite) TestClockIn_AlreadyClockedIn() {
 
 func (s *TimeLogServiceTestSuite) TestClockIn_NoActiveShift() {
 	// Assignments for a different student
-	now := time.Now().UTC()
-	assignments := s.buildAssignments("99999", now)
+	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
+	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
+	assignments := s.buildAssignments("99999", fixedNow)
 	schedule := s.activeScheduleWith(assignments)
 
 	s.clockInCodeRepo.GetByCodeFn = func(_ context.Context, _ *sql.Tx, _ string) (*aggregate.ClockInCode, error) {
@@ -353,9 +355,10 @@ func (s *TimeLogServiceTestSuite) TestClockOut_MissingAuthContext() {
 // --- GetMyStatus ---
 
 func (s *TimeLogServiceTestSuite) TestGetMyStatus_ClockedIn() {
-	now := time.Now().UTC()
+	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
+	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
 	openLog, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
-	assignments := s.buildAssignments("12345", now)
+	assignments := s.buildAssignments("12345", fixedNow)
 	schedule := s.activeScheduleWith(assignments)
 
 	s.timeLogRepo.GetOpenByStudentIDFn = func(_ context.Context, _ *sql.Tx, _ int32) (*aggregate.TimeLog, error) {
