@@ -29,7 +29,7 @@ export {
 } from './refresh'
 
 // ── Actions ──
-export { loginUser, logoutUser } from './actions'
+export { loginUser, logoutUser, forgotPassword } from './actions'
 
 // ── Route Guard ──
 export { requireAuth } from './guard'
