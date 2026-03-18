@@ -27,6 +27,7 @@ type Config struct {
 	SeedAdminPassword    string
 	HelpDeskLongitude    float64
 	HelpDeskLatitude     float64
+	TimeLogRateLimitRPM  int // requests per minute per IP for time-log endpoints
 }
 
 func LoadConfig() (Config, error) {
@@ -150,6 +151,19 @@ func LoadConfig() (Config, error) {
 			return Config{}, fmt.Errorf("HELPDESK_LATITUDE must be in range [-90, 90], got %f", parsed)
 		}
 		cfg.HelpDeskLatitude = parsed
+	}
+
+	// Time log rate limit (defaults to 10 req/min — stricter than public routes to limit code brute-forcing)
+	cfg.TimeLogRateLimitRPM = 10
+	if v := os.Getenv("TIMELOG_RATE_LIMIT_RPM"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid TIMELOG_RATE_LIMIT_RPM %q: %w", v, err)
+		}
+		if parsed <= 0 {
+			return Config{}, fmt.Errorf("TIMELOG_RATE_LIMIT_RPM must be positive, got %d", parsed)
+		}
+		cfg.TimeLogRateLimitRPM = parsed
 	}
 
 	return cfg, nil

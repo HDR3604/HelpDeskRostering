@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -136,7 +137,10 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 			return timelogErrors.ErrNoActiveShift
 		}
 
-		_, hasShift := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
+		_, hasShift, shiftErr := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
+		if shiftErr != nil {
+			return shiftErr
+		}
 		if !hasShift {
 			return timelogErrors.ErrNoActiveShift
 		}
@@ -242,7 +246,10 @@ func (s *TimeLogService) GetMyStatus(ctx context.Context) (*ClockInStatus, error
 					return err
 				}
 			} else if activeSchedule != nil {
-				shiftInfo, ok := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
+				shiftInfo, ok, shiftErr := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
+				if shiftErr != nil {
+					return shiftErr
+				}
 				if ok {
 					status.CurrentShift = shiftInfo
 				}
@@ -368,11 +375,11 @@ type assignmentEntry struct {
 // (within earlyMinutes before the shift start up to the shift end).
 // NOTE: Shifts that span midnight (e.g. 23:00–01:00) are not supported because
 // time comparison is done lexicographically on "HH:MM:SS" strings within a single day.
-func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool) {
+func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool, error) {
 	var entries []assignmentEntry
 	if err := json.Unmarshal(assignments, &entries); err != nil {
 		s.logger.Error("failed to unmarshal schedule assignments", zap.Error(err))
-		return nil, false
+		return nil, false, fmt.Errorf("malformed schedule assignments: %w", err)
 	}
 
 	// Map Go weekday (Sunday=0) to schedule weekday (Monday=0)
@@ -390,11 +397,11 @@ func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID i
 					Name:      formatShiftName(scheduleDay, entry.Start, entry.End),
 					StartTime: entry.Start,
 					EndTime:   entry.End,
-				}, true
+				}, true, nil
 			}
 		}
 	}
-	return nil, false
+	return nil, false, nil
 }
 
 // subtractMinutes subtracts the given number of minutes from a "HH:MM:SS"

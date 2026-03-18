@@ -66,7 +66,7 @@ func registerRoutes(
 
 			// Time log routes — rate limited to prevent clock-in code brute-forcing
 			r.Group(func(r chi.Router) {
-				r.Use(authMiddleware.RateLimit(10))
+				r.Use(authMiddleware.RateLimit(cfg.TimeLogRateLimitRPM))
 				timeLogHdl.RegisterRoutes(r)
 			})
 

@@ -1,7 +1,8 @@
 -- +goose Up
 
--- Grant UPDATE on time_logs to authenticated role (needed for student clock-out)
-GRANT UPDATE ON schedule.time_logs TO authenticated;
+-- Grant column-level UPDATE for clock-out (exit_at) and flag operations (is_flagged, flag_reason).
+-- Row-level access is enforced by the UPDATE policy below (own rows only for students, all for admins).
+GRANT UPDATE(exit_at, is_flagged, flag_reason) ON schedule.time_logs TO authenticated;
 
 -- Replace admin-only policies with student-scoped policies
 
@@ -36,7 +37,7 @@ DROP POLICY IF EXISTS time_logs_update ON schedule.time_logs;
 DROP POLICY IF EXISTS time_logs_insert ON schedule.time_logs;
 DROP POLICY IF EXISTS time_logs_select ON schedule.time_logs;
 
-REVOKE UPDATE ON schedule.time_logs FROM authenticated;
+REVOKE UPDATE(exit_at, is_flagged, flag_reason) ON schedule.time_logs FROM authenticated;
 
 -- Restore admin-only policies
 CREATE POLICY time_logs_select ON schedule.time_logs
