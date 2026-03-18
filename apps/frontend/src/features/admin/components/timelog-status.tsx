@@ -38,9 +38,9 @@ export function TimelogStatus({ entries = [] }: TimelogStatusProps) {
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex flex-wrap items-center gap-2">
                             Activity
                             {entries.length > 0 && (
                                 <Badge className="gap-1.5 bg-green-500/15 text-green-500 hover:bg-green-500/15">

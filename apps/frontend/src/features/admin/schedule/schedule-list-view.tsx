@@ -280,7 +280,7 @@ function ScheduleInsights({
     if (!insights) return null
 
     return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6 sm:gap-3">
             <InsightItem
                 icon={Users}
                 iconClassName="bg-blue-500/10 text-blue-500"
@@ -350,18 +350,20 @@ function InsightItem({
     detail?: string
 }) {
     return (
-        <div className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3">
+        <div className="flex items-center gap-2 rounded-xl border bg-card px-2.5 py-2.5 sm:gap-3 sm:px-3 sm:py-3">
             <div
                 className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8',
                     iconClassName,
                 )}
             >
                 <Icon className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="truncate text-sm font-semibold leading-tight">
+                <p className="truncate text-[11px] text-muted-foreground sm:text-xs">
+                    {label}
+                </p>
+                <p className="truncate text-xs font-semibold leading-tight sm:text-sm">
                     {value}
                     {detail && (
                         <span className="ml-1 text-xs font-normal text-muted-foreground">

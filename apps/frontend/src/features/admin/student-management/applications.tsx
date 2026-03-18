@@ -272,7 +272,7 @@ export function Applications() {
         <>
             <Card>
                 <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <CardTitle>Applications</CardTitle>
@@ -309,7 +309,7 @@ export function Applications() {
                 </CardHeader>
                 <CardContent>
                     {hasSelection && selectedPendingIds.length > 0 && (
-                        <div className="mb-3 flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
+                        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 sm:gap-3">
                             <span className="text-sm text-muted-foreground">
                                 {selectedPendingIds.length} pending selected
                             </span>

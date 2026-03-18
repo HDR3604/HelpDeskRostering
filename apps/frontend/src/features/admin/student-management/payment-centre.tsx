@@ -489,7 +489,7 @@ export function PaymentsCentre() {
         <>
             <Card>
                 <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <CardTitle>Payroll</CardTitle>
@@ -519,7 +519,7 @@ export function PaymentsCentre() {
                             {periodPicker}
                             <Separator
                                 orientation="vertical"
-                                className="mx-1 h-4"
+                                className="mx-1 hidden h-4 sm:block"
                             />
                             <Button
                                 variant="ghost"
@@ -576,7 +576,7 @@ export function PaymentsCentre() {
                     ) : (
                         <>
                             {selectedIndices.length > 0 && (
-                                <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 mb-3">
+                                <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 mb-3 sm:gap-3">
                                     <span className="text-sm text-muted-foreground">
                                         {selectedIndices.length} selected
                                     </span>
