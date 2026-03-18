@@ -25,6 +25,9 @@ type Config struct {
 	SeedAdminLastName    string
 	SeedAdminEmail       string
 	SeedAdminPassword    string
+	HelpDeskLongitude    float64
+	HelpDeskLatitude     float64
+	TimeLogRateLimitRPM  int // requests per minute per IP for time-log endpoints
 }
 
 func LoadConfig() (Config, error) {
@@ -125,6 +128,43 @@ func LoadConfig() (Config, error) {
 	cfg.SeedAdminLastName = os.Getenv("SEED_ADMIN_LAST_NAME")
 	cfg.SeedAdminEmail = os.Getenv("SEED_ADMIN_EMAIL")
 	cfg.SeedAdminPassword = os.Getenv("SEED_ADMIN_PASSWORD")
+
+	// Help Desk location (defaults to UWI St Augustine campus)
+	cfg.HelpDeskLongitude = -61.277001
+	if v := os.Getenv("HELPDESK_LONGITUDE"); v != "" {
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HELPDESK_LONGITUDE %q: %w", v, err)
+		}
+		if parsed < -180 || parsed > 180 {
+			return Config{}, fmt.Errorf("HELPDESK_LONGITUDE must be in range [-180, 180], got %f", parsed)
+		}
+		cfg.HelpDeskLongitude = parsed
+	}
+	cfg.HelpDeskLatitude = 10.642707
+	if v := os.Getenv("HELPDESK_LATITUDE"); v != "" {
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid HELPDESK_LATITUDE %q: %w", v, err)
+		}
+		if parsed < -90 || parsed > 90 {
+			return Config{}, fmt.Errorf("HELPDESK_LATITUDE must be in range [-90, 90], got %f", parsed)
+		}
+		cfg.HelpDeskLatitude = parsed
+	}
+
+	// Time log rate limit (defaults to 10 req/min — stricter than public routes to limit code brute-forcing)
+	cfg.TimeLogRateLimitRPM = 10
+	if v := os.Getenv("TIMELOG_RATE_LIMIT_RPM"); v != "" {
+		parsed, err := strconv.Atoi(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid TIMELOG_RATE_LIMIT_RPM %q: %w", v, err)
+		}
+		if parsed <= 0 {
+			return Config{}, fmt.Errorf("TIMELOG_RATE_LIMIT_RPM must be positive, got %d", parsed)
+		}
+		cfg.TimeLogRateLimitRPM = parsed
+	}
 
 	return cfg, nil
 }

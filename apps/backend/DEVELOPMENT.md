@@ -74,7 +74,7 @@ Each domain follows **Domain-Driven Design** with this layered pattern:
 
 **Aggregate → Errors → Repository Interface → Infrastructure Repo → Service → Handler → DTOs**
 
-Current domains: `auth`, `schedule`, `student`, `user`.
+Current domains: `auth`, `consent`, `schedule`, `student`, `timelog`, `transcript`, `user`, `verification`.
 
 ---
 

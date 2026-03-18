@@ -130,6 +130,22 @@ Base URL: `http://localhost:8080/api/v1`
 | `PUT` | `/users/{id}` | Update a user |
 | `DELETE` | `/users/{id}` | Deactivate a user |
 
+### Time Logs (authenticated, rate limited)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/time-logs/clock-in` | Clock in with code + GPS coordinates |
+| `POST` | `/time-logs/clock-out` | Clock out (closes open time log) |
+| `GET` | `/time-logs/me/status` | Get current clock-in status + shift info |
+| `GET` | `/time-logs/me` | List own time logs (paginated: `?page=1&per_page=20`) |
+
+### Clock-In Codes (admin)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/clock-in-codes/` | Generate a new clock-in code |
+| `GET` | `/clock-in-codes/active` | Get the current active code |
+
 ### Health
 
 | Method | Path | Description |
@@ -146,6 +162,7 @@ Base URL: `http://localhost:8080/api/v1`
     │   ├── auth/             # Authentication (JWT, email verification)
     │   ├── schedule/         # Schedules, generations, shifts, configs
     │   ├── student/          # Student applications, accept/reject workflow
+    │   ├── timelog/          # Clock-in/out, attendance tracking, geo-validation
     │   └── user/             # User accounts, roles
     ├── infrastructure/       # External dependencies
     │   ├── database/         # Transaction manager (InAuthTx / InSystemTx)
@@ -153,6 +170,7 @@ Base URL: `http://localhost:8080/api/v1`
     │   ├── user/             # User repository implementation
     │   ├── student/          # Student repository implementation
     │   ├── schedule/         # Schedule repository implementations
+    │   ├── timelog/          # TimeLog + ClockInCode repository implementations
     │   ├── email/            # Mailpit + Resend email senders
     │   ├── scheduler/        # HTTP client to scheduler service
     │   ├── transcripts/      # HTTP client to transcripts service
