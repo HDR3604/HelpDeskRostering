@@ -11,9 +11,10 @@ import (
 var _ repository.BankingDetailsRepositoryInterface = (*MockBankingDetailsRepository)(nil)
 
 type MockBankingDetailsRepository struct {
-	UpsertFn         func(ctx context.Context, tx *sql.Tx, bankingDetails *aggregate.BankingDetails) (*aggregate.BankingDetails, error)
-	GetByStudentIDFn func(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.BankingDetails, error)
-	DeleteFn         func(ctx context.Context, tx *sql.Tx, studentID int32) error
+	UpsertFn           func(ctx context.Context, tx *sql.Tx, bankingDetails *aggregate.BankingDetails) (*aggregate.BankingDetails, error)
+	GetByStudentIDFn   func(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.BankingDetails, error)
+	ListByStudentIDsFn func(ctx context.Context, tx *sql.Tx, studentIDs []int32) ([]*aggregate.BankingDetails, error)
+	DeleteFn           func(ctx context.Context, tx *sql.Tx, studentID int32) error
 }
 
 func (m *MockBankingDetailsRepository) Upsert(ctx context.Context, tx *sql.Tx, bankingDetails *aggregate.BankingDetails) (*aggregate.BankingDetails, error) {
@@ -28,6 +29,13 @@ func (m *MockBankingDetailsRepository) GetByStudentID(ctx context.Context, tx *s
 		return m.GetByStudentIDFn(ctx, tx, studentID)
 	}
 	return nil, nil
+}
+
+func (m *MockBankingDetailsRepository) ListByStudentIDs(ctx context.Context, tx *sql.Tx, studentIDs []int32) ([]*aggregate.BankingDetails, error) {
+	if m.ListByStudentIDsFn != nil {
+		return m.ListByStudentIDsFn(ctx, tx, studentIDs)
+	}
+	return []*aggregate.BankingDetails{}, nil
 }
 
 func (m *MockBankingDetailsRepository) Delete(ctx context.Context, tx *sql.Tx, studentID int32) error {

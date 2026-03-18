@@ -171,6 +171,56 @@ func (r *PaymentRepository) CalculateHoursForPeriod(ctx context.Context, tx *sql
 	return float64(int(result.TotalHours*100)) / 100, nil
 }
 
+func (r *PaymentRepository) CalculateHoursBatch(ctx context.Context, tx *sql.Tx, studentIDs []int32, periodStart, periodEnd time.Time) (map[int32]float64, error) {
+	result := make(map[int32]float64, len(studentIDs))
+	if len(studentIDs) == 0 {
+		return result, nil
+	}
+
+	expressions := make([]postgres.Expression, len(studentIDs))
+	for i, id := range studentIDs {
+		expressions[i] = postgres.Int32(id)
+	}
+
+	stmt := scheduleTable.TimeLogs.
+		SELECT(
+			scheduleTable.TimeLogs.StudentID,
+			postgres.COALESCE(
+				postgres.SUM(
+					postgres.RawFloat("EXTRACT(EPOCH FROM (schedule.time_logs.exit_at - schedule.time_logs.entry_at)) / 3600.0"),
+				),
+				postgres.Float(0),
+			).AS("total_hours"),
+		).
+		WHERE(
+			scheduleTable.TimeLogs.StudentID.IN(expressions...).
+				AND(scheduleTable.TimeLogs.EntryAt.GT_EQ(postgres.TimestampzT(periodStart))).
+				AND(scheduleTable.TimeLogs.EntryAt.LT(postgres.TimestampzT(periodEnd.AddDate(0, 0, 1)))).
+				AND(scheduleTable.TimeLogs.ExitAt.IS_NOT_NULL()),
+		).
+		GROUP_BY(scheduleTable.TimeLogs.StudentID)
+
+	var rows []struct {
+		StudentID  int32   `sql:"primary_key" alias:"time_logs.student_id"`
+		TotalHours float64 `alias:"total_hours"`
+	}
+	err := stmt.QueryContext(ctx, tx, &rows)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return result, nil
+		}
+		r.logger.Error("failed to batch calculate hours", zap.Error(err))
+		return nil, fmt.Errorf("failed to batch calculate hours: %w", err)
+	}
+
+	for _, row := range rows {
+		// Round to 2 decimal places
+		result[row.StudentID] = float64(int(row.TotalHours*100)) / 100
+	}
+
+	return result, nil
+}
+
 func toPaymentAggregates(models []authModel.Payments) []*aggregate.Payment {
 	payments := make([]*aggregate.Payment, len(models))
 	for i, m := range models {

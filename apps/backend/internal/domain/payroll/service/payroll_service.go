@@ -111,13 +111,23 @@ func (s *PayrollService) GeneratePayments(ctx context.Context, periodStart, peri
 			return txErr
 		}
 
-		for _, student := range students {
-			// Calculate hours from time_logs
-			hours, txErr := s.paymentRepo.CalculateHoursForPeriod(ctx, tx, student.StudentID, periodStart, periodEnd)
-			if txErr != nil {
-				return txErr
-			}
+		if len(students) == 0 {
+			return nil
+		}
 
+		// Batch calculate hours for all students in one query
+		studentIDs := make([]int32, len(students))
+		for i, st := range students {
+			studentIDs[i] = st.StudentID
+		}
+
+		hoursMap, txErr := s.paymentRepo.CalculateHoursBatch(ctx, tx, studentIDs, periodStart, periodEnd)
+		if txErr != nil {
+			return txErr
+		}
+
+		for _, student := range students {
+			hours := hoursMap[student.StudentID] // defaults to 0 if not in map
 			grossAmount := hours * HourlyRate
 
 			payment, txErr := aggregate.NewPayment(student.StudentID, periodStart, periodEnd, hours, grossAmount)
@@ -249,6 +259,7 @@ func (s *PayrollService) BulkProcessPayments(ctx context.Context, paymentIDs []u
 // ExportPayments fetches payments for a period and enriches each with student
 // profile and decrypted banking details. Uses InSystemTx to read across
 // auth.payments, auth.students, and auth.banking_details.
+// Batch-fetches students and banking details to avoid N+1 queries.
 func (s *PayrollService) ExportPayments(ctx context.Context, periodStart, periodEnd time.Time) ([]*ExportRow, error) {
 	if _, err := s.authCtx(ctx); err != nil {
 		return nil, err
@@ -265,30 +276,48 @@ func (s *PayrollService) ExportPayments(ctx context.Context, periodStart, period
 			return txErr
 		}
 
-		for _, payment := range payments {
-			row := &ExportRow{Payment: payment}
+		if len(payments) == 0 {
+			return nil
+		}
 
-			// Fetch student profile
-			student, txErr := s.studentRepo.GetByID(ctx, tx, payment.StudentID)
-			if txErr != nil {
-				s.logger.Warn("student not found for payment export",
-					zap.Int32("student_id", payment.StudentID),
-					zap.Error(txErr))
-				row.Student = nil
-			} else {
-				row.Student = student
+		// Collect unique student IDs
+		studentIDs := make([]int32, 0, len(payments))
+		seen := make(map[int32]bool, len(payments))
+		for _, p := range payments {
+			if !seen[p.StudentID] {
+				seen[p.StudentID] = true
+				studentIDs = append(studentIDs, p.StudentID)
 			}
+		}
 
-			// Fetch decrypted banking details (may not exist)
-			banking, txErr := s.bankingDetailsRepo.GetByStudentID(ctx, tx, payment.StudentID)
-			if txErr != nil {
-				// Not an error — student may not have banking details yet
-				row.BankingDetails = nil
-			} else {
-				row.BankingDetails = banking
+		// Batch fetch students
+		students, txErr := s.studentRepo.ListByIDs(ctx, tx, studentIDs)
+		if txErr != nil {
+			s.logger.Warn("failed to batch-fetch students for export", zap.Error(txErr))
+		}
+		studentMap := make(map[int32]*studentAggregate.Student, len(students))
+		for _, st := range students {
+			studentMap[st.StudentID] = st
+		}
+
+		// Batch fetch banking details (with decryption)
+		bankingList, txErr := s.bankingDetailsRepo.ListByStudentIDs(ctx, tx, studentIDs)
+		if txErr != nil {
+			s.logger.Warn("failed to batch-fetch banking details for export", zap.Error(txErr))
+		}
+		bankingMap := make(map[int32]*studentAggregate.BankingDetails, len(bankingList))
+		for _, bd := range bankingList {
+			bankingMap[bd.StudentID] = bd
+		}
+
+		// Assemble rows
+		rows = make([]*ExportRow, len(payments))
+		for i, payment := range payments {
+			rows[i] = &ExportRow{
+				Payment:        payment,
+				Student:        studentMap[payment.StudentID],
+				BankingDetails: bankingMap[payment.StudentID],
 			}
-
-			rows = append(rows, row)
 		}
 
 		return nil

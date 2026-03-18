@@ -199,6 +199,35 @@ func (r *StudentRepository) ListByStatus(ctx context.Context, tx *sql.Tx, status
 	return r.toAggregates(models)
 }
 
+func (r *StudentRepository) ListByIDs(ctx context.Context, tx *sql.Tx, studentIDs []int32) ([]*aggregate.Student, error) {
+	if len(studentIDs) == 0 {
+		return []*aggregate.Student{}, nil
+	}
+
+	expressions := make([]postgres.Expression, len(studentIDs))
+	for i, id := range studentIDs {
+		expressions[i] = postgres.Int32(id)
+	}
+
+	stmt := table.Students.SELECT(table.Students.AllColumns).
+		WHERE(
+			table.Students.StudentID.IN(expressions...).
+				AND(table.Students.DeletedAt.IS_NULL()),
+		).
+		ORDER_BY(table.Students.StudentID.ASC())
+
+	var models []model.Students
+	if err := stmt.QueryContext(ctx, tx, &models); err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return []*aggregate.Student{}, nil
+		}
+		r.logger.Error("failed to list students by IDs", zap.Error(err))
+		return nil, fmt.Errorf("failed to list students by IDs: %w", err)
+	}
+
+	return r.toAggregates(models)
+}
+
 func (r *StudentRepository) toDomain(m *model.Students) (*aggregate.Student, error) {
 	s, err := aggregate.StudentFromModel(m)
 	if err != nil {

@@ -15,4 +15,5 @@ type StudentRepositoryInterface interface {
 	Update(ctx context.Context, tx *sql.Tx, student *aggregate.Student) error
 	List(ctx context.Context, tx *sql.Tx) ([]*aggregate.Student, error)
 	ListByStatus(ctx context.Context, tx *sql.Tx, status string) ([]*aggregate.Student, error)
+	ListByIDs(ctx context.Context, tx *sql.Tx, studentIDs []int32) ([]*aggregate.Student, error)
 }

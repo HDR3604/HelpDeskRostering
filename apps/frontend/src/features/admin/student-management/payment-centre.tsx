@@ -27,6 +27,7 @@ import {
     useProcessPayment,
     useRevertPayment,
     useBulkProcessPayments,
+    usePrefetchPayments,
 } from '@/lib/queries/payments'
 import { exportPaymentsCsv } from '@/lib/api/payments'
 import type { PaymentEntry } from '../columns/payment-columns'
@@ -93,6 +94,28 @@ function findCurrentPeriodIdx(periods: Period[]): number {
     return idx >= 0 ? idx : periods.length - 1
 }
 
+function getAdjacentPeriod(
+    year: number,
+    periodIdx: number,
+    periods: Period[],
+    delta: number,
+): { year: number; period: Period } | null {
+    let newYear = year
+    let newIdx = periodIdx + delta
+    if (newIdx < 0) {
+        newYear -= 1
+        const prev = generateFortnightlyPeriods(newYear)
+        newIdx = prev.length - 1
+        return { year: newYear, period: prev[newIdx] }
+    }
+    if (newIdx >= periods.length) {
+        newYear += 1
+        const next = generateFortnightlyPeriods(newYear)
+        return { year: newYear, period: next[0] }
+    }
+    return { year: newYear, period: periods[newIdx] }
+}
+
 // --- Component ---
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -119,6 +142,15 @@ export function PaymentsCentre() {
         isLoading,
         isFetching,
     } = usePayments(currentPeriod.start, currentPeriod.end)
+
+    // Prefetch adjacent periods for instant navigation
+    const prefetchPayments = usePrefetchPayments()
+    useEffect(() => {
+        const prev = getAdjacentPeriod(year, periodIdx, periods, -1)
+        const next = getAdjacentPeriod(year, periodIdx, periods, 1)
+        if (prev) prefetchPayments(prev.period.start, prev.period.end)
+        if (next) prefetchPayments(next.period.start, next.period.end)
+    }, [year, periodIdx, periods, prefetchPayments])
 
     // Build a student lookup map
     const studentMap = useMemo(() => {
@@ -154,8 +186,7 @@ export function PaymentsCentre() {
     const revertMutation = useRevertPayment()
     const bulkProcessMutation = useBulkProcessPayments()
 
-    const isMutating =
-        generateMutation.isPending ||
+    const isConfirmPending =
         processMutation.isPending ||
         revertMutation.isPending ||
         bulkProcessMutation.isPending
@@ -167,6 +198,7 @@ export function PaymentsCentre() {
         | { type: 'bulk-process'; entries: PaymentEntry[] }
         | null
     >(null)
+    const [isExporting, setIsExporting] = useState(false)
 
     const isAtCurrent =
         year === CURRENT_YEAR && periodIdx === CURRENT_PERIOD_IDX
@@ -229,9 +261,17 @@ export function PaymentsCentre() {
     }
 
     function handleExport() {
-        exportPaymentsCsv(currentPeriod.start, currentPeriod.end).catch(() => {
-            toast.error('Failed to export payment sheet')
-        })
+        setIsExporting(true)
+        exportPaymentsCsv(currentPeriod.start, currentPeriod.end)
+            .then(() => {
+                toast.success('Payment sheet exported')
+            })
+            .catch(() => {
+                toast.error('Failed to export payment sheet')
+            })
+            .finally(() => {
+                setIsExporting(false)
+            })
     }
 
     const totalHours = useMemo(
@@ -262,6 +302,8 @@ export function PaymentsCentre() {
     function handleConfirm() {
         if (!confirmAction) return
 
+        const onSettled = () => setConfirmAction(null)
+
         switch (confirmAction.type) {
             case 'process': {
                 processMutation.mutate(confirmAction.entry.paymentId, {
@@ -270,6 +312,7 @@ export function PaymentsCentre() {
                             `Processed payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
                         )
                     },
+                    onSettled,
                 })
                 break
             }
@@ -280,6 +323,7 @@ export function PaymentsCentre() {
                             `Reverted payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
                         )
                     },
+                    onSettled,
                 })
                 break
             }
@@ -289,12 +333,11 @@ export function PaymentsCentre() {
                     onSuccess: () => {
                         setRowSelection({})
                     },
+                    onSettled,
                 })
                 break
             }
         }
-
-        setConfirmAction(null)
     }
 
     function getConfirmProps(): {
@@ -463,7 +506,7 @@ export function PaymentsCentre() {
                                         )}
                                     </>
                                 )}
-                                {(isFetching || isMutating) && (
+                                {isFetching && (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                                 )}
                             </div>
@@ -481,26 +524,14 @@ export function PaymentsCentre() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={handleGeneratePayments}
-                                disabled={
-                                    generateMutation.isPending || isLoading
-                                }
-                                title="Regenerate payment records from time logs"
+                                onClick={handleExport}
+                                disabled={payments.length === 0 || isExporting}
                             >
-                                {generateMutation.isPending ? (
+                                {isExporting ? (
                                     <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
                                 ) : (
-                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                    <Download className="mr-1 h-3.5 w-3.5" />
                                 )}
-                                Sync
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleExport}
-                                disabled={payments.length === 0}
-                            >
-                                <Download className="mr-1 h-3.5 w-3.5" />
                                 Export
                             </Button>
                         </div>
@@ -553,7 +584,7 @@ export function PaymentsCentre() {
                                         variant="outline"
                                         size="sm"
                                         onClick={handleProcessSelected}
-                                        disabled={isMutating}
+                                        disabled={isConfirmPending}
                                     >
                                         <CheckCircle className="mr-1 h-3.5 w-3.5" />
                                         Mark as Processed
@@ -593,11 +624,15 @@ export function PaymentsCentre() {
             <ConfirmDialog
                 open={confirmAction !== null}
                 onOpenChange={(open) => {
-                    if (!open) setConfirmAction(null)
+                    if (!open && !isConfirmPending) setConfirmAction(null)
                 }}
                 title={confirmProps.title}
                 description={confirmProps.description}
-                confirmLabel={confirmProps.confirmLabel}
+                confirmLabel={
+                    isConfirmPending
+                        ? 'Processing...'
+                        : confirmProps.confirmLabel
+                }
                 onConfirm={handleConfirm}
                 destructive={confirmAction?.type === 'revert'}
             />
