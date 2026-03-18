@@ -19,10 +19,16 @@ import { DataTable } from '@/components/ui/data-table'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { cn } from '@/lib/utils'
 import { getPaymentColumns, HOURLY_RATE } from '../columns/payment-columns'
-import { MOCK_HOURS_WORKED } from '@/lib/mock-data'
-import { getApplicationStatus } from '@/types/student'
 import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
 import { useStudents } from '@/features/admin/student-management/student-context'
+import {
+    usePayments,
+    useGeneratePayments,
+    useProcessPayment,
+    useRevertPayment,
+    useBulkProcessPayments,
+} from '@/lib/queries/payments'
+import { exportPaymentsCsv } from '@/lib/api/payments'
 import type { PaymentEntry } from '../columns/payment-columns'
 import type { Student } from '@/types/student'
 import type { RowSelectionState } from '@tanstack/react-table'
@@ -33,6 +39,8 @@ import {
     ChevronRight,
     CalendarDays,
     DollarSign,
+    RefreshCw,
+    Loader2,
 } from 'lucide-react'
 
 // --- Period utilities ---
@@ -85,25 +93,6 @@ function findCurrentPeriodIdx(periods: Period[]): number {
     return idx >= 0 ? idx : periods.length - 1
 }
 
-function buildPaymentData(period: Period, students: Student[]): PaymentEntry[] {
-    return students
-        .filter((s) => getApplicationStatus(s) === 'accepted')
-        .map((s) => {
-            const hoursRecord = MOCK_HOURS_WORKED.find(
-                (student) => student.name === `${s.first_name} ${s.last_name}`,
-            )
-            const hours = hoursRecord ? hoursRecord.hours : 0
-            return {
-                student: s,
-                periodStart: period.start,
-                periodEnd: period.end,
-                hoursWorked: hours,
-                grossAmount: hours * HOURLY_RATE,
-                processedAt: null,
-            }
-        })
-}
-
 // --- Component ---
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -124,19 +113,58 @@ export function PaymentsCentre() {
     )
     const currentPeriod = periods[periodIdx]
 
-    const [payments, setPayments] = useState<PaymentEntry[]>([])
+    // Fetch payments from API
+    const {
+        data: apiPayments = [],
+        isLoading,
+        isFetching,
+    } = usePayments(currentPeriod.start, currentPeriod.end)
 
-    // Rebuild payment data when students load or period changes
-    useEffect(() => {
-        if (students.length > 0) {
-            setPayments(buildPaymentData(currentPeriod, students))
+    // Build a student lookup map
+    const studentMap = useMemo(() => {
+        const map = new Map<number, Student>()
+        for (const s of students) {
+            map.set(s.student_id, s)
         }
-    }, [students, currentPeriod])
+        return map
+    }, [students])
+
+    // Merge API payment data with student objects
+    const payments: PaymentEntry[] = useMemo(() => {
+        return apiPayments
+            .map((p) => {
+                const student = studentMap.get(p.student_id)
+                if (!student) return null
+                return {
+                    paymentId: p.payment_id,
+                    student,
+                    periodStart: p.period_start,
+                    periodEnd: p.period_end,
+                    hoursWorked: p.hours_worked,
+                    grossAmount: p.gross_amount,
+                    processedAt: p.processed_at,
+                }
+            })
+            .filter((p): p is PaymentEntry => p !== null)
+    }, [apiPayments, studentMap])
+
+    // Mutations
+    const generateMutation = useGeneratePayments()
+    const processMutation = useProcessPayment()
+    const revertMutation = useRevertPayment()
+    const bulkProcessMutation = useBulkProcessPayments()
+
+    const isMutating =
+        generateMutation.isPending ||
+        processMutation.isPending ||
+        revertMutation.isPending ||
+        bulkProcessMutation.isPending
+
     const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
     const [confirmAction, setConfirmAction] = useState<
         | { type: 'process'; entry: PaymentEntry }
         | { type: 'revert'; entry: PaymentEntry }
-        | { type: 'bulk-process'; indices: number[] }
+        | { type: 'bulk-process'; entries: PaymentEntry[] }
         | null
     >(null)
 
@@ -185,17 +213,24 @@ export function PaymentsCentre() {
         .filter((k) => rowSelection[k])
         .map(Number)
 
+    const selectedEntries = selectedIndices
+        .map((i) => payments[i])
+        .filter(Boolean)
+
     function handleProcessSelected() {
-        setConfirmAction({ type: 'bulk-process', indices: selectedIndices })
+        setConfirmAction({ type: 'bulk-process', entries: selectedEntries })
     }
 
-    function handleGenerateSheet() {
-        const count =
-            selectedIndices.length > 0
-                ? selectedIndices.length
-                : payments.length
-        toast.success('Payment sheet generated', {
-            description: `Exported ${count} record${count > 1 ? 's' : ''} for ${currentPeriod.label}`,
+    function handleGeneratePayments() {
+        generateMutation.mutate({
+            periodStart: currentPeriod.start,
+            periodEnd: currentPeriod.end,
+        })
+    }
+
+    function handleExport() {
+        exportPaymentsCsv(currentPeriod.start, currentPeriod.end).catch(() => {
+            toast.error('Failed to export payment sheet')
         })
     }
 
@@ -229,47 +264,32 @@ export function PaymentsCentre() {
 
         switch (confirmAction.type) {
             case 'process': {
-                const now = new Date().toISOString()
-                setPayments((prev) =>
-                    prev.map((p) =>
-                        p.student.student_id ===
-                        confirmAction.entry.student.student_id
-                            ? { ...p, processedAt: now }
-                            : p,
-                    ),
-                )
-                toast.success(
-                    `Processed payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
-                )
+                processMutation.mutate(confirmAction.entry.paymentId, {
+                    onSuccess: () => {
+                        toast.success(
+                            `Processed payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
+                        )
+                    },
+                })
                 break
             }
             case 'revert': {
-                setPayments((prev) =>
-                    prev.map((p) =>
-                        p.student.student_id ===
-                        confirmAction.entry.student.student_id
-                            ? { ...p, processedAt: null }
-                            : p,
-                    ),
-                )
-                toast.success(
-                    `Reverted payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
-                )
+                revertMutation.mutate(confirmAction.entry.paymentId, {
+                    onSuccess: () => {
+                        toast.success(
+                            `Reverted payment for ${confirmAction.entry.student.first_name} ${confirmAction.entry.student.last_name}`,
+                        )
+                    },
+                })
                 break
             }
             case 'bulk-process': {
-                const now = new Date().toISOString()
-                setPayments((prev) =>
-                    prev.map((p, i) =>
-                        confirmAction.indices.includes(i)
-                            ? { ...p, processedAt: now }
-                            : p,
-                    ),
-                )
-                setRowSelection({})
-                toast.success(
-                    `Processed ${confirmAction.indices.length} payment${confirmAction.indices.length > 1 ? 's' : ''}`,
-                )
+                const ids = confirmAction.entries.map((e) => e.paymentId)
+                bulkProcessMutation.mutate(ids, {
+                    onSuccess: () => {
+                        setRowSelection({})
+                    },
+                })
                 break
             }
         }
@@ -301,8 +321,8 @@ export function PaymentsCentre() {
             case 'bulk-process':
                 return {
                     title: 'Process Payments',
-                    description: `Are you sure you want to mark ${confirmAction.indices.length} payment${confirmAction.indices.length > 1 ? 's' : ''} as processed?`,
-                    confirmLabel: `Process (${confirmAction.indices.length})`,
+                    description: `Are you sure you want to mark ${confirmAction.entries.length} payment${confirmAction.entries.length > 1 ? 's' : ''} as processed?`,
+                    confirmLabel: `Process (${confirmAction.entries.length})`,
                 }
         }
     }
@@ -319,30 +339,108 @@ export function PaymentsCentre() {
         [handleProcess, handleRevert],
     )
 
-    if (payments.length === 0) {
-        return (
-            <Card>
-                <CardContent className="py-16">
-                    <div className="flex flex-col items-center justify-center text-center">
-                        <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-                            <DollarSign className="size-7 text-primary" />
-                        </div>
-                        <h2 className="mt-5 text-base font-semibold">
-                            No payroll data
-                        </h2>
-                        <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-                            There are no accepted assistants for this period.
-                            Accept applications from the{' '}
-                            <span className="font-medium text-foreground">
-                                Applications
-                            </span>{' '}
-                            page to see payroll records here.
-                        </p>
+    // --- Period picker (shared between all states) ---
+
+    const periodPicker = (
+        <div className="flex items-center gap-1">
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => stepPeriod(-1)}
+            >
+                <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Popover
+                open={pickerOpen}
+                onOpenChange={(open) => {
+                    setPickerOpen(open)
+                    if (open) setPickerYear(year)
+                }}
+            >
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        className="rounded-md px-2 py-1 text-sm font-medium tabular-nums text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                        {currentPeriod.label}
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="center">
+                    <div className="flex items-center justify-between border-b px-3 py-2">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setPickerYear((y) => y - 1)}
+                        >
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="text-sm font-semibold tabular-nums">
+                            {pickerYear}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => setPickerYear((y) => y + 1)}
+                        >
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
-                </CardContent>
-            </Card>
-        )
-    }
+                    <div ref={listRef} className="max-h-52 overflow-y-auto p-1">
+                        {pickerPeriods.map((p, i) => {
+                            const isSelected =
+                                pickerYear === year && i === periodIdx
+                            const isCurrent =
+                                pickerYear === CURRENT_YEAR &&
+                                i === CURRENT_PERIOD_IDX
+                            return (
+                                <button
+                                    key={p.start}
+                                    type="button"
+                                    data-active={isSelected}
+                                    onClick={() => selectPeriod(pickerYear, i)}
+                                    className={cn(
+                                        'w-full flex items-center justify-between rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent',
+                                        isSelected && 'bg-accent font-medium',
+                                    )}
+                                >
+                                    <span>{p.shortLabel}</span>
+                                    {isCurrent && (
+                                        <span className="text-[10px] text-muted-foreground">
+                                            Current
+                                        </span>
+                                    )}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </PopoverContent>
+            </Popover>
+            <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => stepPeriod(1)}
+            >
+                <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+            {!isAtCurrent && (
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={goToToday}
+                >
+                    <CalendarDays className="mr-1 h-3.5 w-3.5" />
+                    Today
+                </Button>
+            )}
+        </div>
+    )
+
+    // --- Render ---
 
     return (
         <>
@@ -352,14 +450,21 @@ export function PaymentsCentre() {
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <CardTitle>Payroll</CardTitle>
-                                {pendingCount > 0 ? (
-                                    <Badge className="bg-amber-500/15 text-amber-500 hover:bg-amber-500/15">
-                                        {pendingCount} pending
-                                    </Badge>
-                                ) : (
-                                    <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
-                                        All processed
-                                    </Badge>
+                                {!isLoading && payments.length > 0 && (
+                                    <>
+                                        {pendingCount > 0 ? (
+                                            <Badge className="bg-amber-500/15 text-amber-500 hover:bg-amber-500/15">
+                                                {pendingCount} pending
+                                            </Badge>
+                                        ) : (
+                                            <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+                                                All processed
+                                            </Badge>
+                                        )}
+                                    </>
+                                )}
+                                {(isFetching || isMutating) && (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                                 )}
                             </div>
                             <CardDescription>
@@ -368,117 +473,7 @@ export function PaymentsCentre() {
                             </CardDescription>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => stepPeriod(-1)}
-                            >
-                                <ChevronLeft className="h-3.5 w-3.5" />
-                            </Button>
-                            <Popover
-                                open={pickerOpen}
-                                onOpenChange={(open) => {
-                                    setPickerOpen(open)
-                                    if (open) setPickerYear(year)
-                                }}
-                            >
-                                <PopoverTrigger asChild>
-                                    <button
-                                        type="button"
-                                        className="rounded-md px-2 py-1 text-sm font-medium tabular-nums text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                    >
-                                        {currentPeriod.label}
-                                    </button>
-                                </PopoverTrigger>
-                                <PopoverContent
-                                    className="w-64 p-0"
-                                    align="center"
-                                >
-                                    <div className="flex items-center justify-between border-b px-3 py-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            onClick={() =>
-                                                setPickerYear((y) => y - 1)
-                                            }
-                                        >
-                                            <ChevronLeft className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <span className="text-sm font-semibold tabular-nums">
-                                            {pickerYear}
-                                        </span>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            onClick={() =>
-                                                setPickerYear((y) => y + 1)
-                                            }
-                                        >
-                                            <ChevronRight className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                    <div
-                                        ref={listRef}
-                                        className="max-h-52 overflow-y-auto p-1"
-                                    >
-                                        {pickerPeriods.map((p, i) => {
-                                            const isSelected =
-                                                pickerYear === year &&
-                                                i === periodIdx
-                                            const isCurrent =
-                                                pickerYear === CURRENT_YEAR &&
-                                                i === CURRENT_PERIOD_IDX
-                                            return (
-                                                <button
-                                                    key={p.start}
-                                                    type="button"
-                                                    data-active={isSelected}
-                                                    onClick={() =>
-                                                        selectPeriod(
-                                                            pickerYear,
-                                                            i,
-                                                        )
-                                                    }
-                                                    className={cn(
-                                                        'w-full flex items-center justify-between rounded-sm px-2 py-1.5 text-sm transition-colors hover:bg-accent',
-                                                        isSelected &&
-                                                            'bg-accent font-medium',
-                                                    )}
-                                                >
-                                                    <span>{p.shortLabel}</span>
-                                                    {isCurrent && (
-                                                        <span className="text-[10px] text-muted-foreground">
-                                                            Current
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => stepPeriod(1)}
-                            >
-                                <ChevronRight className="h-3.5 w-3.5" />
-                            </Button>
-                            {!isAtCurrent && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs"
-                                    onClick={goToToday}
-                                >
-                                    <CalendarDays className="mr-1 h-3.5 w-3.5" />
-                                    Today
-                                </Button>
-                            )}
+                            {periodPicker}
                             <Separator
                                 orientation="vertical"
                                 className="mx-1 h-4"
@@ -486,58 +481,113 @@ export function PaymentsCentre() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={handleGenerateSheet}
+                                onClick={handleGeneratePayments}
+                                disabled={
+                                    generateMutation.isPending || isLoading
+                                }
+                                title="Regenerate payment records from time logs"
+                            >
+                                {generateMutation.isPending ? (
+                                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                )}
+                                Sync
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleExport}
+                                disabled={payments.length === 0}
                             >
                                 <Download className="mr-1 h-3.5 w-3.5" />
-                                {selectedIndices.length > 0
-                                    ? `Export (${selectedIndices.length})`
-                                    : 'Export All'}
+                                Export
                             </Button>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    {selectedIndices.length > 0 && (
-                        <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 mb-3">
-                            <span className="text-sm text-muted-foreground">
-                                {selectedIndices.length} selected
-                            </span>
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <Loader2 className="size-7 animate-spin text-muted-foreground" />
+                            <p className="mt-4 text-sm text-muted-foreground">
+                                Loading payroll data...
+                            </p>
+                        </div>
+                    ) : payments.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                                <DollarSign className="size-7 text-primary" />
+                            </div>
+                            <h2 className="mt-5 text-base font-semibold">
+                                No payroll data
+                            </h2>
+                            <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+                                No payment records for this period. Click{' '}
+                                <span className="font-medium text-foreground">
+                                    Sync
+                                </span>{' '}
+                                to generate records from time logs.
+                            </p>
                             <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleProcessSelected}
+                                className="mt-4"
+                                onClick={handleGeneratePayments}
+                                disabled={generateMutation.isPending}
                             >
-                                <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                                Mark as Processed
+                                {generateMutation.isPending ? (
+                                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                )}
+                                Generate Payments
                             </Button>
                         </div>
+                    ) : (
+                        <>
+                            {selectedIndices.length > 0 && (
+                                <div className="flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2 mb-3">
+                                    <span className="text-sm text-muted-foreground">
+                                        {selectedIndices.length} selected
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleProcessSelected}
+                                        disabled={isMutating}
+                                    >
+                                        <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                                        Mark as Processed
+                                    </Button>
+                                </div>
+                            )}
+                            <DataTable
+                                columns={columns}
+                                data={payments}
+                                searchPlaceholder="Search by name"
+                                globalFilter
+                                enableRowSelection
+                                rowSelection={rowSelection}
+                                onRowSelectionChange={setRowSelection}
+                                emptyMessage="No payment records found."
+                                pageSize={5}
+                            />
+                            <Separator className="my-4" />
+                            <div className="flex justify-end gap-6 text-sm">
+                                <span className="text-muted-foreground">
+                                    Total Hours{' '}
+                                    <span className="ml-1 font-medium text-foreground tabular-nums">
+                                        {totalHours}
+                                    </span>
+                                </span>
+                                <span className="text-muted-foreground">
+                                    Total{' '}
+                                    <span className="ml-1 font-medium text-foreground tabular-nums">
+                                        ${totalAmount.toFixed(2)}
+                                    </span>
+                                </span>
+                            </div>
+                        </>
                     )}
-                    <DataTable
-                        columns={columns}
-                        data={payments}
-                        searchPlaceholder="Search by name"
-                        globalFilter
-                        enableRowSelection
-                        rowSelection={rowSelection}
-                        onRowSelectionChange={setRowSelection}
-                        emptyMessage="No payment records found."
-                        pageSize={5}
-                    />
-                    <Separator className="my-4" />
-                    <div className="flex justify-end gap-6 text-sm">
-                        <span className="text-muted-foreground">
-                            Total Hours{' '}
-                            <span className="ml-1 font-medium text-foreground tabular-nums">
-                                {totalHours}
-                            </span>
-                        </span>
-                        <span className="text-muted-foreground">
-                            Total{' '}
-                            <span className="ml-1 font-medium text-foreground tabular-nums">
-                                ${totalAmount.toFixed(2)}
-                            </span>
-                        </span>
-                    </div>
                 </CardContent>
             </Card>
             <ConfirmDialog

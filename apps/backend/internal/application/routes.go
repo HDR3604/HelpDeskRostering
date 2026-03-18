@@ -7,6 +7,7 @@ import (
 	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	consentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/consent/handler"
+	payrollHandler "github.com/HDR3604/HelpDeskApp/internal/domain/payroll/handler"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
 	timelogHandler "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/handler"
@@ -33,6 +34,7 @@ func registerRoutes(
 	userHdl *userHandler.UserHandler,
 	verificationHdl *verificationHandler.VerificationHandler,
 	timeLogHdl *timelogHandler.TimeLogHandler,
+	payrollHdl *payrollHandler.PayrollHandler,
 ) {
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -82,6 +84,7 @@ func registerRoutes(
 				userHdl.RegisterAdminRoutes(r)
 				userHdl.RegisterRoutes(r)
 				timeLogHdl.RegisterAdminRoutes(r)
+				payrollHdl.RegisterAdminRoutes(r)
 			})
 		})
 	})
