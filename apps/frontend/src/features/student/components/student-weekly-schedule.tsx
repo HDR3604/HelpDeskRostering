@@ -1,3 +1,4 @@
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
     Card,
@@ -124,8 +125,13 @@ export function StudentWeeklySchedule({
     const today = getTodayWeekdayIndex()
 
     function handleExportCalendar() {
-        const ics = buildIcs(assignments, shiftTemplates, schedule)
-        downloadIcs(ics, `helpdesk-schedule-${schedule.effective_from}.ics`)
+        try {
+            const ics = buildIcs(assignments, shiftTemplates, schedule)
+            downloadIcs(ics, `helpdesk-schedule-${schedule.effective_from}.ics`)
+            toast.success('Calendar exported')
+        } catch {
+            toast.error('Failed to export calendar')
+        }
     }
 
     return (

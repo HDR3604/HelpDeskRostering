@@ -628,13 +628,10 @@ export function PaymentsCentre() {
                 }}
                 title={confirmProps.title}
                 description={confirmProps.description}
-                confirmLabel={
-                    isConfirmPending
-                        ? 'Processing...'
-                        : confirmProps.confirmLabel
-                }
+                confirmLabel={confirmProps.confirmLabel}
                 onConfirm={handleConfirm}
                 destructive={confirmAction?.type === 'revert'}
+                loading={isConfirmPending}
             />
             <TranscriptDialog
                 student={transcriptStudent}

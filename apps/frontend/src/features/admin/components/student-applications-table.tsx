@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card'
-import { RefreshCw, LoaderCircle, ArrowRight } from 'lucide-react'
+import { RefreshCw, ArrowRight } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { DataTable } from '@/components/ui/data-table'
@@ -107,12 +107,7 @@ export function StudentApplicationsTable({
                     </Button>
                 </div>
             </CardHeader>
-            <CardContent className="relative">
-                {syncing && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-lg bg-background/30 backdrop-blur-[2px]">
-                        <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
-                    </div>
-                )}
+            <CardContent>
                 <DataTable
                     columns={columns}
                     data={sorted}

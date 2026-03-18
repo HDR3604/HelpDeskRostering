@@ -1,5 +1,23 @@
 import { lazy, Suspense, useMemo, Fragment } from 'react'
-import { CalendarDays, LoaderCircle, Plus } from 'lucide-react'
+import {
+    CalendarDays,
+    LoaderCircle,
+    Plus,
+    Users,
+    Clock,
+    AlertTriangle,
+    CheckCircle,
+    BarChart3,
+} from 'lucide-react'
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    LabelList,
+    XAxis,
+    YAxis,
+} from 'recharts'
 import { Button } from '@/components/ui/button'
 import {
     Card,
@@ -9,6 +27,12 @@ import {
     CardDescription,
 } from '@/components/ui/card'
 import {
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+    type ChartConfig,
+} from '@/components/ui/chart'
+import {
     Tooltip,
     TooltipContent,
     TooltipProvider,
@@ -16,7 +40,7 @@ import {
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { WEEKDAYS_SHORT, getTodayWeekdayIndex } from '@/lib/constants'
-import { formatHour, formatDateRange } from '@/lib/format'
+import { formatHour } from '@/lib/format'
 import { STUDENT_COLORS } from './types'
 
 const ScheduleTables = lazy(() =>
@@ -26,49 +50,27 @@ const ScheduleTables = lazy(() =>
 )
 import { getScheduleColumns } from './columns/schedule-columns'
 import { ActiveScheduleCard } from './components/active-schedule-card'
-import { HoursWorkedChart } from './charts/hours-worked-chart'
-import { AttendanceChart } from './charts/attendance-chart'
-import { HoursTrendChart } from './charts/hours-trend-chart'
-import type { ScheduleResponse } from '@/types/schedule'
+import type { ScheduleResponse, Assignment } from '@/types/schedule'
 import type { ShiftTemplate } from '@/types/shift-template'
 
 function getScheduleStats(schedule: ScheduleResponse | null) {
     if (!schedule) {
-        return {
-            totalStudents: 0,
-            totalAssignments: 0,
-            hoursPerDay: [0, 0, 0, 0, 0],
-            avgHoursPerStudent: 0,
-        }
+        return { totalStudents: 0, totalAssignments: 0 }
     }
     const assignments = Array.isArray(schedule.assignments)
         ? schedule.assignments
         : []
     const studentSet = new Set(assignments.map((a) => a.assistant_id))
-    const totalStudents = studentSet.size
-    const totalAssignments = assignments.length
-    const hoursPerDay = [0, 0, 0, 0, 0]
-    for (const a of assignments) {
-        if (a.day_of_week >= 0 && a.day_of_week < 5)
-            hoursPerDay[a.day_of_week]++
+    return {
+        totalStudents: studentSet.size,
+        totalAssignments: assignments.length,
     }
-    const avgHoursPerStudent =
-        totalStudents > 0 ? totalAssignments / totalStudents : 0
-    return { totalStudents, totalAssignments, hoursPerDay, avgHoursPerStudent }
 }
 
 interface ScheduleListViewProps {
     schedules: ScheduleResponse[]
     shiftTemplates: ShiftTemplate[]
     studentNames: Record<string, string>
-    hoursWorked: { name: string; hours: number; fill: string }[]
-    missedShifts: {
-        name: string
-        missed: number
-        total: number
-        fill: string
-    }[]
-    hoursTrend: { week: string; hours: number }[]
     onCreateNew: () => void
     creatingSchedule?: boolean
     onOpenSchedule: (scheduleId: string) => void
@@ -85,9 +87,6 @@ export function ScheduleListView({
     schedules,
     shiftTemplates,
     studentNames,
-    hoursWorked,
-    missedShifts,
-    hoursTrend,
     onCreateNew,
     creatingSchedule,
     onOpenSchedule,
@@ -100,8 +99,14 @@ export function ScheduleListView({
     onNotify,
 }: ScheduleListViewProps) {
     const activeSchedule = schedules.find((s) => s.status === 'active') ?? null
-    const pastSchedules = schedules.filter((s) => s.status !== 'active')
     const stats = getScheduleStats(activeSchedule)
+    const assignments = useMemo(
+        () =>
+            Array.isArray(activeSchedule?.assignments)
+                ? activeSchedule.assignments
+                : [],
+        [activeSchedule],
+    )
 
     const scheduleColumns = useMemo(
         () =>
@@ -154,101 +159,376 @@ export function ScheduleListView({
             </div>
 
             {/* Active schedule */}
-            <div className="space-y-3">
-                {activeSchedule ? (
-                    <>
-                        <ActiveScheduleCard
-                            schedule={activeSchedule}
-                            stats={stats}
-                            onOpen={onOpenSchedule}
-                            onRename={onRename}
-                            onDownload={onDownload}
-                            onArchive={onArchive}
-                            onDeactivate={onDeactivate}
-                            onNotify={onNotify}
-                        />
+            {activeSchedule ? (
+                <>
+                    <ActiveScheduleCard
+                        schedule={activeSchedule}
+                        stats={stats}
+                        onOpen={onOpenSchedule}
+                        onRename={onRename}
+                        onDownload={onDownload}
+                        onArchive={onArchive}
+                        onDeactivate={onDeactivate}
+                        onNotify={onNotify}
+                    />
+
+                    {/* Insights row */}
+                    <ScheduleInsights
+                        assignments={assignments}
+                        shiftTemplates={shiftTemplates}
+                        studentNames={studentNames}
+                    />
+
+                    {/* Grid + charts */}
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
                         <ScheduleOverview
                             schedule={activeSchedule}
                             shiftTemplates={shiftTemplates}
                             studentNames={studentNames}
                         />
-                    </>
-                ) : (
-                    <Card>
-                        <CardContent className="flex flex-col items-center justify-center py-12">
-                            <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
-                            <p className="mt-3 text-sm text-muted-foreground">
-                                No active schedule. Create one or activate an
-                                existing schedule.
-                            </p>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
-
-            {/* Schedules table (lazy -- loads DataTable on demand) */}
-            {pastSchedules.length > 0 && (
-                <Suspense
-                    fallback={
-                        <div className="flex items-center justify-center rounded-lg border py-16">
-                            <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" />
+                        <div className="flex flex-col gap-4">
+                            <DailyCoverageChart assignments={assignments} />
+                            <ShiftsPerStudentChart
+                                assignments={assignments}
+                                studentNames={studentNames}
+                            />
                         </div>
-                    }
-                >
-                    <ScheduleTables
-                        schedules={pastSchedules}
-                        columns={scheduleColumns}
-                        onOpenSchedule={onOpenSchedule}
-                    />
-                </Suspense>
+                    </div>
+                </>
+            ) : (
+                <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                        <CalendarDays className="h-10 w-10 text-muted-foreground/50" />
+                        <p className="mt-3 text-sm text-muted-foreground">
+                            No active schedule. Create one or activate an
+                            existing schedule.
+                        </p>
+                    </CardContent>
+                </Card>
             )}
 
-            {/* Analytics */}
-            {activeSchedule && (
-                <div className="space-y-3">
-                    <div>
-                        <h2 className="text-lg font-semibold">Analytics</h2>
-                        <p className="text-sm text-muted-foreground">
-                            Hours worked and attendance for the current schedule
-                            period.
-                        </p>
+            {/* All schedules management table */}
+            <Suspense
+                fallback={
+                    <div className="flex items-center justify-center rounded-lg border py-16">
+                        <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <HoursWorkedChart
-                            data={hoursWorked}
-                            description={
-                                activeSchedule?.effective_from
-                                    ? formatDateRange(
-                                          activeSchedule.effective_from,
-                                          activeSchedule.effective_to ?? null,
-                                      )
-                                    : undefined
-                            }
-                        />
-                        <AttendanceChart
-                            data={missedShifts}
-                            description={
-                                activeSchedule?.effective_from
-                                    ? formatDateRange(
-                                          activeSchedule.effective_from,
-                                          activeSchedule.effective_to ?? null,
-                                      )
-                                    : undefined
-                            }
-                        />
-                        {hoursTrend.length > 0 && (
-                            <div className="lg:col-span-2">
-                                <HoursTrendChart data={hoursTrend} />
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
+                }
+            >
+                <ScheduleTables
+                    schedules={schedules}
+                    columns={scheduleColumns}
+                    onOpenSchedule={onOpenSchedule}
+                />
+            </Suspense>
         </div>
     )
 }
 
-// --- Schedule overview (read-only, follows editor grid design) ---
+// --- Schedule insights ---
+
+function ScheduleInsights({
+    assignments,
+    shiftTemplates,
+    studentNames,
+}: {
+    assignments: Assignment[]
+    shiftTemplates: ShiftTemplate[]
+    studentNames: Record<string, string>
+}) {
+    const insights = useMemo(() => {
+        if (assignments.length === 0) return null
+
+        // Shifts per student
+        const perStudent: Record<string, number> = {}
+        for (const a of assignments) {
+            perStudent[a.assistant_id] = (perStudent[a.assistant_id] ?? 0) + 1
+        }
+        const studentEntries = Object.entries(perStudent)
+            .map(([id, count]) => ({ name: studentNames[id] || id, count }))
+            .sort((a, b) => b.count - a.count)
+
+        const mostShifts = studentEntries[0]
+        const fewestShifts = studentEntries[studentEntries.length - 1]
+
+        // Uncovered slots
+        const coveredShiftIds = new Set(assignments.map((a) => a.shift_id))
+        const activeTemplates = shiftTemplates.filter((t) => t.is_active)
+        const uncoveredCount = activeTemplates.filter(
+            (t) => !coveredShiftIds.has(t.id),
+        ).length
+        const totalSlots = activeTemplates.length
+        const coveragePercent =
+            totalSlots > 0
+                ? Math.round(((totalSlots - uncoveredCount) / totalSlots) * 100)
+                : 100
+
+        // Unique students
+        const studentCount = studentEntries.length
+
+        return {
+            studentCount,
+            totalShifts: assignments.length,
+            mostShifts,
+            fewestShifts,
+            isBalanced: mostShifts.count - fewestShifts.count <= 1,
+            uncoveredCount,
+            coveragePercent,
+        }
+    }, [assignments, shiftTemplates, studentNames])
+
+    if (!insights) return null
+
+    return (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <InsightItem
+                icon={Users}
+                iconClassName="bg-blue-500/10 text-blue-500"
+                label="Students"
+                value={String(insights.studentCount)}
+            />
+            <InsightItem
+                icon={CalendarDays}
+                iconClassName="bg-violet-500/10 text-violet-500"
+                label="Total shifts"
+                value={String(insights.totalShifts)}
+            />
+            <InsightItem
+                icon={BarChart3}
+                iconClassName="bg-amber-500/10 text-amber-500"
+                label="Most shifts"
+                value={insights.mostShifts.name.split(' ')[0]}
+                detail={`${insights.mostShifts.count}`}
+            />
+            <InsightItem
+                icon={Clock}
+                iconClassName="bg-cyan-500/10 text-cyan-500"
+                label="Fewest shifts"
+                value={insights.fewestShifts.name.split(' ')[0]}
+                detail={`${insights.fewestShifts.count}`}
+            />
+            <InsightItem
+                icon={insights.uncoveredCount > 0 ? AlertTriangle : CheckCircle}
+                iconClassName={
+                    insights.uncoveredCount > 0
+                        ? 'bg-amber-500/10 text-amber-500'
+                        : 'bg-emerald-500/10 text-emerald-500'
+                }
+                label="Coverage"
+                value={`${insights.coveragePercent}%`}
+                detail={
+                    insights.uncoveredCount > 0
+                        ? `${insights.uncoveredCount} gaps`
+                        : undefined
+                }
+            />
+            <InsightItem
+                icon={insights.isBalanced ? CheckCircle : AlertTriangle}
+                iconClassName={
+                    insights.isBalanced
+                        ? 'bg-emerald-500/10 text-emerald-500'
+                        : 'bg-amber-500/10 text-amber-500'
+                }
+                label="Balance"
+                value={insights.isBalanced ? 'Even' : 'Uneven'}
+            />
+        </div>
+    )
+}
+
+function InsightItem({
+    icon: Icon,
+    iconClassName,
+    label,
+    value,
+    detail,
+}: {
+    icon: React.ElementType
+    iconClassName: string
+    label: string
+    value: string
+    detail?: string
+}) {
+    return (
+        <div className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3">
+            <div
+                className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                    iconClassName,
+                )}
+            >
+                <Icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="truncate text-sm font-semibold leading-tight">
+                    {value}
+                    {detail && (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                            {detail}
+                        </span>
+                    )}
+                </p>
+            </div>
+        </div>
+    )
+}
+
+// --- Daily coverage chart ---
+
+const coverageConfig = {
+    staff: { label: 'Staff', color: 'var(--color-primary)' },
+} satisfies ChartConfig
+
+function DailyCoverageChart({ assignments }: { assignments: Assignment[] }) {
+    const today = getTodayWeekdayIndex()
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+
+    const data = useMemo(() => {
+        return dayNames.map((day, idx) => {
+            const count = assignments.filter(
+                (a) => a.day_of_week === idx,
+            ).length
+            return { day, shifts: count, isToday: idx === today }
+        })
+    }, [assignments, today])
+
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Daily Distribution</CardTitle>
+                <CardDescription className="text-xs">
+                    Shifts per day of the week
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer
+                    config={coverageConfig}
+                    className="h-[140px] w-full"
+                >
+                    <BarChart data={data} barSize={28}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                            dataKey="day"
+                            tickLine={false}
+                            axisLine={false}
+                            fontSize={11}
+                        />
+                        <YAxis
+                            tickLine={false}
+                            axisLine={false}
+                            fontSize={11}
+                            allowDecimals={false}
+                            width={24}
+                        />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent />}
+                        />
+                        <Bar dataKey="shifts" radius={[4, 4, 0, 0]}>
+                            <LabelList
+                                dataKey="shifts"
+                                position="top"
+                                className="fill-muted-foreground text-[10px]"
+                            />
+                            {data.map((entry) => (
+                                <Cell
+                                    key={entry.day}
+                                    fill="var(--color-primary)"
+                                    fillOpacity={entry.isToday ? 1 : 0.5}
+                                />
+                            ))}
+                        </Bar>
+                    </BarChart>
+                </ChartContainer>
+            </CardContent>
+        </Card>
+    )
+}
+
+// --- Shifts per student chart ---
+
+const shiftsConfig = {
+    shifts: { label: 'Shifts', color: 'var(--color-primary)' },
+} satisfies ChartConfig
+
+function ShiftsPerStudentChart({
+    assignments,
+    studentNames,
+}: {
+    assignments: Assignment[]
+    studentNames: Record<string, string>
+}) {
+    const data = useMemo(() => {
+        const counts: Record<string, number> = {}
+        for (const a of assignments) {
+            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
+        }
+        return Object.entries(counts)
+            .map(([id, shifts]) => ({
+                name: (studentNames[id] || id).split(' ')[0],
+                shifts,
+            }))
+            .sort((a, b) => b.shifts - a.shifts)
+    }, [assignments, studentNames])
+
+    if (data.length === 0) return null
+
+    return (
+        <Card>
+            <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Shift Load</CardTitle>
+                <CardDescription className="text-xs">
+                    Shifts assigned per student
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <ChartContainer
+                    config={shiftsConfig}
+                    className="w-full"
+                    style={{ height: Math.max(100, data.length * 32 + 20) }}
+                >
+                    <BarChart
+                        data={data}
+                        layout="vertical"
+                        margin={{ left: 0 }}
+                        barSize={18}
+                    >
+                        <CartesianGrid horizontal={false} />
+                        <YAxis
+                            dataKey="name"
+                            type="category"
+                            tickLine={false}
+                            tickMargin={8}
+                            axisLine={false}
+                            width={70}
+                            fontSize={11}
+                        />
+                        <XAxis dataKey="shifts" type="number" hide />
+                        <ChartTooltip
+                            cursor={false}
+                            content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Bar
+                            dataKey="shifts"
+                            fill="var(--color-primary)"
+                            fillOpacity={0.7}
+                            radius={4}
+                        >
+                            <LabelList
+                                dataKey="shifts"
+                                position="right"
+                                className="fill-foreground text-xs"
+                            />
+                        </Bar>
+                    </BarChart>
+                </ChartContainer>
+            </CardContent>
+        </Card>
+    )
+}
+
+// --- Schedule overview (read-only weekly grid) ---
 
 function ScheduleOverview({
     schedule,
@@ -285,7 +565,6 @@ function ScheduleOverview({
         [uniqueStudentIds],
     )
 
-    // Build shift -> students map
     const assignmentsByShift = useMemo(() => {
         const map: Record<string, string[]> = {}
         for (const a of Array.isArray(schedule.assignments)
@@ -297,7 +576,6 @@ function ScheduleOverview({
         return map
     }, [schedule])
 
-    // Deduplicate time slots, sorted
     const timeSlots = useMemo(() => {
         const slots = new Map<string, { start: string; end: string }>()
         for (const s of shiftTemplates) {
@@ -310,7 +588,6 @@ function ScheduleOverview({
         )
     }, [shiftTemplates])
 
-    // Quick shift lookup: "startTime-endTime-dayOfWeek" -> ShiftTemplate
     const shiftLookup = useMemo(() => {
         const map = new Map<string, ShiftTemplate>()
         for (const s of shiftTemplates)
@@ -321,25 +598,15 @@ function ScheduleOverview({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Schedule Overview</CardTitle>
-                <CardDescription>
-                    {schedule.title} — {uniqueStudentIds.length} students,{' '}
-                    {
-                        (Array.isArray(schedule.assignments)
-                            ? schedule.assignments
-                            : []
-                        ).length
-                    }{' '}
-                    assignments
-                </CardDescription>
+                <CardTitle>Weekly Overview</CardTitle>
+                <CardDescription>{schedule.title}</CardDescription>
             </CardHeader>
             <CardContent>
                 {timeSlots.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8">
                         <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
                         <p className="mt-2 text-sm text-muted-foreground">
-                            No shift templates configured. Add shift templates
-                            to see the weekly grid.
+                            No shift templates configured.
                         </p>
                     </div>
                 ) : (
@@ -353,7 +620,6 @@ function ScheduleOverview({
                                     gridTemplateRows: `auto repeat(${timeSlots.length}, auto)`,
                                 }}
                             >
-                                {/* Day header row */}
                                 <div className="border-b border-border" />
                                 {WEEKDAYS_SHORT.map((day, idx) => (
                                     <div
@@ -378,17 +644,14 @@ function ScheduleOverview({
                                     </div>
                                 ))}
 
-                                {/* Time slot rows */}
                                 {timeSlots.map((slot) => (
                                     <Fragment key={slot.start}>
-                                        {/* Time gutter */}
                                         <div className="flex items-start justify-end border-b border-r border-border pr-2 pt-1.5">
                                             <span className="text-[11px] font-medium text-muted-foreground tabular-nums leading-none">
                                                 {formatHour(slot.start)}
                                             </span>
                                         </div>
 
-                                        {/* Day cells */}
                                         {WEEKDAYS_SHORT.map((_, dayIdx) => {
                                             const shift = shiftLookup.get(
                                                 `${slot.start}-${slot.end}-${dayIdx}`,
@@ -491,7 +754,6 @@ function ScheduleOverview({
                             </div>
                         </div>
 
-                        {/* Legend */}
                         {uniqueStudentIds.length > 0 && (
                             <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t pt-3">
                                 {uniqueStudentIds.map((id) => {

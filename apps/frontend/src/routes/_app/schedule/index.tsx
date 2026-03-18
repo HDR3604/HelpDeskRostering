@@ -58,44 +58,6 @@ function ScheduleListPage() {
         [students],
     )
 
-    const activeSchedule = schedules.find((s) => s.status === 'active') ?? null
-    const assignments = useMemo(
-        () =>
-            Array.isArray(activeSchedule?.assignments)
-                ? activeSchedule.assignments
-                : [],
-        [activeSchedule],
-    )
-
-    const hoursAssigned = useMemo(() => {
-        const counts: Record<string, number> = {}
-        for (const a of assignments) {
-            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
-        }
-        return Object.entries(counts)
-            .map(([id, hours], i) => ({
-                name: studentNames[id] || id,
-                hours,
-                fill: `var(--chart-${(i % 5) + 1})`,
-            }))
-            .sort((a, b) => b.hours - a.hours)
-    }, [assignments, studentNames])
-
-    const shiftAttendance = useMemo(() => {
-        const counts: Record<string, number> = {}
-        for (const a of assignments) {
-            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
-        }
-        return Object.entries(counts)
-            .map(([id, total], i) => ({
-                name: studentNames[id] || id,
-                missed: 0, // no time logs yet
-                total,
-                fill: `var(--chart-${(i % 5) + 1})`,
-            }))
-            .sort((a, b) => b.total - a.total)
-    }, [assignments, studentNames])
-
     // Mutations
     const renameMutation = useRenameSchedule()
     const archiveMutation = useArchiveSchedule()
@@ -174,9 +136,6 @@ function ScheduleListPage() {
                 schedules={schedules}
                 shiftTemplates={shiftTemplates}
                 studentNames={studentNames}
-                hoursWorked={hoursAssigned}
-                missedShifts={shiftAttendance}
-                hoursTrend={[]}
                 onCreateNew={() => setCreateDialogOpen(true)}
                 creatingSchedule={createDialogOpen}
                 onOpenSchedule={handleOpenSchedule}
@@ -286,7 +245,8 @@ function ScheduleListPage() {
             <ConfirmDialog
                 open={archiveTarget !== null}
                 onOpenChange={(open) => {
-                    if (!open) setArchiveTarget(null)
+                    if (!open && !archiveMutation.isPending)
+                        setArchiveTarget(null)
                 }}
                 title="Archive Schedule"
                 description={
@@ -300,6 +260,7 @@ function ScheduleListPage() {
                 }
                 confirmLabel="Archive"
                 destructive
+                loading={archiveMutation.isPending}
                 onConfirm={() => {
                     if (!archiveTarget) return
                     const title = archiveTarget.title
@@ -309,15 +270,16 @@ function ScheduleListPage() {
                                 description: `"${title}" has been archived.`,
                             })
                         },
+                        onSettled: () => setArchiveTarget(null),
                     })
-                    setArchiveTarget(null)
                 }}
             />
 
             <ConfirmDialog
                 open={deactivateTarget !== null}
                 onOpenChange={(open) => {
-                    if (!open) setDeactivateTarget(null)
+                    if (!open && !deactivateMutation.isPending)
+                        setDeactivateTarget(null)
                 }}
                 title="Deactivate Schedule"
                 description={
@@ -332,16 +294,17 @@ function ScheduleListPage() {
                 }
                 confirmLabel="Deactivate"
                 destructive
+                loading={deactivateMutation.isPending}
                 onConfirm={() => {
                     if (!deactivateTarget) return
                     const title = deactivateTarget.title
                     deactivateMutation.mutate(deactivateTarget.schedule_id, {
                         onSuccess: () => {
-                            setDeactivateTarget(null)
                             toast.success('Schedule deactivated', {
                                 description: `"${title}" is no longer active.`,
                             })
                         },
+                        onSettled: () => setDeactivateTarget(null),
                     })
                 }}
             />
