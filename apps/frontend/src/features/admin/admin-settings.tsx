@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
+import { Card, CardContent } from "@/components/ui/card"
 import { 
     Dialog, 
     DialogContent, 
@@ -132,14 +133,15 @@ export function AdminSettings() {
   }
   
   return (
-    <div className="pt-6 max-w-3xl space-y-6">
+<div className="pt-6 max-w-4xl space-y-6 mx-auto">
+            <Card className="px-20">
         {/* Profile Tab*/}
         {activeTab === "profile" && (
           <div className="space-y-0">
 
               {/* Names */}
               <div className="flex items-start justify-between py-5">
-                  <div className="w-40 shrink-0">
+                  <div className="w-52 shrink-0">
                       <p className="text-sm font-medium">Name</p>
                   </div>
                 {editingName ? (
@@ -189,7 +191,7 @@ export function AdminSettings() {
 
               {/* Email */}
               <div className="flex items-start justify-between py-5">
-                  <div className="w-40 shrink-0">
+                  <div className="w-52 shrink-0">
                       <p className="text-sm font-medium">Email address</p>
                   </div>
                 {editingEmail ? (
@@ -227,7 +229,7 @@ export function AdminSettings() {
 
               {/* Password */}
               <div className="flex items-center justify-between py-5">
-                  <div className="w-40 shrink-0">
+                  <div className="w-52 shrink-0">
                       <p className="text-sm font-medium">Password</p>
                   </div>
                   <div className="flex flex-1 items-center justify-between">
@@ -254,7 +256,7 @@ export function AdminSettings() {
               {configs.map((config, i) => (
                 <div key={config.id}>
                     <div className="flex items-center justify-between py-5">
-                        <div className="w-40 shrink-0">
+                        <div className="w-52 shrink-0">
                             <p className="text-sm font-medium">{config.name}</p>
                         </div>
                         <div className="flex flex-1 items-center justify-between">
@@ -296,7 +298,7 @@ export function AdminSettings() {
               </div>
           </div>
         )}
-
+</Card>
         {/* Password Dialog */}
         <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
             <DialogContent className="sm:max-w-sm">
