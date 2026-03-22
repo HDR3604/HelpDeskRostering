@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CalendarDays, Clock, Loader2 } from 'lucide-react'
+import { CalendarDays, Clock } from 'lucide-react'
 import { useMyStudentProfile } from '@/lib/queries/students'
 import { useActiveSchedule } from '@/lib/queries/schedules'
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
@@ -8,6 +8,7 @@ import { ApplicationStatusBanner } from './components/application-status-banner'
 import { WeekSummaryCard } from './components/week-summary-card'
 import { NextShiftCard } from './components/next-shift-card'
 import { StudentWeeklySchedule } from './components/student-weekly-schedule'
+import { StudentDashboardSkeleton } from './skeletons/student-dashboard-skeleton'
 
 export function StudentDashboard() {
     const profileQuery = useMyStudentProfile()
@@ -35,11 +36,7 @@ export function StudentDashboard() {
     const hasSchedule = isAccepted && schedule && myAssignments.length > 0
 
     if (profileQuery.isLoading || (isAccepted && scheduleQuery.isLoading)) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-        )
+        return <StudentDashboardSkeleton />
     }
 
     if (!student) {

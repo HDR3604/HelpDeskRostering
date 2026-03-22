@@ -1,19 +1,13 @@
 import { useRef, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { CalendarDays, ChevronDown, Clock, X } from 'lucide-react'
+import { CalendarDays, Clock } from 'lucide-react'
 import { SummaryCards } from './components/summary-cards'
+import { TimelogStatus } from './components/timelog-status'
 import { StudentApplicationsTable } from './components/student-applications-table'
 import { TranscriptDialog } from './components/transcript-dialog'
 import { MiniWeeklySchedule } from './components/mini-weekly-schedule'
-import { HoursWorkedChart } from './components/hours-worked-chart'
-import { MissedShiftsChart } from './components/missed-shifts-chart'
+import { TodaysShifts } from './components/todays-shifts'
+import { DailyCoverageChart } from './components/daily-coverage-chart'
 import { useActiveSchedule } from '@/lib/queries/schedules'
 import { useShiftTemplates } from '@/lib/queries/shift-templates'
 import { buildStudentNameMap } from '@/lib/mock-data'
@@ -47,14 +41,18 @@ export function AdminDashboard() {
 
     // Optimistic local state overlay — tracks pending undo-able changes
     const [optimisticUpdates, setOptimisticUpdates] = useState<
-        Map<number, { accepted_at: string | null; rejected_at: string | null }>
+        Map<
+            number,
+            {
+                accepted_at: string | null
+                rejected_at: string | null
+                status: string
+            }
+        >
     >(new Map())
 
     const [transcriptStudent, setTranscriptStudent] = useState<Student | null>(
         null,
-    )
-    const [selectedStudents, setSelectedStudents] = useState<Set<string>>(
-        new Set(),
     )
     const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(
         new Map(),
@@ -69,15 +67,6 @@ export function AdminDashboard() {
         })
     }, [students, optimisticUpdates])
 
-    function toggleStudent(name: string) {
-        setSelectedStudents((prev) => {
-            const next = new Set(prev)
-            if (next.has(name)) next.delete(name)
-            else next.add(name)
-            return next
-        })
-    }
-
     // Derive chart data from active schedule assignments
     const assignments = useMemo(
         () =>
@@ -85,50 +74,6 @@ export function AdminDashboard() {
                 ? activeSchedule.assignments
                 : [],
         [activeSchedule],
-    )
-
-    const hoursAssigned = useMemo(() => {
-        const counts: Record<string, number> = {}
-        for (const a of assignments) {
-            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
-        }
-        return Object.entries(counts)
-            .map(([id, hours], i) => ({
-                name: studentNames[id] || id,
-                hours,
-                fill: `var(--chart-${(i % 5) + 1})`,
-            }))
-            .sort((a, b) => b.hours - a.hours)
-    }, [assignments, studentNames])
-
-    const shiftAttendance = useMemo(() => {
-        const counts: Record<string, number> = {}
-        for (const a of assignments) {
-            counts[a.assistant_id] = (counts[a.assistant_id] ?? 0) + 1
-        }
-        return Object.entries(counts)
-            .map(([id, total], i) => ({
-                name: studentNames[id] || id,
-                missed: 0, // no time logs yet
-                total,
-                fill: `var(--chart-${(i % 5) + 1})`,
-            }))
-            .sort((a, b) => b.total - a.total)
-    }, [assignments, studentNames])
-
-    const filteredHours = useMemo(
-        () =>
-            selectedStudents.size === 0
-                ? hoursAssigned
-                : hoursAssigned.filter((s) => selectedStudents.has(s.name)),
-        [selectedStudents, hoursAssigned],
-    )
-    const filteredMissed = useMemo(
-        () =>
-            selectedStudents.size === 0
-                ? shiftAttendance
-                : shiftAttendance.filter((s) => selectedStudents.has(s.name)),
-        [selectedStudents, shiftAttendance],
     )
 
     const { pendingCount, acceptedCount } = useMemo(() => {
@@ -208,6 +153,7 @@ export function AdminDashboard() {
             next.set(studentId, {
                 accepted_at: new Date().toISOString(),
                 rejected_at: null,
+                status: 'accepted',
             })
             return next
         })
@@ -232,6 +178,7 @@ export function AdminDashboard() {
             next.set(studentId, {
                 rejected_at: new Date().toISOString(),
                 accepted_at: null,
+                status: 'rejected',
             })
             return next
         })
@@ -268,79 +215,25 @@ export function AdminDashboard() {
 
             {activeSchedule && assignments.length > 0 ? (
                 <>
-                    {/* Schedule */}
+                    {/* Right now — what needs attention today */}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        <TodaysShifts
+                            assignments={assignments}
+                            studentNames={studentNames}
+                        />
+                        <TimelogStatus />
+                        <DailyCoverageChart
+                            assignments={assignments}
+                            description={scheduleDescription}
+                        />
+                    </div>
+
+                    {/* This week — schedule overview */}
                     <MiniWeeklySchedule
                         schedule={activeSchedule}
                         shiftTemplates={shiftTemplates}
                         studentNames={studentNames}
                     />
-
-                    {/* Analytics */}
-                    <div className="space-y-3">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h2 className="text-lg font-semibold">
-                                    Analytics
-                                </h2>
-                                <p className="text-sm text-muted-foreground">
-                                    Hours assigned and attendance for the
-                                    current schedule period.
-                                </p>
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                {selectedStudents.size > 0 && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            setSelectedStudents(new Set())
-                                        }
-                                    >
-                                        <X className="mr-1 h-3.5 w-3.5" />
-                                        Clear
-                                    </Button>
-                                )}
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm">
-                                            {selectedStudents.size === 0
-                                                ? 'All students'
-                                                : `${selectedStudents.size} selected`}
-                                            <ChevronDown className="ml-1 h-3.5 w-3.5" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                        {hoursAssigned.map((s) => (
-                                            <DropdownMenuCheckboxItem
-                                                key={s.name}
-                                                checked={selectedStudents.has(
-                                                    s.name,
-                                                )}
-                                                onCheckedChange={() =>
-                                                    toggleStudent(s.name)
-                                                }
-                                                onSelect={(e) =>
-                                                    e.preventDefault()
-                                                }
-                                            >
-                                                {s.name}
-                                            </DropdownMenuCheckboxItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                            <HoursWorkedChart
-                                data={filteredHours}
-                                description={scheduleDescription}
-                            />
-                            <MissedShiftsChart
-                                data={filteredMissed}
-                                description={scheduleDescription}
-                            />
-                        </div>
-                    </div>
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">

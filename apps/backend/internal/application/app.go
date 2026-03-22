@@ -12,6 +12,8 @@ import (
 	authHandler "github.com/HDR3604/HelpDeskApp/internal/domain/auth/handler"
 	authService "github.com/HDR3604/HelpDeskApp/internal/domain/auth/service"
 	consentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/consent/handler"
+	payrollHandler "github.com/HDR3604/HelpDeskApp/internal/domain/payroll/handler"
+	payrollService "github.com/HDR3604/HelpDeskApp/internal/domain/payroll/service"
 	scheduleHandler "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/handler"
 	scheduleService "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	studentHandler "github.com/HDR3604/HelpDeskApp/internal/domain/student/handler"
@@ -28,6 +30,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
+	payrollRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/payroll"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
 	schedulerService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
 	studentRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/student"
@@ -93,6 +96,7 @@ func NewApp(cfg Config) (*App, error) {
 	verificationRepository := verificationInfra.NewVerificationRepository(logger)
 	timeLogRepository := timelogRepo.NewTimeLogRepository(logger)
 	clockInCodeRepository := timelogRepo.NewClockInCodeRepository(logger)
+	paymentRepository := payrollRepo.NewPaymentRepository(logger)
 
 	// Seed default admin (idempotent, skipped if env vars not set)
 	if err := seedDefaultAdmin(context.Background(), cfg, logger, txManager, userRepository); err != nil {
@@ -136,6 +140,7 @@ func NewApp(cfg Config) (*App, error) {
 	studentSvc := studentService.NewStudentService(logger, studentRepository, txManager)
 	verificationSvc := verificationService.NewVerificationService(logger, txManager, verificationRepository, emailSenderSvc, cfg.FromEmail)
 	timeLogSvc := timelogService.NewTimeLogService(logger, txManager, timeLogRepository, clockInCodeRepository, scheduleRepository, cfg.HelpDeskLongitude, cfg.HelpDeskLatitude)
+	payrollSvc := payrollService.NewPayrollService(logger, txManager, paymentRepository, studentRepository, bankingDetailsRepository)
 
 	// Handlers
 	consentHdl := consentHandler.NewConsentHandler(logger)
@@ -149,6 +154,7 @@ func NewApp(cfg Config) (*App, error) {
 	userHdl := userHandler.NewUserHandler(logger, userSvc)
 	verificationHdl := verificationHandler.NewVerificationHandler(logger, verificationSvc)
 	timeLogHdl := timelogHandler.NewTimeLogHandler(logger, timeLogSvc)
+	payrollHdl := payrollHandler.NewPayrollHandler(logger, payrollSvc)
 
 	// Router
 	r := chi.NewRouter()
@@ -172,7 +178,7 @@ func NewApp(cfg Config) (*App, error) {
 		})
 	})
 
-	registerRoutes(r, cfg, authHdl, authSvc, consentHdl, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl, timeLogHdl)
+	registerRoutes(r, cfg, authHdl, authSvc, consentHdl, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl, timeLogHdl, payrollHdl)
 
 	app := &App{
 		config:  cfg,

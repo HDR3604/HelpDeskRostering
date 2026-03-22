@@ -115,7 +115,7 @@ export function DataTable<TData, TValue>({
                 <div className="flex items-center gap-2 pb-3">
                     {toolbarSlot}
                     {showSearch && (
-                        <div className="relative w-48">
+                        <div className="relative w-full sm:w-48">
                             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                             <Input
                                 placeholder={searchPlaceholder}

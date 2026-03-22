@@ -10,7 +10,7 @@ import {
     CardTitle,
 } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { RefreshCw, LoaderCircle, Check, X } from 'lucide-react'
+import { RefreshCw, Check, X } from 'lucide-react'
 import { DataTable } from '@/components/ui/data-table'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { getStudentColumns } from '../columns/application-columns'
@@ -52,7 +52,14 @@ export function Applications() {
 
     // Optimistic updates: overlay on top of server data
     const [optimisticUpdates, setOptimisticUpdates] = useState<
-        Map<number, { accepted_at: string | null; rejected_at: string | null }>
+        Map<
+            number,
+            {
+                accepted_at: string | null
+                rejected_at: string | null
+                status: string
+            }
+        >
     >(new Map())
     const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(
         new Map(),
@@ -142,6 +149,7 @@ export function Applications() {
                 next.set(studentId, {
                     accepted_at: new Date().toISOString(),
                     rejected_at: null,
+                    status: 'accepted',
                 })
                 return next
             })
@@ -173,6 +181,7 @@ export function Applications() {
                 next.set(studentId, {
                     rejected_at: new Date().toISOString(),
                     accepted_at: null,
+                    status: 'rejected',
                 })
                 return next
             })
@@ -263,7 +272,7 @@ export function Applications() {
         <>
             <Card>
                 <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <CardTitle>Applications</CardTitle>
@@ -283,7 +292,10 @@ export function Applications() {
                             size="sm"
                             className="shrink-0"
                             disabled={isRefetching}
-                            onClick={refetch}
+                            onClick={() => {
+                                refetch()
+                                toast.success('Applications synced')
+                            }}
                         >
                             <RefreshCw
                                 className={cn(
@@ -295,14 +307,9 @@ export function Applications() {
                         </Button>
                     </div>
                 </CardHeader>
-                <CardContent className="relative">
-                    {isRefetching && (
-                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-b-lg bg-background/30 backdrop-blur-[2px]">
-                            <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
-                        </div>
-                    )}
+                <CardContent>
                     {hasSelection && selectedPendingIds.length > 0 && (
-                        <div className="mb-3 flex items-center gap-3 rounded-md border bg-muted/50 px-3 py-2">
+                        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border bg-muted/50 px-3 py-2 sm:gap-3">
                             <span className="text-sm text-muted-foreground">
                                 {selectedPendingIds.length} pending selected
                             </span>

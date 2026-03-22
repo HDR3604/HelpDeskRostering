@@ -48,10 +48,10 @@ export function ActiveScheduleCard({
             className="group cursor-pointer overflow-hidden transition-colors hover:bg-muted/40"
             onClick={() => onOpen(schedule.schedule_id)}
         >
-            <div className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
+            <div className="flex items-center gap-3 px-4 py-3.5 sm:gap-4 sm:px-5">
                 {/* Icon */}
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10">
-                    <CalendarDays className="size-5 text-emerald-500" />
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 sm:size-10">
+                    <CalendarDays className="size-4 text-emerald-500 sm:size-5" />
                 </div>
 
                 {/* Title + meta */}
@@ -64,7 +64,7 @@ export function ActiveScheduleCard({
                             Active
                         </Badge>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted-foreground">
                         <span>
                             {formatDateRange(
                                 schedule.effective_from,

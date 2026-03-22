@@ -16,6 +16,7 @@ import type { Student } from '@/types/student'
 export const HOURLY_RATE = 20
 
 export type PaymentEntry = {
+    paymentId: string
     student: Student
     periodStart: string
     periodEnd: string

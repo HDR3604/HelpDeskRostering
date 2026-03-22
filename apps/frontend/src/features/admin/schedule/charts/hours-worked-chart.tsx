@@ -15,25 +15,25 @@ import {
 } from '@/components/ui/chart'
 
 const chartConfig = {
-    hours: { label: 'Hours' },
+    shifts: { label: 'Shifts' },
 } satisfies ChartConfig
 
-export function HoursWorkedChart({
+export function ShiftsPerStudentChart({
     data,
     description,
 }: {
-    data: { name: string; hours: number; fill: string }[]
+    data: { name: string; shifts: number; fill: string }[]
     description?: string
 }) {
     const sorted = useMemo(
-        () => [...data].sort((a, b) => b.hours - a.hours),
+        () => [...data].sort((a, b) => b.shifts - a.shifts),
         [data],
     )
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Hours Assigned</CardTitle>
+                <CardTitle>Shifts Per Student</CardTitle>
                 <CardDescription>
                     {description ?? 'Current schedule period'}
                 </CardDescription>
@@ -59,14 +59,14 @@ export function HoursWorkedChart({
                             axisLine={false}
                             width={110}
                         />
-                        <XAxis dataKey="hours" type="number" hide />
+                        <XAxis dataKey="shifts" type="number" hide />
                         <ChartTooltip
                             cursor={false}
                             content={<ChartTooltipContent hideLabel />}
                         />
-                        <Bar dataKey="hours" radius={4}>
+                        <Bar dataKey="shifts" radius={4}>
                             <LabelList
-                                dataKey="hours"
+                                dataKey="shifts"
                                 position="right"
                                 className="fill-foreground text-xs"
                             />

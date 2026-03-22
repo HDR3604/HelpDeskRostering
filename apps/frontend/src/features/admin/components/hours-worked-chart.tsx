@@ -13,22 +13,25 @@ import {
     type ChartConfig,
 } from '@/components/ui/chart'
 
-interface HoursWorkedChartProps {
-    data: { name: string; hours: number; fill: string }[]
+interface ShiftsPerStudentChartProps {
+    data: { name: string; shifts: number; fill: string }[]
     description?: string
 }
 
 const chartConfig = {
-    hours: {
-        label: 'Hours',
+    shifts: {
+        label: 'Shifts',
     },
 } satisfies ChartConfig
 
-export function HoursWorkedChart({ data, description }: HoursWorkedChartProps) {
+export function ShiftsPerStudentChart({
+    data,
+    description,
+}: ShiftsPerStudentChartProps) {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Hours Assigned</CardTitle>
+                <CardTitle>Shifts Per Student</CardTitle>
                 <CardDescription>
                     {description ?? 'Current schedule period'}
                 </CardDescription>
@@ -54,14 +57,14 @@ export function HoursWorkedChart({ data, description }: HoursWorkedChartProps) {
                             axisLine={false}
                             width={110}
                         />
-                        <XAxis dataKey="hours" type="number" hide />
+                        <XAxis dataKey="shifts" type="number" hide />
                         <ChartTooltip
                             cursor={false}
                             content={<ChartTooltipContent hideLabel />}
                         />
-                        <Bar dataKey="hours" radius={4}>
+                        <Bar dataKey="shifts" radius={4}>
                             <LabelList
-                                dataKey="hours"
+                                dataKey="shifts"
                                 position="right"
                                 className="fill-foreground text-xs"
                             />

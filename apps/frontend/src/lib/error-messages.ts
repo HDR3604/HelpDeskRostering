@@ -101,6 +101,18 @@ const ERROR_MAP: Record<string, string> = {
         'The transcript service is temporarily unavailable. Please try again later.',
     'only PDF files are accepted': 'Please upload a PDF file.',
 
+    // Payments
+    'payment not found': 'This payment record could not be found.',
+    'payment already exists for this student and period':
+        'A payment record already exists for this student and period.',
+    'payment has already been processed':
+        'This payment has already been processed.',
+    'payment has not been processed':
+        'This payment has not been processed yet.',
+    'invalid payment period': 'The payment period is not valid.',
+    'period_start and period_end are required':
+        'Please select a valid payment period.',
+
     // Generic
     'internal server error':
         'Something went wrong on our end. Please try again later.',

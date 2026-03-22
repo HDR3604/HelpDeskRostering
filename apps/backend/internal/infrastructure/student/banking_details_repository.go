@@ -120,3 +120,44 @@ func (r *BankingDetailsRepository) GetByStudentID(
 
 	return aggregate.BankingDetailsFromModel(&result, decryptedAccountNumber), nil
 }
+
+func (r *BankingDetailsRepository) ListByStudentIDs(
+	ctx context.Context,
+	tx *sql.Tx,
+	studentIDs []int32,
+) ([]*aggregate.BankingDetails, error) {
+	if len(studentIDs) == 0 {
+		return []*aggregate.BankingDetails{}, nil
+	}
+
+	expressions := make([]postgres.Expression, len(studentIDs))
+	for i, id := range studentIDs {
+		expressions[i] = postgres.Int32(id)
+	}
+
+	stmt := table.BankingDetails.
+		SELECT(table.BankingDetails.AllColumns).
+		WHERE(table.BankingDetails.StudentID.IN(expressions...))
+
+	var results []model.BankingDetails
+	err := stmt.QueryContext(ctx, tx, &results)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return []*aggregate.BankingDetails{}, nil
+		}
+		r.logger.Error("failed to list banking details by student IDs", zap.Error(err))
+		return nil, fmt.Errorf("failed to list banking details by student IDs: %w", err)
+	}
+
+	details := make([]*aggregate.BankingDetails, 0, len(results))
+	for _, m := range results {
+		decryptedAccNum, decryptErr := crypto.Decrypt(m.AccountNumber, r.encryptionKey)
+		if decryptErr != nil {
+			r.logger.Error("failed to decrypt account number in batch", zap.Error(decryptErr), zap.Int32("student_id", m.StudentID))
+			continue
+		}
+		details = append(details, aggregate.BankingDetailsFromModel(&m, decryptedAccNum))
+	}
+
+	return details, nil
+}
