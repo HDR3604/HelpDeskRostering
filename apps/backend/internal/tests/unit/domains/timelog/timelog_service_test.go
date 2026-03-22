@@ -468,3 +468,204 @@ func (s *TimeLogServiceTestSuite) TestGetActiveClockInCode_NotAdmin() {
 	s.ErrorIs(err, timelogErrors.ErrNotAuthorized)
 	s.Nil(result)
 }
+
+// --- Admin: ListTimeLogs ---
+
+func (s *TimeLogServiceTestSuite) TestListTimeLogs_Success() {
+	tl, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
+	atl := &aggregate.AdminTimeLog{
+		TimeLog:      *tl,
+		StudentName:  "John Doe",
+		StudentEmail: "john@example.com",
+		StudentPhone: "555-1234",
+	}
+
+	s.timeLogRepo.ListWithStudentDetailsFn = func(_ context.Context, _ *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error) {
+		s.Equal(1, filter.Page)
+		s.Equal(20, filter.PerPage)
+		return []*aggregate.AdminTimeLog{atl}, 1, nil
+	}
+
+	logs, total, err := s.service.ListTimeLogs(s.adminCtx, repository.TimeLogFilter{Page: 1, PerPage: 20})
+
+	s.Require().NoError(err)
+	s.Len(logs, 1)
+	s.Equal(1, total)
+	s.Equal("John Doe", logs[0].StudentName)
+	s.Equal("john@example.com", logs[0].StudentEmail)
+}
+
+func (s *TimeLogServiceTestSuite) TestListTimeLogs_NotAdmin() {
+	_, _, err := s.service.ListTimeLogs(s.studentCtx, repository.TimeLogFilter{Page: 1, PerPage: 20})
+
+	s.ErrorIs(err, timelogErrors.ErrNotAuthorized)
+}
+
+func (s *TimeLogServiceTestSuite) TestListTimeLogs_MissingAuth() {
+	_, _, err := s.service.ListTimeLogs(context.Background(), repository.TimeLogFilter{Page: 1, PerPage: 20})
+
+	s.ErrorIs(err, timelogErrors.ErrMissingAuthContext)
+}
+
+// --- Admin: GetTimeLog ---
+
+func (s *TimeLogServiceTestSuite) TestGetTimeLog_Success() {
+	fixedID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	tl, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
+	tl.ID = fixedID
+	atl := &aggregate.AdminTimeLog{
+		TimeLog:      *tl,
+		StudentName:  "Jane Doe",
+		StudentEmail: "jane@example.com",
+		StudentPhone: "555-5678",
+	}
+
+	s.timeLogRepo.GetByIDWithStudentDetailsFn = func(_ context.Context, _ *sql.Tx, id uuid.UUID) (*aggregate.AdminTimeLog, error) {
+		s.Equal(fixedID, id)
+		return atl, nil
+	}
+
+	result, err := s.service.GetTimeLog(s.adminCtx, fixedID)
+
+	s.Require().NoError(err)
+	s.Equal(fixedID, result.ID)
+	s.Equal("Jane Doe", result.StudentName)
+}
+
+func (s *TimeLogServiceTestSuite) TestGetTimeLog_NotFound() {
+	s.timeLogRepo.GetByIDWithStudentDetailsFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.AdminTimeLog, error) {
+		return nil, timelogErrors.ErrTimeLogNotFound
+	}
+
+	result, err := s.service.GetTimeLog(s.adminCtx, uuid.New())
+
+	s.ErrorIs(err, timelogErrors.ErrTimeLogNotFound)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestGetTimeLog_NotAdmin() {
+	result, err := s.service.GetTimeLog(s.studentCtx, uuid.New())
+
+	s.ErrorIs(err, timelogErrors.ErrNotAuthorized)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestGetTimeLog_MissingAuth() {
+	result, err := s.service.GetTimeLog(context.Background(), uuid.New())
+
+	s.ErrorIs(err, timelogErrors.ErrMissingAuthContext)
+	s.Nil(result)
+}
+
+// --- Admin: FlagTimeLog ---
+
+func (s *TimeLogServiceTestSuite) TestFlagTimeLog_Success() {
+	fixedID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
+	tl, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
+	tl.ID = fixedID
+
+	s.timeLogRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id uuid.UUID) (*aggregate.TimeLog, error) {
+		s.Equal(fixedID, id)
+		return tl, nil
+	}
+	s.timeLogRepo.UpdateFn = func(_ context.Context, _ *sql.Tx, updated *aggregate.TimeLog) (*aggregate.TimeLog, error) {
+		s.True(updated.IsFlagged)
+		s.Require().NotNil(updated.FlagReason)
+		s.Equal("suspicious distance", *updated.FlagReason)
+		return updated, nil
+	}
+
+	result, err := s.service.FlagTimeLog(s.adminCtx, fixedID, "suspicious distance")
+
+	s.Require().NoError(err)
+	s.True(result.IsFlagged)
+	s.Equal("suspicious distance", *result.FlagReason)
+}
+
+func (s *TimeLogServiceTestSuite) TestFlagTimeLog_NotFound() {
+	s.timeLogRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.TimeLog, error) {
+		return nil, timelogErrors.ErrTimeLogNotFound
+	}
+
+	result, err := s.service.FlagTimeLog(s.adminCtx, uuid.New(), "reason")
+
+	s.ErrorIs(err, timelogErrors.ErrTimeLogNotFound)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestFlagTimeLog_EmptyReason() {
+	tl, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
+
+	s.timeLogRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.TimeLog, error) {
+		return tl, nil
+	}
+
+	result, err := s.service.FlagTimeLog(s.adminCtx, tl.ID, "")
+
+	s.ErrorIs(err, timelogErrors.ErrInvalidFlagReason)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestFlagTimeLog_NotAdmin() {
+	result, err := s.service.FlagTimeLog(s.studentCtx, uuid.New(), "reason")
+
+	s.ErrorIs(err, timelogErrors.ErrNotAuthorized)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestFlagTimeLog_MissingAuth() {
+	result, err := s.service.FlagTimeLog(context.Background(), uuid.New(), "reason")
+
+	s.ErrorIs(err, timelogErrors.ErrMissingAuthContext)
+	s.Nil(result)
+}
+
+// --- Admin: UnflagTimeLog ---
+
+func (s *TimeLogServiceTestSuite) TestUnflagTimeLog_Success() {
+	fixedID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	tl, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
+	tl.ID = fixedID
+	_ = tl.Flag("some reason")
+
+	s.timeLogRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, id uuid.UUID) (*aggregate.TimeLog, error) {
+		s.Equal(fixedID, id)
+		return tl, nil
+	}
+	s.timeLogRepo.UpdateFn = func(_ context.Context, _ *sql.Tx, updated *aggregate.TimeLog) (*aggregate.TimeLog, error) {
+		s.False(updated.IsFlagged)
+		s.Nil(updated.FlagReason)
+		return updated, nil
+	}
+
+	result, err := s.service.UnflagTimeLog(s.adminCtx, fixedID)
+
+	s.Require().NoError(err)
+	s.False(result.IsFlagged)
+	s.Nil(result.FlagReason)
+}
+
+func (s *TimeLogServiceTestSuite) TestUnflagTimeLog_NotFound() {
+	s.timeLogRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.TimeLog, error) {
+		return nil, timelogErrors.ErrTimeLogNotFound
+	}
+
+	result, err := s.service.UnflagTimeLog(s.adminCtx, uuid.New())
+
+	s.ErrorIs(err, timelogErrors.ErrTimeLogNotFound)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestUnflagTimeLog_NotAdmin() {
+	result, err := s.service.UnflagTimeLog(s.studentCtx, uuid.New())
+
+	s.ErrorIs(err, timelogErrors.ErrNotAuthorized)
+	s.Nil(result)
+}
+
+func (s *TimeLogServiceTestSuite) TestUnflagTimeLog_MissingAuth() {
+	result, err := s.service.UnflagTimeLog(context.Background(), uuid.New())
+
+	s.ErrorIs(err, timelogErrors.ErrMissingAuthContext)
+	s.Nil(result)
+}

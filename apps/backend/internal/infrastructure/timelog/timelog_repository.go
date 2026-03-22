@@ -9,6 +9,8 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/aggregate"
 	timelogErrors "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/repository"
+	authModel "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/model"
+	authTable "github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/auth/table"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/model"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/models/helpdesk/schedule/table"
 	"github.com/go-jet/jet/v2/postgres"
@@ -187,6 +189,106 @@ func toTimeLogAggregates(models []model.TimeLogs) []*aggregate.TimeLog {
 	for i, m := range models {
 		tl := aggregate.TimeLogFromModel(m)
 		logs[i] = &tl
+	}
+	return logs
+}
+
+// timeLogWithStudent is a projection struct for JOIN queries.
+type timeLogWithStudent struct {
+	model.TimeLogs
+	authModel.Students
+}
+
+func (r *TimeLogRepository) ListWithStudentDetails(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error) {
+	condition := buildFilterCondition(filter)
+
+	if filter.StudentID != nil {
+		condition = condition.AND(table.TimeLogs.StudentID.EQ(postgres.Int32(*filter.StudentID)))
+	}
+
+	// Count total
+	countStmt := table.TimeLogs.
+		SELECT(postgres.COUNT(table.TimeLogs.ID).AS("count")).
+		WHERE(condition)
+
+	var countResult struct{ Count int }
+	err := countStmt.QueryContext(ctx, tx, &countResult)
+	if err != nil && !errors.Is(err, qrm.ErrNoRows) {
+		r.logger.Error("failed to count time logs", zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to count time logs: %w", err)
+	}
+
+	page := max(filter.Page, 1)
+	perPage := max(filter.PerPage, 20)
+	offset := (page - 1) * perPage
+
+	stmt := table.TimeLogs.
+		INNER_JOIN(authTable.Students, authTable.Students.StudentID.EQ(table.TimeLogs.StudentID)).
+		SELECT(
+			table.TimeLogs.AllColumns,
+			authTable.Students.FirstName,
+			authTable.Students.LastName,
+			authTable.Students.EmailAddress,
+			authTable.Students.PhoneNumber,
+		).
+		WHERE(condition).
+		ORDER_BY(table.TimeLogs.EntryAt.DESC()).
+		LIMIT(int64(perPage)).
+		OFFSET(int64(offset))
+
+	var results []timeLogWithStudent
+	err = stmt.QueryContext(ctx, tx, &results)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return []*aggregate.AdminTimeLog{}, countResult.Count, nil
+		}
+		r.logger.Error("failed to list time logs with student details", zap.Error(err))
+		return nil, 0, fmt.Errorf("failed to list time logs with student details: %w", err)
+	}
+
+	return toAdminTimeLogAggregates(results), countResult.Count, nil
+}
+
+func (r *TimeLogRepository) GetByIDWithStudentDetails(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.AdminTimeLog, error) {
+	stmt := table.TimeLogs.
+		INNER_JOIN(authTable.Students, authTable.Students.StudentID.EQ(table.TimeLogs.StudentID)).
+		SELECT(
+			table.TimeLogs.AllColumns,
+			authTable.Students.FirstName,
+			authTable.Students.LastName,
+			authTable.Students.EmailAddress,
+			authTable.Students.PhoneNumber,
+		).
+		WHERE(table.TimeLogs.ID.EQ(postgres.UUID(id)))
+
+	var result timeLogWithStudent
+	err := stmt.QueryContext(ctx, tx, &result)
+	if err != nil {
+		if errors.Is(err, qrm.ErrNoRows) {
+			return nil, timelogErrors.ErrTimeLogNotFound
+		}
+		r.logger.Error("failed to get time log with student details", zap.Error(err), zap.String("id", id.String()))
+		return nil, fmt.Errorf("failed to get time log with student details: %w", err)
+	}
+
+	atl := toAdminTimeLog(result)
+	return &atl, nil
+}
+
+func toAdminTimeLog(r timeLogWithStudent) aggregate.AdminTimeLog {
+	return aggregate.AdminTimeLog{
+		TimeLog:      aggregate.TimeLogFromModel(r.TimeLogs),
+		StudentName:  r.Students.FirstName + " " + r.Students.LastName,
+		StudentEmail: r.Students.EmailAddress,
+		StudentPhone: r.Students.PhoneNumber,
+	}
+}
+
+func toAdminTimeLogAggregates(results []timeLogWithStudent) []*aggregate.AdminTimeLog {
+	logs := make([]*aggregate.AdminTimeLog, len(results))
+	for i, r := range results {
+		atl := toAdminTimeLog(r)
+		logs[i] = &atl
 	}
 	return logs
 }

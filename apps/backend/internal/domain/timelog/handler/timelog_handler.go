@@ -6,12 +6,14 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	timelogErrors "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/handler/dtos"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -28,12 +30,10 @@ func NewTimeLogHandler(logger *zap.Logger, service service.TimeLogServiceInterfa
 }
 
 func (h *TimeLogHandler) RegisterRoutes(r chi.Router) {
-	r.Route("/time-logs", func(r chi.Router) {
-		r.Post("/clock-in", h.ClockIn)
-		r.Post("/clock-out", h.ClockOut)
-		r.Get("/me/status", h.GetMyStatus)
-		r.Get("/me", h.ListMyTimeLogs)
-	})
+	r.Post("/time-logs/clock-in", h.ClockIn)
+	r.Post("/time-logs/clock-out", h.ClockOut)
+	r.Get("/time-logs/me/status", h.GetMyStatus)
+	r.Get("/time-logs/me", h.ListMyTimeLogs)
 }
 
 func (h *TimeLogHandler) RegisterAdminRoutes(r chi.Router) {
@@ -41,6 +41,14 @@ func (h *TimeLogHandler) RegisterAdminRoutes(r chi.Router) {
 		r.Post("/", h.GenerateClockInCode)
 		r.Get("/active", h.GetActiveCode)
 	})
+
+	// Registered as individual routes instead of r.Route("/time-logs", ...)
+	// to avoid a chi Mount conflict when both RegisterRoutes and
+	// RegisterAdminRoutes are called on the same router (e.g. in tests).
+	r.Get("/time-logs", h.ListTimeLogs)
+	r.Get("/time-logs/{id}", h.GetTimeLog)
+	r.Patch("/time-logs/{id}/flag", h.FlagTimeLog)
+	r.Patch("/time-logs/{id}/unflag", h.UnflagTimeLog)
 }
 
 func (h *TimeLogHandler) ClockIn(w http.ResponseWriter, r *http.Request) {
@@ -153,6 +161,118 @@ func (h *TimeLogHandler) GetActiveCode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dtos.ClockInCodeToResponse(code))
 }
 
+func (h *TimeLogHandler) ListTimeLogs(w http.ResponseWriter, r *http.Request) {
+	filter := repository.TimeLogFilter{
+		Page:    1,
+		PerPage: 50,
+	}
+
+	if v := r.URL.Query().Get("page"); v != "" {
+		if page, err := strconv.Atoi(v); err == nil && page > 0 {
+			filter.Page = page
+		}
+	}
+	if v := r.URL.Query().Get("per_page"); v != "" {
+		if pp, err := strconv.Atoi(v); err == nil && pp > 0 && pp <= 100 {
+			filter.PerPage = pp
+		}
+	}
+	if v := r.URL.Query().Get("student_id"); v != "" {
+		if sid, err := strconv.ParseInt(v, 10, 32); err == nil {
+			s := int32(sid)
+			filter.StudentID = &s
+		}
+	}
+	if v := r.URL.Query().Get("from"); v != "" {
+		if t, err := time.Parse(time.DateOnly, v); err == nil {
+			filter.From = &t
+		}
+	}
+	if v := r.URL.Query().Get("to"); v != "" {
+		if t, err := time.Parse(time.DateOnly, v); err == nil {
+			end := t.AddDate(0, 0, 1) // make "to" inclusive of the whole day
+			filter.To = &end
+		}
+	}
+	if v := r.URL.Query().Get("flagged"); v != "" {
+		if flagged, err := strconv.ParseBool(v); err == nil {
+			filter.Flagged = &flagged
+		}
+	}
+
+	logs, total, err := h.service.ListTimeLogs(r.Context(), filter)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"data":     dtos.AdminTimeLogsToResponse(logs),
+		"total":    total,
+		"page":     filter.Page,
+		"per_page": filter.PerPage,
+	})
+}
+
+func (h *TimeLogHandler) GetTimeLog(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid time log ID")
+		return
+	}
+
+	tl, err := h.service.GetTimeLog(r.Context(), id)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.AdminTimeLogToResponse(tl))
+}
+
+func (h *TimeLogHandler) FlagTimeLog(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid time log ID")
+		return
+	}
+
+	var req dtos.FlagTimeLogRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.Reason == "" {
+		writeError(w, http.StatusBadRequest, "reason is required")
+		return
+	}
+
+	tl, err := h.service.FlagTimeLog(r.Context(), id, req.Reason)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.TimeLogToResponse(tl))
+}
+
+func (h *TimeLogHandler) UnflagTimeLog(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid time log ID")
+		return
+	}
+
+	tl, err := h.service.UnflagTimeLog(r.Context(), id)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.TimeLogToResponse(tl))
+}
+
 func (h *TimeLogHandler) handleServiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, timelogErrors.ErrInvalidClockInCode):
@@ -171,6 +291,10 @@ func (h *TimeLogHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, "no active clock-in code")
 	case errors.Is(err, timelogErrors.ErrInvalidCoordinates):
 		writeError(w, http.StatusBadRequest, "invalid coordinates")
+	case errors.Is(err, timelogErrors.ErrTimeLogNotFound):
+		writeError(w, http.StatusNotFound, "time log not found")
+	case errors.Is(err, timelogErrors.ErrInvalidFlagReason):
+		writeError(w, http.StatusBadRequest, "flag reason must not be empty")
 	default:
 		h.logger.Error("unhandled service error", zap.Error(err))
 		writeError(w, http.StatusInternalServerError, "internal server error")

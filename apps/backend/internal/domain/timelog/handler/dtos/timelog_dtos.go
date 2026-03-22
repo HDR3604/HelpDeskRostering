@@ -19,6 +19,10 @@ type GenerateCodeRequest struct {
 	ExpiresInMinutes int `json:"expires_in_minutes"`
 }
 
+type FlagTimeLogRequest struct {
+	Reason string `json:"reason"`
+}
+
 // --- Responses ---
 
 type TimeLogResponse struct {
@@ -52,6 +56,22 @@ type ClockInCodeResponse struct {
 	Code      string    `json:"code"`
 	ExpiresAt time.Time `json:"expires_at"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type AdminTimeLogResponse struct {
+	ID             string     `json:"id"`
+	StudentID      int32      `json:"student_id"`
+	StudentName    string     `json:"student_name"`
+	StudentEmail   string     `json:"student_email"`
+	StudentPhone   string     `json:"student_phone"`
+	EntryAt        time.Time  `json:"entry_at"`
+	ExitAt         *time.Time `json:"exit_at"`
+	Longitude      float64    `json:"longitude"`
+	Latitude       float64    `json:"latitude"`
+	DistanceMeters float64    `json:"distance_meters"`
+	IsFlagged      bool       `json:"is_flagged"`
+	FlagReason     *string    `json:"flag_reason"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 // --- Converters ---
@@ -105,4 +125,30 @@ func ClockInStatusToResponse(status *service.ClockInStatus) ClockInStatusRespons
 		}
 	}
 	return resp
+}
+
+func AdminTimeLogToResponse(atl *aggregate.AdminTimeLog) AdminTimeLogResponse {
+	return AdminTimeLogResponse{
+		ID:             atl.ID.String(),
+		StudentID:      atl.StudentID,
+		StudentName:    atl.StudentName,
+		StudentEmail:   atl.StudentEmail,
+		StudentPhone:   atl.StudentPhone,
+		EntryAt:        atl.EntryAt,
+		ExitAt:         atl.ExitAt,
+		Longitude:      atl.Longitude,
+		Latitude:       atl.Latitude,
+		DistanceMeters: atl.DistanceMeters,
+		IsFlagged:      atl.IsFlagged,
+		FlagReason:     atl.FlagReason,
+		CreatedAt:      atl.CreatedAt,
+	}
+}
+
+func AdminTimeLogsToResponse(logs []*aggregate.AdminTimeLog) []AdminTimeLogResponse {
+	responses := make([]AdminTimeLogResponse, len(logs))
+	for i, atl := range logs {
+		responses[i] = AdminTimeLogToResponse(atl)
+	}
+	return responses
 }

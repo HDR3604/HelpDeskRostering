@@ -14,11 +14,13 @@ var _ repository.TimeLogRepositoryInterface = (*MockTimeLogRepository)(nil)
 // MockTimeLogRepository provides function-based mocking for the time log repository.
 // Set the Fn fields to control return values per test case.
 type MockTimeLogRepository struct {
-	CreateFn             func(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error)
-	GetByIDFn            func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.TimeLog, error)
-	GetOpenByStudentIDFn func(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.TimeLog, error)
-	UpdateFn             func(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error)
-	ListFn               func(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error)
+	CreateFn                    func(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error)
+	GetByIDFn                   func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.TimeLog, error)
+	GetOpenByStudentIDFn        func(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.TimeLog, error)
+	UpdateFn                    func(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error)
+	ListFn                      func(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error)
+	ListWithStudentDetailsFn    func(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error)
+	GetByIDWithStudentDetailsFn func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.AdminTimeLog, error)
 }
 
 func (m *MockTimeLogRepository) Create(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error) {
@@ -39,4 +41,12 @@ func (m *MockTimeLogRepository) Update(ctx context.Context, tx *sql.Tx, timeLog 
 
 func (m *MockTimeLogRepository) List(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error) {
 	return m.ListFn(ctx, tx, filter)
+}
+
+func (m *MockTimeLogRepository) ListWithStudentDetails(ctx context.Context, tx *sql.Tx, filter repository.TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error) {
+	return m.ListWithStudentDetailsFn(ctx, tx, filter)
+}
+
+func (m *MockTimeLogRepository) GetByIDWithStudentDetails(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.AdminTimeLog, error) {
+	return m.GetByIDWithStudentDetailsFn(ctx, tx, id)
 }
