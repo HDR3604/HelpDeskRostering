@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	timelogErrors "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/errors"
@@ -190,7 +191,7 @@ func (h *TimeLogHandler) ListTimeLogs(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := r.URL.Query().Get("to"); v != "" {
 		if t, err := time.Parse(time.DateOnly, v); err == nil {
-			end := t.AddDate(0, 0, 1) // make "to" inclusive of the whole day
+			end := t.AddDate(0, 0, 1)
 			filter.To = &end
 		}
 	}
@@ -243,10 +244,16 @@ func (h *TimeLogHandler) FlagTimeLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Reason == "" {
+	trimmedReason := strings.TrimSpace(req.Reason)
+	if trimmedReason == "" {
 		writeError(w, http.StatusBadRequest, "reason is required")
 		return
 	}
+	if len(trimmedReason) > 500 {
+		writeError(w, http.StatusBadRequest, "reason must be 500 characters or fewer")
+		return
+	}
+	req.Reason = trimmedReason
 
 	tl, err := h.service.FlagTimeLog(r.Context(), id, req.Reason)
 	if err != nil {

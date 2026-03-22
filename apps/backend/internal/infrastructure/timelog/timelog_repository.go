@@ -219,7 +219,10 @@ func (r *TimeLogRepository) ListWithStudentDetails(ctx context.Context, tx *sql.
 	}
 
 	page := max(filter.Page, 1)
-	perPage := max(filter.PerPage, 20)
+	perPage := filter.PerPage
+	if perPage <= 0 {
+		perPage = 20
+	}
 	offset := (page - 1) * perPage
 
 	stmt := table.TimeLogs.
