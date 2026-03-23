@@ -396,8 +396,8 @@ func (s *TimeLogHandlerTestSuite) TestListTimeLogs_WithFilters() {
 		s.Require().NotNil(filter.From)
 		s.Equal(time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC), *filter.From)
 		s.Require().NotNil(filter.To)
-		// "to" is made inclusive by adding one day
-		s.Equal(time.Date(2026, 3, 32, 0, 0, 0, 0, time.UTC), *filter.To) // March 32 normalizes to April 1
+		// "to" is made exclusive by adding one day
+		s.Equal(time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC), *filter.To)
 		s.Require().NotNil(filter.Flagged)
 		s.True(*filter.Flagged)
 		return []*aggregate.AdminTimeLog{}, 0, nil

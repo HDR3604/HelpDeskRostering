@@ -43,9 +43,7 @@ func (h *TimeLogHandler) RegisterAdminRoutes(r chi.Router) {
 		r.Get("/active", h.GetActiveCode)
 	})
 
-	// Registered as individual routes instead of r.Route("/time-logs", ...)
-	// to avoid a chi Mount conflict when both RegisterRoutes and
-	// RegisterAdminRoutes are called on the same router (e.g. in tests).
+	// Individual routes (not r.Route) to avoid chi mount conflict in tests.
 	r.Get("/time-logs", h.ListTimeLogs)
 	r.Get("/time-logs/{id}", h.GetTimeLog)
 	r.Patch("/time-logs/{id}/flag", h.FlagTimeLog)

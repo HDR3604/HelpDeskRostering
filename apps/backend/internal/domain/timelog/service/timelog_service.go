@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
@@ -423,15 +422,6 @@ func (s *TimeLogService) FlagTimeLog(ctx context.Context, id uuid.UUID, reason s
 		return nil, timelogErrors.ErrNotAuthorized
 	}
 
-	// Normalize and validate reason before starting transaction
-	trimmedReason := strings.TrimSpace(reason)
-	if trimmedReason == "" {
-		return nil, timelogErrors.ErrInvalidFlagReason
-	}
-	if len(trimmedReason) > 500 {
-		return nil, errors.New("flag reason must be 500 characters or fewer")
-	}
-
 	var result *aggregate.TimeLog
 
 	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
@@ -440,7 +430,7 @@ func (s *TimeLogService) FlagTimeLog(ctx context.Context, id uuid.UUID, reason s
 			return err
 		}
 
-		if err := tl.Flag(trimmedReason); err != nil {
+		if err := tl.Flag(reason); err != nil {
 			return err
 		}
 

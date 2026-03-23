@@ -175,7 +175,7 @@ func buildFilterCondition(filter repository.TimeLogFilter) postgres.BoolExpressi
 		condition = condition.AND(table.TimeLogs.EntryAt.GT_EQ(postgres.TimestampzT(*filter.From)))
 	}
 	if filter.To != nil {
-		condition = condition.AND(table.TimeLogs.EntryAt.LT_EQ(postgres.TimestampzT(*filter.To)))
+		condition = condition.AND(table.TimeLogs.EntryAt.LT(postgres.TimestampzT(*filter.To)))
 	}
 	if filter.Flagged != nil {
 		condition = condition.AND(table.TimeLogs.IsFlagged.EQ(postgres.Bool(*filter.Flagged)))
