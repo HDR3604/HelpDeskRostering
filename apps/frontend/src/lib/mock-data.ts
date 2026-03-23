@@ -756,6 +756,8 @@ export const MOCK_TIME_LOGS: TimeLog[] = [
         longitude: -61.402,
         latitude: 10.643,
         distance_meters: 12.5,
+        is_flagged: false,
+        flag_reason: null,
     },
     // Tanya Williams — Mon afternoon shift (completed)
     {
@@ -767,6 +769,8 @@ export const MOCK_TIME_LOGS: TimeLog[] = [
         longitude: -61.402,
         latitude: 10.643,
         distance_meters: 8.3,
+        is_flagged: false,
+        flag_reason: null,
     },
     // Tanya Williams — Tue morning shift (currently clocked in)
     {
@@ -778,6 +782,8 @@ export const MOCK_TIME_LOGS: TimeLog[] = [
         longitude: -61.402,
         latitude: 10.643,
         distance_meters: 10.1,
+        is_flagged: false,
+        flag_reason: null,
     },
 ]
 

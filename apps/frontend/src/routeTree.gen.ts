@@ -20,6 +20,8 @@ import { Route as AuthForgotPasswordRouteImport } from './routes/_auth/forgot-pa
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
 import { Route as AppCompleteOnboardingRouteImport } from './routes/_app/complete-onboarding'
+import { Route as AppClockInStationRouteImport } from './routes/_app/clock-in-station'
+import { Route as AppClockRouteImport } from './routes/_app/clock'
 import { Route as AppAssistantsRouteImport } from './routes/_app/assistants'
 import { Route as AppApplicationsRouteImport } from './routes/_app/applications'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
@@ -82,6 +84,16 @@ const AppCompleteOnboardingRoute = AppCompleteOnboardingRouteImport.update({
   path: '/complete-onboarding',
   getParentRoute: () => AppRoute,
 } as any)
+const AppClockInStationRoute = AppClockInStationRouteImport.update({
+  id: '/clock-in-station',
+  path: '/clock-in-station',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppClockRoute = AppClockRouteImport.update({
+  id: '/clock',
+  path: '/clock',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAssistantsRoute = AppAssistantsRouteImport.update({
   id: '/assistants',
   path: '/assistants',
@@ -127,6 +139,8 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/applications': typeof AppApplicationsRoute
   '/assistants': typeof AppAssistantsRouteWithChildren
+  '/clock': typeof AppClockRoute
+  '/clock-in-station': typeof AppClockInStationRoute
   '/complete-onboarding': typeof AppCompleteOnboardingRoute
   '/schedule': typeof AppScheduleRouteWithChildren
   '/settings': typeof AppSettingsRouteWithChildren
@@ -145,6 +159,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/applications': typeof AppApplicationsRoute
+  '/clock': typeof AppClockRoute
+  '/clock-in-station': typeof AppClockInStationRoute
   '/complete-onboarding': typeof AppCompleteOnboardingRoute
   '/forgot-password': typeof AuthForgotPasswordRoute
   '/onboarding': typeof AuthOnboardingRoute
@@ -164,6 +180,8 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_app/applications': typeof AppApplicationsRoute
   '/_app/assistants': typeof AppAssistantsRouteWithChildren
+  '/_app/clock': typeof AppClockRoute
+  '/_app/clock-in-station': typeof AppClockInStationRoute
   '/_app/complete-onboarding': typeof AppCompleteOnboardingRoute
   '/_app/schedule': typeof AppScheduleRouteWithChildren
   '/_app/settings': typeof AppSettingsRouteWithChildren
@@ -186,6 +204,8 @@ export interface FileRouteTypes {
     | '/'
     | '/applications'
     | '/assistants'
+    | '/clock'
+    | '/clock-in-station'
     | '/complete-onboarding'
     | '/schedule'
     | '/settings'
@@ -204,6 +224,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/applications'
+    | '/clock'
+    | '/clock-in-station'
     | '/complete-onboarding'
     | '/forgot-password'
     | '/onboarding'
@@ -222,6 +244,8 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_app/applications'
     | '/_app/assistants'
+    | '/_app/clock'
+    | '/_app/clock-in-station'
     | '/_app/complete-onboarding'
     | '/_app/schedule'
     | '/_app/settings'
@@ -321,6 +345,20 @@ declare module '@tanstack/react-router' {
       path: '/complete-onboarding'
       fullPath: '/complete-onboarding'
       preLoaderRoute: typeof AppCompleteOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clock-in-station': {
+      id: '/_app/clock-in-station'
+      path: '/clock-in-station'
+      fullPath: '/clock-in-station'
+      preLoaderRoute: typeof AppClockInStationRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clock': {
+      id: '/_app/clock'
+      path: '/clock'
+      fullPath: '/clock'
+      preLoaderRoute: typeof AppClockRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/assistants': {
@@ -427,6 +465,8 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 interface AppRouteChildren {
   AppApplicationsRoute: typeof AppApplicationsRoute
   AppAssistantsRoute: typeof AppAssistantsRouteWithChildren
+  AppClockRoute: typeof AppClockRoute
+  AppClockInStationRoute: typeof AppClockInStationRoute
   AppCompleteOnboardingRoute: typeof AppCompleteOnboardingRoute
   AppScheduleRoute: typeof AppScheduleRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
@@ -436,6 +476,8 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppApplicationsRoute: AppApplicationsRoute,
   AppAssistantsRoute: AppAssistantsRouteWithChildren,
+  AppClockRoute: AppClockRoute,
+  AppClockInStationRoute: AppClockInStationRoute,
   AppCompleteOnboardingRoute: AppCompleteOnboardingRoute,
   AppScheduleRoute: AppScheduleRouteWithChildren,
   AppSettingsRoute: AppSettingsRouteWithChildren,

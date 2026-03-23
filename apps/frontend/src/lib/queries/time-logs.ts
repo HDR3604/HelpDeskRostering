@@ -1,0 +1,91 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import type { ClockInStatus } from '@/types/time-log'
+import {
+    clockIn,
+    clockOut,
+    getMyClockInStatus,
+    generateClockInCode,
+    getActiveClockInCode,
+} from '@/lib/api/time-logs'
+import { getApiErrorMessage } from '@/lib/error-messages'
+
+// ── Key Factory ─────────────────────────────────────────────────────
+
+export const timeLogKeys = {
+    all: () => ['time-logs'] as const,
+    status: () => [...timeLogKeys.all(), 'status'] as const,
+    activeCode: () => ['clock-in-codes', 'active'] as const,
+}
+
+// ── Query Hooks ─────────────────────────────────────────────────────
+
+export function useClockInStatus() {
+    return useQuery({
+        queryKey: timeLogKeys.status(),
+        queryFn: getMyClockInStatus,
+        staleTime: 10_000,
+        refetchInterval: 30_000,
+    })
+}
+
+export function useActiveClockInCode() {
+    return useQuery({
+        queryKey: timeLogKeys.activeCode(),
+        queryFn: getActiveClockInCode,
+        staleTime: 10_000,
+        retry: false,
+    })
+}
+
+// ── Mutation Hooks ──────────────────────────────────────────────────
+
+export function useClockIn() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: clockIn,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: timeLogKeys.status() })
+        },
+        onError: (error) => {
+            toast.error('Clock in failed', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
+
+export function useClockOut() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: clockOut,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: timeLogKeys.status() })
+        },
+        onError: (error) => {
+            toast.error('Clock out failed', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
+
+export function useGenerateClockInCode() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: generateClockInCode,
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: timeLogKeys.activeCode(),
+            })
+        },
+        onError: (error) => {
+            toast.error('Failed to generate code', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
