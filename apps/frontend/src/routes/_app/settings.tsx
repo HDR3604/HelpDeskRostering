@@ -1,25 +1,27 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router'
+import {
+    createFileRoute,
+    Link,
+    Outlet,
+    useRouterState,
+} from '@tanstack/react-router'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { useUser } from '@/lib/auth/hooks/use-user'
-import { 
-    Tabs, 
-    TabsList, 
-    TabsTrigger 
-} from '@/components/ui/tabs'
-import {
-    Link, 
-    useRouterState
-} from '@tanstack/react-router'
-import {  
-    MonitorCog, 
-    UserPen, 
-    CalendarClock, 
-    DollarSign 
-} from 'lucide-react'
+import { MonitorCog, UserPen } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_app/settings')({
     component: SettingsLayout,
 })
+
+const navItems = [
+    { label: 'Profile', to: '/settings', icon: UserPen, exact: true as const },
+    {
+        label: 'Scheduler',
+        to: '/settings/scheduler',
+        icon: MonitorCog,
+        exact: false as const,
+    },
+]
 
 function SettingsLayout() {
     useDocumentTitle('Settings')
@@ -27,44 +29,45 @@ function SettingsLayout() {
     const router = useRouterState()
     const currentPath = router.location.pathname
 
-    const activeTab = currentPath.endsWith('/availability')
-        ? 'availability'
-        : currentPath.endsWith('/payment')
-        ? 'payment'
-        : currentPath.endsWith('/scheduler')
-        ? 'scheduler'
-        : 'profile'
-
     return (
         <div className="mx-auto max-w-7xl space-y-6">
-            <div className="flex items-end justify-between max-w-3xl gap-4">
-              <div>
-                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Settings</h1>
-                  <p className="mt-1 text-muted-foreground">
-                      {role === 'student'
-                          ? 'Update your information and availability'
-                          : 'Update your information and scheduler configurations'
-                      }
-                  </p>
-              </div>
-              <Tabs value={activeTab}>
-                  <TabsList variant="line">
-                        <TabsTrigger value="profile" asChild>
-                            <Link to="/settings">
-                                <UserPen />
-                                Profile
-                            </Link>
-                        </TabsTrigger>
-                        <TabsTrigger value="scheduler" asChild>
-                            <Link to="/settings/scheduler">
-                                <MonitorCog />
-                                Scheduler
-                            </Link>
-                        </TabsTrigger>
-                  </TabsList>
-              </Tabs>
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                    Settings
+                </h1>
+                <p className="mt-1 text-muted-foreground">
+                    {role === 'student'
+                        ? 'Update your information and availability'
+                        : 'Update your information and scheduler configurations'}
+                </p>
             </div>
-            <Outlet />
+            <div className="flex gap-8">
+                <nav className="w-48 shrink-0 space-y-1">
+                    {navItems.map(({ label, to, icon: Icon, exact }) => {
+                        const isActive = exact
+                            ? currentPath === to || currentPath === to + '/'
+                            : currentPath.startsWith(to)
+                        return (
+                            <Link
+                                key={to}
+                                to={to}
+                                className={cn(
+                                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                                    isActive
+                                        ? 'bg-muted text-foreground'
+                                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                                )}
+                            >
+                                <Icon className="h-4 w-4" />
+                                {label}
+                            </Link>
+                        )
+                    })}
+                </nav>
+                <div className="flex-1 min-w-0">
+                    <Outlet />
+                </div>
+            </div>
         </div>
     )
 }

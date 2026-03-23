@@ -290,14 +290,18 @@ export function AppSidebar() {
 
                                     {/* Settings */}
                                     <Collapsible
-                                        defaultOpen={currentPath.startsWith('/settings')}
+                                        defaultOpen={currentPath.startsWith(
+                                            '/settings',
+                                        )}
                                         className="group/collapsible"
                                     >
                                         <SidebarMenuItem>
                                             <CollapsibleTrigger asChild>
                                                 <SidebarMenuButton
                                                     tooltip="Settings"
-                                                    isActive={currentPath.startsWith('/settings')}
+                                                    isActive={currentPath.startsWith(
+                                                        '/settings',
+                                                    )}
                                                     asChild
                                                 >
                                                     <Link to="/settings">
@@ -312,24 +316,38 @@ export function AppSidebar() {
                                                     <SidebarMenuSubItem>
                                                         <SidebarMenuSubButton
                                                             asChild
-                                                            isActive={currentPath === '/settings'}
+                                                            isActive={
+                                                                currentPath ===
+                                                                '/settings'
+                                                            }
                                                             className="h-8"
                                                         >
                                                             <Link to="/settings">
-                                                                <span>Profile</span>
-                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">1</kbd>
+                                                                <span>
+                                                                    Profile
+                                                                </span>
+                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">
+                                                                    1
+                                                                </kbd>
                                                             </Link>
                                                         </SidebarMenuSubButton>
                                                     </SidebarMenuSubItem>
                                                     <SidebarMenuSubItem>
                                                         <SidebarMenuSubButton
                                                             asChild
-                                                            isActive={currentPath === '/settings/scheduler'}
+                                                            isActive={
+                                                                currentPath ===
+                                                                '/settings/scheduler'
+                                                            }
                                                             className="h-8"
                                                         >
                                                             <Link to="/settings/scheduler">
-                                                                <span>Scheduler</span>
-                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">2</kbd>
+                                                                <span>
+                                                                    Scheduler
+                                                                </span>
+                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">
+                                                                    2
+                                                                </kbd>
                                                             </Link>
                                                         </SidebarMenuSubButton>
                                                     </SidebarMenuSubItem>
