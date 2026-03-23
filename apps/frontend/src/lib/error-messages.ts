@@ -114,17 +114,22 @@ const ERROR_MAP: Record<string, string> = {
         'Please select a valid payment period.',
 
     // Time logs
-    'invalid clock-in code':
+    'invalid or expired clock-in code':
         'The clock-in code is invalid or has expired. Please scan a fresh QR code.',
-    'no active shift assignment':
+    'no active shift assignment found':
         'You do not have a shift assigned right now. Please check your schedule.',
     'already clocked in': 'You are already clocked in. Please clock out first.',
-    'not clocked in': 'You are not currently clocked in.',
+    'no open time log found': 'You are not currently clocked in.',
     'no active clock-in code':
         'No active clock-in code exists. Please ask an administrator to generate one.',
     'invalid coordinates':
         'Location data is invalid. Please allow location access and try again.',
-    'invalid flag reason': 'Please provide a reason for flagging this entry.',
+    'flag reason must not be empty':
+        'Please provide a reason for flagging this entry.',
+    'code is required':
+        'No clock-in code was provided. Please scan the QR code again.',
+    'longitude and latitude are required':
+        'Location data is missing. Please allow location access and try again.',
 
     // Generic
     'internal server error':

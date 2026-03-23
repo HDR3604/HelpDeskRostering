@@ -34,6 +34,8 @@ const PAGE_TITLES: Record<string, string> = {
     '/schedule': 'Schedule',
     '/settings': 'Settings',
     '/complete-onboarding': 'Complete Onboarding',
+    '/clock': 'Time Clock',
+    '/clock-in-station': 'Clock-In Station',
 }
 
 interface Crumb {

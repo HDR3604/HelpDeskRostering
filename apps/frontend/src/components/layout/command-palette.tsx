@@ -8,6 +8,8 @@ import {
     ClipboardList,
     UserSearch,
     DollarSign,
+    QrCode,
+    Clock,
 } from 'lucide-react'
 import { useUser } from '@/lib/auth'
 import {
@@ -64,6 +66,12 @@ const ADMIN_PAGES: NavItem[] = [
         keywords: ['payroll', 'payments', 'salary', 'hours'],
     },
     {
+        label: 'Clock-In Station',
+        to: '/clock-in-station',
+        icon: QrCode,
+        keywords: ['qr', 'clock', 'scan', 'time'],
+    },
+    {
         label: 'Settings',
         to: '/settings',
         icon: Settings,
@@ -78,6 +86,12 @@ const STUDENT_PAGES: NavItem[] = [
         icon: Calendar,
         shortcut: 'S',
         keywords: ['shifts', 'roster'],
+    },
+    {
+        label: 'Time Clock',
+        to: '/clock',
+        icon: Clock,
+        keywords: ['clock', 'in', 'out', 'scan', 'qr'],
     },
     {
         label: 'Onboarding',
