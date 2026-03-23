@@ -24,4 +24,6 @@ type TimeLogRepositoryInterface interface {
 	GetOpenByStudentID(ctx context.Context, tx *sql.Tx, studentID int32) (*aggregate.TimeLog, error)
 	Update(ctx context.Context, tx *sql.Tx, timeLog *aggregate.TimeLog) (*aggregate.TimeLog, error)
 	List(ctx context.Context, tx *sql.Tx, filter TimeLogFilter) ([]*aggregate.TimeLog, int, error)
+	ListWithStudentDetails(ctx context.Context, tx *sql.Tx, filter TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error)
+	GetByIDWithStudentDetails(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.AdminTimeLog, error)
 }

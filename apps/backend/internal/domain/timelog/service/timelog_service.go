@@ -50,6 +50,10 @@ type TimeLogServiceInterface interface {
 	ListMyTimeLogs(ctx context.Context, filter repository.TimeLogFilter) ([]*aggregate.TimeLog, int, error)
 	GenerateClockInCode(ctx context.Context, expiresInMinutes int) (*aggregate.ClockInCode, error)
 	GetActiveClockInCode(ctx context.Context) (*aggregate.ClockInCode, error)
+	ListTimeLogs(ctx context.Context, filter repository.TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error)
+	GetTimeLog(ctx context.Context, id uuid.UUID) (*aggregate.AdminTimeLog, error)
+	FlagTimeLog(ctx context.Context, id uuid.UUID, reason string) (*aggregate.TimeLog, error)
+	UnflagTimeLog(ctx context.Context, id uuid.UUID) (*aggregate.TimeLog, error)
 }
 
 // TimeLogService implements TimeLogServiceInterface.
@@ -354,6 +358,113 @@ func (s *TimeLogService) GetActiveClockInCode(ctx context.Context) (*aggregate.C
 		}
 		result = code
 		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *TimeLogService) ListTimeLogs(ctx context.Context, filter repository.TimeLogFilter) ([]*aggregate.AdminTimeLog, int, error) {
+	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	if !ok {
+		return nil, 0, timelogErrors.ErrMissingAuthContext
+	}
+	if authCtx.Role != string(userAggregate.Role_Admin) {
+		return nil, 0, timelogErrors.ErrNotAuthorized
+	}
+
+	var logs []*aggregate.AdminTimeLog
+	var total int
+
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		logs, total, err = s.timeLogRepo.ListWithStudentDetails(ctx, tx, filter)
+		return err
+	})
+
+	if err != nil {
+		return nil, 0, err
+	}
+	return logs, total, nil
+}
+
+func (s *TimeLogService) GetTimeLog(ctx context.Context, id uuid.UUID) (*aggregate.AdminTimeLog, error) {
+	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	if !ok {
+		return nil, timelogErrors.ErrMissingAuthContext
+	}
+	if authCtx.Role != string(userAggregate.Role_Admin) {
+		return nil, timelogErrors.ErrNotAuthorized
+	}
+
+	var result *aggregate.AdminTimeLog
+
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		result, err = s.timeLogRepo.GetByIDWithStudentDetails(ctx, tx, id)
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *TimeLogService) FlagTimeLog(ctx context.Context, id uuid.UUID, reason string) (*aggregate.TimeLog, error) {
+	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	if !ok {
+		return nil, timelogErrors.ErrMissingAuthContext
+	}
+	if authCtx.Role != string(userAggregate.Role_Admin) {
+		return nil, timelogErrors.ErrNotAuthorized
+	}
+
+	var result *aggregate.TimeLog
+
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		tl, err := s.timeLogRepo.GetByID(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+
+		if err := tl.Flag(reason); err != nil {
+			return err
+		}
+
+		result, err = s.timeLogRepo.Update(ctx, tx, tl)
+		return err
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *TimeLogService) UnflagTimeLog(ctx context.Context, id uuid.UUID) (*aggregate.TimeLog, error) {
+	authCtx, ok := database.GetAuthContextFromContext(ctx)
+	if !ok {
+		return nil, timelogErrors.ErrMissingAuthContext
+	}
+	if authCtx.Role != string(userAggregate.Role_Admin) {
+		return nil, timelogErrors.ErrNotAuthorized
+	}
+
+	var result *aggregate.TimeLog
+
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		tl, err := s.timeLogRepo.GetByID(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+
+		tl.Unflag()
+
+		result, err = s.timeLogRepo.Update(ctx, tx, tl)
+		return err
 	})
 
 	if err != nil {
