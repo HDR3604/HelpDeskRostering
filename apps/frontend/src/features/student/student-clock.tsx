@@ -4,11 +4,13 @@ import {
     LogIn,
     LogOut,
     MapPin,
+    MapPinOff,
     Loader2,
     CheckCircle2,
     XCircle,
     QrCode,
     CalendarDays,
+    LocateFixed,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -108,6 +110,54 @@ export function StudentClock() {
     const [geo, setGeo] = useState<GeoState>({ status: 'idle' })
     const [elapsed, setElapsed] = useState('')
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [locationPermission, setLocationPermission] = useState<
+        'unknown' | 'granted' | 'prompt' | 'denied' | 'unavailable'
+    >('unknown')
+
+    // Probe location permission on mount and pre-fetch if already granted
+    useEffect(() => {
+        if (!navigator.geolocation) {
+            setLocationPermission('unavailable')
+            return
+        }
+        if (!navigator.permissions) {
+            setLocationPermission('prompt')
+            return
+        }
+
+        navigator.permissions
+            .query({ name: 'geolocation' })
+            .then((result) => {
+                setLocationPermission(result.state)
+                result.addEventListener('change', () => {
+                    setLocationPermission(result.state)
+                })
+
+                // Pre-fetch coordinates if already granted
+                if (result.state === 'granted') {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            setGeo({
+                                status: 'granted',
+                                lat: pos.coords.latitude,
+                                lng: pos.coords.longitude,
+                            })
+                        },
+                        () => {
+                            // Non-critical — will retry on clock-in
+                        },
+                        { enableHighAccuracy: true, timeout: 10_000 },
+                    )
+                }
+            })
+            .catch(() => setLocationPermission('prompt'))
+    }, [])
+
+    // Sync geo state back to permission state
+    useEffect(() => {
+        if (geo.status === 'granted') setLocationPermission('granted')
+        if (geo.status === 'denied') setLocationPermission('denied')
+    }, [geo.status])
 
     const status = statusQuery.data
     const isClockedIn = status?.is_clocked_in ?? false
@@ -146,6 +196,18 @@ export function StudentClock() {
         lat: number
         lng: number
     }> => {
+        // Reuse pre-fetched coordinates if available
+        if (geo.status === 'granted') {
+            return Promise.resolve({ lat: geo.lat, lng: geo.lng })
+        }
+
+        if (!navigator.geolocation) {
+            const message =
+                'Location services are not available in this browser. Please use a supported browser.'
+            setGeo({ status: 'denied', message })
+            return Promise.reject(new Error(message))
+        }
+
         return new Promise((resolve, reject) => {
             setGeo({ status: 'requesting' })
             navigator.geolocation.getCurrentPosition(
@@ -168,7 +230,7 @@ export function StudentClock() {
                 { enableHighAccuracy: true, timeout: 10_000 },
             )
         })
-    }, [])
+    }, [geo])
 
     const handleClockIn = useCallback(async () => {
         if (!urlCode) return
@@ -212,6 +274,25 @@ export function StudentClock() {
         return (
             <div className="flex min-h-[60vh] items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+        )
+    }
+
+    if (statusQuery.isError) {
+        return (
+            <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4 text-center">
+                <XCircle className="h-10 w-10 text-red-500" />
+                <div>
+                    <p className="font-medium">
+                        Could not load your clock-in status
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        {getApiErrorMessage(statusQuery.error)}
+                    </p>
+                </div>
+                <Button variant="outline" onClick={() => statusQuery.refetch()}>
+                    Try again
+                </Button>
             </div>
         )
     }
@@ -331,11 +412,13 @@ export function StudentClock() {
 
                         {todayShift && <ShiftInfoPill shift={todayShift} />}
 
-                        {!todayShift && scheduleQuery.isFetched && (
+                        {!todayShift && scheduleQuery.isSuccess && (
                             <p className="text-center text-sm text-muted-foreground">
                                 No shift scheduled for today.
                             </p>
                         )}
+
+                        <LocationBanner permission={locationPermission} />
                     </>
                 ) : (
                     <>
@@ -360,10 +443,7 @@ export function StudentClock() {
                                 : 'Clock In'}
                         </Button>
 
-                        <p className="text-center text-xs text-muted-foreground">
-                            <MapPin className="mr-1 inline h-3 w-3" />
-                            Your location will be recorded for verification
-                        </p>
+                        <LocationBanner permission={locationPermission} />
                     </>
                 )}
             </div>
@@ -401,6 +481,48 @@ function ErrorBanner({ message }: { message: string }) {
         <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
             <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
             <p className="text-sm text-red-600">{message}</p>
+        </div>
+    )
+}
+
+function LocationBanner({
+    permission,
+}: {
+    permission: 'unknown' | 'granted' | 'prompt' | 'denied' | 'unavailable'
+}) {
+    if (permission === 'unknown') return null
+
+    const config = {
+        granted: {
+            icon: LocateFixed,
+            text: 'Location access enabled',
+            className: 'border-green-500/30 bg-green-500/10 text-green-600',
+        },
+        prompt: {
+            icon: MapPin,
+            text: 'Location permission will be requested when you clock in',
+            className: 'border-border bg-muted/50 text-muted-foreground',
+        },
+        denied: {
+            icon: MapPinOff,
+            text: 'Location access blocked. Enable it in your browser settings to clock in.',
+            className: 'border-red-500/30 bg-red-500/10 text-red-600',
+        },
+        unavailable: {
+            icon: MapPinOff,
+            text: 'Location services are not available in this browser.',
+            className: 'border-red-500/30 bg-red-500/10 text-red-600',
+        },
+    }[permission]
+
+    const Icon = config.icon
+
+    return (
+        <div
+            className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-xs ${config.className}`}
+        >
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span>{config.text}</span>
         </div>
     )
 }

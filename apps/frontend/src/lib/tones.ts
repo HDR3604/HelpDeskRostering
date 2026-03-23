@@ -7,48 +7,64 @@ function getAudioContext(): AudioContext {
     return audioCtx
 }
 
-function playTone(
+async function ensureResumed(ctx: AudioContext): Promise<void> {
+    if (ctx.state === 'suspended') {
+        try {
+            await ctx.resume()
+        } catch {
+            // Silently fail — audio is non-critical
+        }
+    }
+}
+
+function scheduleTone(
+    ctx: AudioContext,
     frequency: number,
     duration: number,
+    startOffset: number,
     type: OscillatorType = 'sine',
 ) {
-    const ctx = getAudioContext()
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
 
     osc.type = type
-    osc.frequency.setValueAtTime(frequency, ctx.currentTime)
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime + startOffset)
+    gain.gain.setValueAtTime(0.3, ctx.currentTime + startOffset)
+    gain.gain.exponentialRampToValueAtTime(
+        0.01,
+        ctx.currentTime + startOffset + duration,
+    )
 
     osc.connect(gain)
     gain.connect(ctx.destination)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + duration)
+    osc.start(ctx.currentTime + startOffset)
+    osc.stop(ctx.currentTime + startOffset + duration)
 }
 
-export function playClockInTone() {
+export async function playClockInTone() {
     const ctx = getAudioContext()
+    await ensureResumed(ctx)
+    if (ctx.state !== 'running') return
+
     // Rising two-tone: friendly "boop-beep"
-    playTone(440, 0.15) // A4
-    setTimeout(() => {
-        if (ctx.state === 'running') {
-            playTone(587, 0.2) // D5
-        }
-    }, 150)
+    scheduleTone(ctx, 440, 0.15, 0) // A4
+    scheduleTone(ctx, 587, 0.2, 0.15) // D5
 }
 
-export function playClockOutTone() {
+export async function playClockOutTone() {
     const ctx = getAudioContext()
+    await ensureResumed(ctx)
+    if (ctx.state !== 'running') return
+
     // Falling two-tone: gentle "beep-boop"
-    playTone(587, 0.15) // D5
-    setTimeout(() => {
-        if (ctx.state === 'running') {
-            playTone(440, 0.2) // A4
-        }
-    }, 150)
+    scheduleTone(ctx, 587, 0.15, 0) // D5
+    scheduleTone(ctx, 440, 0.2, 0.15) // A4
 }
 
-export function playErrorTone() {
-    playTone(200, 0.3, 'square')
+export async function playErrorTone() {
+    const ctx = getAudioContext()
+    await ensureResumed(ctx)
+    if (ctx.state !== 'running') return
+
+    scheduleTone(ctx, 200, 0.3, 0, 'square')
 }

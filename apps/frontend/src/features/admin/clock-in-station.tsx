@@ -39,14 +39,18 @@ export function ClockInStation() {
         }
     }, [codeQuery.isFetched, code]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Auto-refresh: generate a new code every 30s
+    // Auto-refresh: generate a new code every 30s (skip if previous is still pending)
+    const generateCodeRef = useRef(generateCode)
+    generateCodeRef.current = generateCode
     useEffect(() => {
         const id = setInterval(() => {
-            lastGeneratedAt.current = Date.now()
-            generateCode.mutate(1)
+            if (!generateCodeRef.current.isPending) {
+                lastGeneratedAt.current = Date.now()
+                generateCodeRef.current.mutate(1)
+            }
         }, REFRESH_INTERVAL_MS)
         return () => clearInterval(id)
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [])
 
     // Tick the countdown to next refresh every second
     useEffect(() => {
@@ -65,11 +69,22 @@ export function ClockInStation() {
         ? `${window.location.origin}/clock?code=${code.code}`
         : null
 
-    const handleCopy = useCallback(() => {
+    const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+    useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+        }
+    }, [])
+    const handleCopy = useCallback(async () => {
         if (!clockUrl) return
-        navigator.clipboard.writeText(clockUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+        try {
+            await navigator.clipboard.writeText(clockUrl)
+            setCopied(true)
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+            copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
+        } catch {
+            // Clipboard API unavailable — silently ignore
+        }
     }, [clockUrl])
 
     const isLoading = codeQuery.isLoading || (!code && generateCode.isPending)

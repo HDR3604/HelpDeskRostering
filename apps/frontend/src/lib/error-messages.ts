@@ -126,6 +126,9 @@ const ERROR_MAP: Record<string, string> = {
         'Location data is invalid. Please allow location access and try again.',
     'flag reason must not be empty':
         'Please provide a reason for flagging this entry.',
+    'reason is required': 'Please provide a reason for flagging this entry.',
+    'reason must be 500 characters or fewer':
+        'Reason must be 500 characters or fewer.',
     'code is required':
         'No clock-in code was provided. Please scan the QR code again.',
     'longitude and latitude are required':
