@@ -65,6 +65,7 @@ type TimeLogService struct {
 	scheduleRepo    scheduleRepo.ScheduleRepositoryInterface
 	helpDeskLon     float64
 	helpDeskLat     float64
+	localTZ         *time.Location
 	nowFn           func() time.Time
 }
 
@@ -76,6 +77,13 @@ func NewTimeLogService(
 	scheduleRepo scheduleRepo.ScheduleRepositoryInterface,
 	helpDeskLon, helpDeskLat float64,
 ) TimeLogServiceInterface {
+	// Schedule times are stored in local time (Trinidad, AST = UTC-4)
+	tz, err := time.LoadLocation("America/Port_of_Spain")
+	if err != nil {
+		// Fallback to fixed UTC-4 offset if tzdata not available
+		tz = time.FixedZone("AST", -4*60*60)
+	}
+
 	return &TimeLogService{
 		logger:          logger,
 		txManager:       txManager,
@@ -84,6 +92,7 @@ func NewTimeLogService(
 		scheduleRepo:    scheduleRepo,
 		helpDeskLon:     helpDeskLon,
 		helpDeskLat:     helpDeskLat,
+		localTZ:         tz,
 		nowFn:           func() time.Time { return time.Now().UTC() },
 	}
 }
@@ -141,7 +150,7 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 			return timelogErrors.ErrNoActiveShift
 		}
 
-		_, hasShift, shiftErr := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
+		_, hasShift, shiftErr := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 5)
 		if shiftErr != nil {
 			return shiftErr
 		}
@@ -152,11 +161,12 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 		// d. Calculate distance
 		distanceMeters := haversineDistance(input.Latitude, input.Longitude, s.helpDeskLat, s.helpDeskLon)
 
-		// e. Create time log
+		// e. Create time log (use service clock for consistent entry time)
 		tl, err := aggregate.NewTimeLog(int32(studentID), input.Longitude, input.Latitude, distanceMeters)
 		if err != nil {
 			return err
 		}
+		tl.EntryAt = s.nowFn()
 
 		// f. Auto-flag if too far from help desk (>100m)
 		if distanceMeters > 100 {
@@ -248,14 +258,14 @@ func (s *TimeLogService) GetMyStatus(ctx context.Context) (*ClockInStatus, error
 			status.IsClockedIn = true
 			status.CurrentLog = openLog
 
-			// Look up the matching shift from active schedule
+			// Look up the shift the student clocked into (use entry time, not now)
 			activeSchedule, err := s.scheduleRepo.GetActive(ctx, tx)
 			if err != nil {
 				if !errors.Is(err, scheduleErrors.ErrNotFound) {
 					return err
 				}
 			} else if activeSchedule != nil {
-				shiftInfo, ok, shiftErr := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), s.nowFn(), 10)
+				shiftInfo, ok, shiftErr := s.hasActiveShift(activeSchedule.Assignments, int32(studentID), openLog.EntryAt, 5)
 				if shiftErr != nil {
 					return shiftErr
 				}
@@ -498,16 +508,29 @@ func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID i
 		return nil, false, fmt.Errorf("malformed schedule assignments: %w", err)
 	}
 
+	// Convert to local time — schedule times are stored in local time
+	local := now.In(s.localTZ)
+
 	// Map Go weekday (Sunday=0) to schedule weekday (Monday=0)
-	scheduleDay := (int(now.Weekday()) + 6) % 7
-	currentTime := now.Format("15:04:05")
+	scheduleDay := (int(local.Weekday()) + 6) % 7
+	currentMinutes := local.Hour()*60 + local.Minute()
 
 	studentIDStr := strconv.Itoa(int(studentID))
 
 	for _, entry := range entries {
 		if entry.AssistantID == studentIDStr && entry.DayOfWeek == scheduleDay {
-			earlyStart := subtractMinutes(entry.Start, earlyMinutes)
-			if currentTime >= earlyStart && currentTime <= entry.End {
+			startMin := parseTimeToMinutes(entry.Start)
+			endMin := parseTimeToMinutes(entry.End)
+			if startMin < 0 || endMin < 0 {
+				continue
+			}
+
+			earlyStartMin := startMin - earlyMinutes
+			if earlyStartMin < 0 {
+				earlyStartMin = 0
+			}
+
+			if currentMinutes >= earlyStartMin && currentMinutes < endMin {
 				return &ShiftInfo{
 					ShiftID:   entry.ShiftID,
 					Name:      formatShiftName(scheduleDay, entry.Start, entry.End),
@@ -518,6 +541,19 @@ func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID i
 		}
 	}
 	return nil, false, nil
+}
+
+// parseTimeToMinutes converts "HH:MM:SS" or "HH:MM" to minutes since midnight.
+// Returns -1 if the format is invalid.
+func parseTimeToMinutes(timeStr string) int {
+	t, err := time.Parse("15:04:05", timeStr)
+	if err != nil {
+		t, err = time.Parse("15:04", timeStr)
+		if err != nil {
+			return -1
+		}
+	}
+	return t.Hour()*60 + t.Minute()
 }
 
 // subtractMinutes subtracts the given number of minutes from a "HH:MM:SS"

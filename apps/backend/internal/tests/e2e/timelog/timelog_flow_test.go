@@ -234,19 +234,19 @@ func (s *TimeLogE2ETestSuite) seedStudent(email string, studentID int32) {
 }
 
 // seedActiveSchedule creates an active schedule with an assignment for the given
-// student covering a window around the current time. Uses a fixed clock to
-// avoid midnight boundary issues with string-based time comparison.
+// student covering a window around the current time. Shift times are in local
+// time (AST = UTC-4). Uses real wall clock — no need to pin nowFn.
 func (s *TimeLogE2ETestSuite) seedActiveSchedule(studentID int32, adminUserID string) {
 	s.T().Helper()
 
-	// Pin to midday to avoid midnight boundary issues in hasActiveShift
-	now := time.Now().UTC()
-	fixedNow := time.Date(now.Year(), now.Month(), now.Day(), 12, 0, 0, 0, time.UTC)
-	s.timeLogSvc.WithNowFn(func() time.Time { return fixedNow })
+	// Schedule times are in local time (AST = UTC-4).
+	// Build a shift window around the current local time.
+	localTZ := time.FixedZone("AST", -4*60*60)
+	nowLocal := time.Now().In(localTZ)
 
-	scheduleDay := (int(fixedNow.Weekday()) + 6) % 7
-	start := fixedNow.Add(-30 * time.Minute).Format("15:04:05")
-	end := fixedNow.Add(30 * time.Minute).Format("15:04:05")
+	scheduleDay := (int(nowLocal.Weekday()) + 6) % 7
+	start := nowLocal.Add(-30 * time.Minute).Format("15:04:05")
+	end := nowLocal.Add(30 * time.Minute).Format("15:04:05")
 
 	assignments, _ := json.Marshal([]map[string]any{
 		{
@@ -262,7 +262,7 @@ func (s *TimeLogE2ETestSuite) seedActiveSchedule(studentID int32, adminUserID st
 		_, err := tx.ExecContext(s.ctx,
 			`INSERT INTO schedule.schedules (schedule_id, title, is_active, assignments, availability_metadata, created_by, effective_from)
 			 VALUES ($1, $2, true, $3, $4, $5, $6)`,
-			uuid.New(), "E2E Test Schedule", assignments, `{}`, adminUserID, now.Format("2006-01-02"),
+			uuid.New(), "E2E Test Schedule", assignments, `{}`, adminUserID, nowLocal.Format("2006-01-02"),
 		)
 		return err
 	})
@@ -480,3 +480,171 @@ func (s *TimeLogE2ETestSuite) TestE2E_StudentCannotAccessAdminCodeRoutes() {
 	rr = s.doRequest(http.MethodGet, "/api/v1/clock-in-codes/active", "", studentTokens.AccessToken)
 	s.Equal(http.StatusForbidden, rr.Code)
 }
+
+func (s *TimeLogE2ETestSuite) TestE2E_AutoFlagWhenFarFromHelpDesk() {
+	adminTokens := s.registerAndVerify("admin-flag@uwi.edu", "StrongP@ss1", "admin")
+	claims, _ := s.authSvc.ValidateAccessToken(adminTokens.AccessToken)
+
+	s.registerAndVerify("far-student@my.uwi.edu", "StrongP@ss1", "student")
+	s.seedStudent("far-student@my.uwi.edu", 10010)
+	s.seedActiveSchedule(10010, claims.Subject)
+
+	rr := s.doRequest(http.MethodPost, "/api/v1/auth/login", `{"email":"far-student@my.uwi.edu","password":"StrongP@ss1"}`, "")
+	s.Require().Equal(http.StatusOK, rr.Code)
+	var studentTokens authDtos.AuthTokenResponse
+	s.Require().NoError(json.NewDecoder(rr.Body).Decode(&studentTokens))
+
+	// Generate code
+	rr = s.doRequest(http.MethodPost, "/api/v1/clock-in-codes", `{"expires_in_minutes": 60}`, adminTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+	code := parseJSON(rr)["code"].(string)
+
+	// Clock in from a location far away (~5km from help desk)
+	clockInBody := fmt.Sprintf(`{"code":"%s","longitude":-61.230000,"latitude":10.680000}`, code)
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-in", clockInBody, studentTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code, "clock-in should succeed: %s", rr.Body.String())
+
+	resp := parseJSON(rr)
+	s.Equal(true, resp["is_flagged"], "should be auto-flagged due to distance")
+	s.NotNil(resp["flag_reason"])
+	s.Contains(resp["flag_reason"].(string), "from help desk")
+}
+
+func (s *TimeLogE2ETestSuite) TestE2E_AutoFlagNotTriggeredWhenClose() {
+	adminTokens := s.registerAndVerify("admin-close@uwi.edu", "StrongP@ss1", "admin")
+	claims, _ := s.authSvc.ValidateAccessToken(adminTokens.AccessToken)
+
+	s.registerAndVerify("close-student@my.uwi.edu", "StrongP@ss1", "student")
+	s.seedStudent("close-student@my.uwi.edu", 10011)
+	s.seedActiveSchedule(10011, claims.Subject)
+
+	rr := s.doRequest(http.MethodPost, "/api/v1/auth/login", `{"email":"close-student@my.uwi.edu","password":"StrongP@ss1"}`, "")
+	s.Require().Equal(http.StatusOK, rr.Code)
+	var studentTokens authDtos.AuthTokenResponse
+	s.Require().NoError(json.NewDecoder(rr.Body).Decode(&studentTokens))
+
+	rr = s.doRequest(http.MethodPost, "/api/v1/clock-in-codes", `{"expires_in_minutes": 60}`, adminTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+	code := parseJSON(rr)["code"].(string)
+
+	// Clock in from exact help desk location
+	clockInBody := fmt.Sprintf(`{"code":"%s","longitude":-61.277001,"latitude":10.642707}`, code)
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-in", clockInBody, studentTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+
+	resp := parseJSON(rr)
+	s.Equal(false, resp["is_flagged"], "should NOT be flagged when close to help desk")
+}
+
+func (s *TimeLogE2ETestSuite) TestE2E_DoubleClockInRejected() {
+	adminTokens := s.registerAndVerify("admin-double@uwi.edu", "StrongP@ss1", "admin")
+	claims, _ := s.authSvc.ValidateAccessToken(adminTokens.AccessToken)
+
+	s.registerAndVerify("double@my.uwi.edu", "StrongP@ss1", "student")
+	s.seedStudent("double@my.uwi.edu", 10012)
+	s.seedActiveSchedule(10012, claims.Subject)
+
+	rr := s.doRequest(http.MethodPost, "/api/v1/auth/login", `{"email":"double@my.uwi.edu","password":"StrongP@ss1"}`, "")
+	s.Require().Equal(http.StatusOK, rr.Code)
+	var studentTokens authDtos.AuthTokenResponse
+	s.Require().NoError(json.NewDecoder(rr.Body).Decode(&studentTokens))
+
+	rr = s.doRequest(http.MethodPost, "/api/v1/clock-in-codes", `{"expires_in_minutes": 60}`, adminTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+	code := parseJSON(rr)["code"].(string)
+
+	// First clock-in — success
+	clockInBody := fmt.Sprintf(`{"code":"%s","longitude":-61.277001,"latitude":10.642707}`, code)
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-in", clockInBody, studentTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+
+	// Second clock-in — rejected
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-in", clockInBody, studentTokens.AccessToken)
+	s.Equal(http.StatusConflict, rr.Code)
+	s.Equal("already clocked in", parseJSON(rr)["error"])
+}
+
+func (s *TimeLogE2ETestSuite) TestE2E_ClockOutWhenNotClockedIn() {
+	s.registerAndVerify("notclocked@my.uwi.edu", "StrongP@ss1", "student")
+	s.seedStudent("notclocked@my.uwi.edu", 10013)
+
+	rr := s.doRequest(http.MethodPost, "/api/v1/auth/login", `{"email":"notclocked@my.uwi.edu","password":"StrongP@ss1"}`, "")
+	s.Require().Equal(http.StatusOK, rr.Code)
+	var studentTokens authDtos.AuthTokenResponse
+	s.Require().NoError(json.NewDecoder(rr.Body).Decode(&studentTokens))
+
+	// Try to clock out without being clocked in
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-out", "", studentTokens.AccessToken)
+	s.Equal(http.StatusNotFound, rr.Code)
+	s.Equal("no open time log found", parseJSON(rr)["error"])
+}
+
+func (s *TimeLogE2ETestSuite) TestE2E_AdminListAndFlagTimeLogs() {
+	adminTokens := s.registerAndVerify("admin-list@uwi.edu", "StrongP@ss1", "admin")
+	claims, _ := s.authSvc.ValidateAccessToken(adminTokens.AccessToken)
+
+	s.registerAndVerify("listed@my.uwi.edu", "StrongP@ss1", "student")
+	s.seedStudent("listed@my.uwi.edu", 10014)
+	s.seedActiveSchedule(10014, claims.Subject)
+
+	rr := s.doRequest(http.MethodPost, "/api/v1/auth/login", `{"email":"listed@my.uwi.edu","password":"StrongP@ss1"}`, "")
+	s.Require().Equal(http.StatusOK, rr.Code)
+	var studentTokens authDtos.AuthTokenResponse
+	s.Require().NoError(json.NewDecoder(rr.Body).Decode(&studentTokens))
+
+	// Generate code and clock in
+	rr = s.doRequest(http.MethodPost, "/api/v1/clock-in-codes", `{"expires_in_minutes": 60}`, adminTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+	code := parseJSON(rr)["code"].(string)
+
+	clockInBody := fmt.Sprintf(`{"code":"%s","longitude":-61.277001,"latitude":10.642707}`, code)
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-in", clockInBody, studentTokens.AccessToken)
+	s.Require().Equal(http.StatusCreated, rr.Code)
+	logID := parseJSON(rr)["id"].(string)
+
+	// Clock out
+	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-out", "", studentTokens.AccessToken)
+	s.Require().Equal(http.StatusOK, rr.Code)
+
+	// Admin lists time logs
+	today := time.Now().UTC().Format("2006-01-02")
+	rr = s.doRequest(http.MethodGet, "/api/v1/time-logs?from="+today+"&to="+today, "", adminTokens.AccessToken)
+	s.Require().Equal(http.StatusOK, rr.Code)
+
+	listResp := parseJSON(rr)
+	s.GreaterOrEqual(listResp["total"].(float64), float64(1))
+	data := listResp["data"].([]any)
+	s.NotEmpty(data)
+
+	// First entry should have student name
+	firstLog := data[0].(map[string]any)
+	s.NotEmpty(firstLog["student_name"])
+
+	// Admin views single time log
+	rr = s.doRequest(http.MethodGet, "/api/v1/time-logs/"+logID, "", adminTokens.AccessToken)
+	s.Require().Equal(http.StatusOK, rr.Code)
+
+	detail := parseJSON(rr)
+	s.Equal(logID, detail["id"])
+	s.NotEmpty(detail["student_name"])
+
+	// Admin flags the log
+	rr = s.doRequest(http.MethodPatch, "/api/v1/time-logs/"+logID+"/flag", `{"reason":"Test flag reason"}`, adminTokens.AccessToken)
+	s.Require().Equal(http.StatusOK, rr.Code)
+
+	flagResp := parseJSON(rr)
+	s.Equal(true, flagResp["is_flagged"])
+	s.Equal("Test flag reason", flagResp["flag_reason"])
+
+	// Admin unflags the log
+	rr = s.doRequest(http.MethodPatch, "/api/v1/time-logs/"+logID+"/unflag", "", adminTokens.AccessToken)
+	s.Require().Equal(http.StatusOK, rr.Code)
+
+	unflagResp := parseJSON(rr)
+	s.Equal(false, unflagResp["is_flagged"])
+	s.Nil(unflagResp["flag_reason"])
+}
+
+// Note: expired code test omitted — ClockInCode.IsExpired() uses time.Now()
+// directly (not service clock), so time advancement would require modifying
+// the aggregate which is out of scope for this change.

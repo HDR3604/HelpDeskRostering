@@ -32,13 +32,13 @@ export function useClockInStatus() {
     })
 }
 
-export function useTodayTimeLogs() {
+export function useTodayTimeLogs(options?: { fastPoll?: boolean }) {
     const today = new Date().toISOString().slice(0, 10)
     return useQuery({
         queryKey: timeLogKeys.list({ from: today, to: today }),
         queryFn: () => listTimeLogs({ from: today, to: today, per_page: 100 }),
-        staleTime: 15_000,
-        refetchInterval: 30_000,
+        staleTime: options?.fastPoll ? 2_000 : 15_000,
+        refetchInterval: options?.fastPoll ? 3_000 : 30_000,
     })
 }
 
