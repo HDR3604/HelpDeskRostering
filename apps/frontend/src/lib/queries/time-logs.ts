@@ -7,6 +7,7 @@ import {
     getMyClockInStatus,
     generateClockInCode,
     getActiveClockInCode,
+    listTimeLogs,
 } from '@/lib/api/time-logs'
 import { getApiErrorMessage } from '@/lib/error-messages'
 
@@ -15,6 +16,8 @@ import { getApiErrorMessage } from '@/lib/error-messages'
 export const timeLogKeys = {
     all: () => ['time-logs'] as const,
     status: () => [...timeLogKeys.all(), 'status'] as const,
+    list: (params?: Record<string, unknown>) =>
+        [...timeLogKeys.all(), 'list', params] as const,
     activeCode: () => ['clock-in-codes', 'active'] as const,
 }
 
@@ -25,6 +28,16 @@ export function useClockInStatus() {
         queryKey: timeLogKeys.status(),
         queryFn: getMyClockInStatus,
         staleTime: 10_000,
+        refetchInterval: 30_000,
+    })
+}
+
+export function useTodayTimeLogs() {
+    const today = new Date().toISOString().slice(0, 10)
+    return useQuery({
+        queryKey: timeLogKeys.list({ from: today, to: today }),
+        queryFn: () => listTimeLogs({ from: today, to: today, per_page: 100 }),
+        staleTime: 15_000,
         refetchInterval: 30_000,
     })
 }

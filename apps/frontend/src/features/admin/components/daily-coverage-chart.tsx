@@ -79,7 +79,7 @@ export function DailyCoverageChart({
     )
 
     return (
-        <Card>
+        <Card className="flex flex-col">
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <div>
@@ -101,10 +101,10 @@ export function DailyCoverageChart({
                     )}
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1">
                 <ChartContainer
                     config={chartConfig}
-                    className="h-[220px] w-full"
+                    className="min-h-[220px] h-full w-full"
                 >
                     <BarChart
                         accessibilityLayer

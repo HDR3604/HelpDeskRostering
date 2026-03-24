@@ -1,5 +1,10 @@
 import { apiClient } from '@/lib/api-client'
-import type { TimeLog, ClockInStatus, ClockInCode } from '@/types/time-log'
+import type {
+    TimeLog,
+    ClockInStatus,
+    ClockInCode,
+    AdminTimeLogList,
+} from '@/types/time-log'
 
 // ── Student endpoints ───────────────────────────────────────────────
 
@@ -35,5 +40,24 @@ export async function generateClockInCode(
 
 export async function getActiveClockInCode(): Promise<ClockInCode> {
     const { data } = await apiClient.get<ClockInCode>('/clock-in-codes/active')
+    return data
+}
+
+export async function listTimeLogs(params?: {
+    from?: string
+    to?: string
+    flagged?: boolean
+    per_page?: number
+}): Promise<AdminTimeLogList> {
+    const search = new URLSearchParams()
+    if (params?.from) search.set('from', params.from)
+    if (params?.to) search.set('to', params.to)
+    if (params?.flagged !== undefined)
+        search.set('flagged', String(params.flagged))
+    if (params?.per_page) search.set('per_page', String(params.per_page))
+    const qs = search.toString()
+    const { data } = await apiClient.get<AdminTimeLogList>(
+        `/time-logs${qs ? `?${qs}` : ''}`,
+    )
     return data
 }

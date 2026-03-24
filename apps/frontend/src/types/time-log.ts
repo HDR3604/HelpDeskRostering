@@ -24,6 +24,29 @@ export interface ClockInStatus {
     current_shift: ShiftInfo | null
 }
 
+export interface AdminTimeLog {
+    id: string
+    student_id: number
+    student_name: string
+    student_email: string
+    student_phone: string
+    entry_at: string
+    exit_at: string | null
+    longitude: number
+    latitude: number
+    distance_meters: number
+    is_flagged: boolean
+    flag_reason: string | null
+    created_at: string
+}
+
+export interface AdminTimeLogList {
+    data: AdminTimeLog[]
+    total: number
+    page: number
+    per_page: number
+}
+
 export interface ClockInCode {
     id: string
     code: string

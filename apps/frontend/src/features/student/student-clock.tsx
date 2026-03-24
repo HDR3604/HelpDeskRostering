@@ -26,7 +26,7 @@ import { useMyStudentProfile } from '@/lib/queries/students'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { playClockInTone, playClockOutTone, playErrorTone } from '@/lib/tones'
 import { getApiErrorMessage } from '@/lib/error-messages'
-import { ALL_DAYS_FULL, getTodayWeekdayIndex } from '@/lib/constants'
+import { getTodayWeekdayIndex } from '@/lib/constants'
 import { formatHour } from '@/lib/format'
 import type { Assignment } from '@/types/schedule'
 import type { ShiftTemplate } from '@/types/shift-template'
@@ -44,6 +44,16 @@ function formatTime(iso: string): string {
     })
 }
 
+/** Formats a time string like "12:00:00" or "12:00" to "12:00 PM" */
+function formatShiftTime(time: string): string {
+    const [h, m] = time.split(':').map(Number)
+    const period = h >= 12 ? 'PM' : 'AM'
+    const hour = h % 12 || 12
+    return m
+        ? `${hour}:${String(m).padStart(2, '0')} ${period}`
+        : `${hour} ${period}`
+}
+
 function formatDuration(entryAt: string): string {
     const diff = Date.now() - new Date(entryAt).getTime()
     const mins = Math.floor(diff / 60_000)
@@ -53,20 +63,28 @@ function formatDuration(entryAt: string): string {
     return `${mins}m`
 }
 
-function getTodayAssignment(
+interface TodayShift {
+    name: string
+    start: string
+    end: string
+}
+
+function getTodayShifts(
     assignments: Assignment[],
     shiftTemplates: ShiftTemplate[],
-) {
+): TodayShift[] {
     const today = getTodayWeekdayIndex()
-    const match = assignments.find((a) => a.day_of_week === today)
-    if (!match) return null
-    const template = shiftTemplates.find((t) => t.id === match.shift_id)
-    return {
-        day: ALL_DAYS_FULL[match.day_of_week],
-        start: formatHour(match.start),
-        end: formatHour(match.end),
-        name: template?.name ?? 'Shift',
-    }
+    return assignments
+        .filter((a) => a.day_of_week === today)
+        .sort((a, b) => a.start.localeCompare(b.start))
+        .map((a) => {
+            const template = shiftTemplates.find((t) => t.id === a.shift_id)
+            return {
+                name: template?.name ?? 'Shift',
+                start: formatHour(a.start),
+                end: formatHour(a.end),
+            }
+        })
 }
 
 function LiveClock() {
@@ -174,8 +192,8 @@ export function StudentClock() {
         )
     }, [schedule, student])
 
-    const todayShift = useMemo(
-        () => getTodayAssignment(myAssignments, shiftTemplates),
+    const todayShifts = useMemo(
+        () => getTodayShifts(myAssignments, shiftTemplates),
         [myAssignments, shiftTemplates],
     )
 
@@ -317,15 +335,15 @@ export function StudentClock() {
                     variant="outline"
                     className={
                         isClockedIn
-                            ? 'gap-1.5 border-green-500/30 bg-green-500/10 px-3 py-1 text-sm text-green-600'
+                            ? 'gap-1.5 border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-600'
                             : 'gap-1.5 px-3 py-1 text-sm'
                     }
                 >
                     {isClockedIn ? (
                         <>
                             <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                             </span>
                             On Shift
                         </>
@@ -351,9 +369,13 @@ export function StudentClock() {
                                             {status.current_shift.name}
                                         </p>
                                         <p className="text-sm text-muted-foreground">
-                                            {status.current_shift.start_time}
+                                            {formatShiftTime(
+                                                status.current_shift.start_time,
+                                            )}
                                             {' \u2013 '}
-                                            {status.current_shift.end_time}
+                                            {formatShiftTime(
+                                                status.current_shift.end_time,
+                                            )}
                                         </p>
                                     </div>
                                 </div>
@@ -361,7 +383,7 @@ export function StudentClock() {
                             <Separator />
                             <div className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                                     <span>
                                         Clocked in at{' '}
                                         <span className="font-medium">
@@ -410,20 +432,20 @@ export function StudentClock() {
                             </p>
                         </div>
 
-                        {todayShift && <ShiftInfoPill shift={todayShift} />}
-
-                        {!todayShift && scheduleQuery.isSuccess && (
-                            <p className="text-center text-sm text-muted-foreground">
-                                No shift scheduled for today.
-                            </p>
-                        )}
+                        <TodayShiftsList
+                            shifts={todayShifts}
+                            loaded={scheduleQuery.isSuccess}
+                        />
 
                         <LocationBanner permission={locationPermission} />
                     </>
                 ) : (
                     <>
                         {/* Has code — ready to clock in */}
-                        {todayShift && <ShiftInfoPill shift={todayShift} />}
+                        <TodayShiftsList
+                            shifts={todayShifts}
+                            loaded={scheduleQuery.isSuccess}
+                        />
 
                         {errorMessage && <ErrorBanner message={errorMessage} />}
 
@@ -451,27 +473,60 @@ export function StudentClock() {
     )
 }
 
-function ShiftInfoPill({
-    shift,
+const VISIBLE_SHIFTS = 3
+
+function TodayShiftsList({
+    shifts,
+    loaded,
 }: {
-    shift: { name: string; start: string; end: string }
+    shifts: TodayShift[]
+    loaded: boolean
 }) {
+    const [expanded, setExpanded] = useState(false)
+
+    if (shifts.length === 0) {
+        if (!loaded) return null
+        return (
+            <p className="text-center text-sm text-muted-foreground">
+                No shift scheduled for today.
+            </p>
+        )
+    }
+
+    const canCollapse = shifts.length > VISIBLE_SHIFTS
+    const visible =
+        canCollapse && !expanded ? shifts.slice(0, VISIBLE_SHIFTS) : shifts
+    const hiddenCount = shifts.length - VISIBLE_SHIFTS
+
     return (
-        <div className="flex items-center justify-between rounded-xl border bg-card px-5 py-3.5">
-            <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                    <CalendarDays className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                    <p className="text-sm font-medium">{shift.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                        Today's shift
+        <div className="space-y-1.5 transition-all duration-300 ease-in-out">
+            {visible.map((shift, i) => (
+                <div
+                    key={i}
+                    className="flex items-center justify-between rounded-xl border bg-card px-4 py-3"
+                >
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                            <CalendarDays className="h-4 w-4 text-primary" />
+                        </div>
+                        <p className="truncate text-sm font-medium">
+                            {shift.name}
+                        </p>
+                    </div>
+                    <p className="shrink-0 pl-3 text-sm tabular-nums text-muted-foreground">
+                        {shift.start} – {shift.end}
                     </p>
                 </div>
-            </div>
-            <p className="text-sm tabular-nums text-muted-foreground">
-                {shift.start} – {shift.end}
-            </p>
+            ))}
+            {canCollapse && (
+                <button
+                    type="button"
+                    onClick={() => setExpanded((e) => !e)}
+                    className="w-full py-1.5 text-center text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    {expanded ? 'Show less' : `Show ${hiddenCount} more`}
+                </button>
+            )}
         </div>
     )
 }
@@ -496,7 +551,8 @@ function LocationBanner({
         granted: {
             icon: LocateFixed,
             text: 'Location access enabled',
-            className: 'border-green-500/30 bg-green-500/10 text-green-600',
+            className:
+                'border-emerald-500/30 bg-emerald-500/10 text-emerald-600',
         },
         prompt: {
             icon: MapPin,

@@ -138,7 +138,7 @@ export function MiniWeeklySchedule({
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2 transition-all duration-300 ease-in-out">
                     {WEEKDAYS_SHORT.map((day, idx) => {
                         const isToday = idx === today
                         const dayAssignments = byDay[idx] || []
