@@ -47,14 +47,23 @@ export function DailyCoverageChart({
     const isWeekday = scheduleDay >= 0 && scheduleDay < 5
 
     const data = useMemo(() => {
-        // Count staff per hour for today (or Monday if weekend)
         const day = isWeekday ? scheduleDay : 0
         const todaysAssignments = assignments.filter(
             (a) => a.day_of_week === day,
         )
 
+        // Determine hour range from actual assignments (fallback 8-16)
+        let minHour = 8
+        let maxHour = 16
+        for (const a of todaysAssignments) {
+            const [sh] = a.start.split(':').map(Number)
+            const [eh] = a.end.split(':').map(Number)
+            if (sh < minHour) minHour = sh
+            if (eh > maxHour) maxHour = eh
+        }
+
         const hours: { hour: string; staff: number; rawHour: number }[] = []
-        for (let h = 8; h < 18; h++) {
+        for (let h = minHour; h < maxHour; h++) {
             const count = todaysAssignments.filter((a) => {
                 const [sh] = a.start.split(':').map(Number)
                 const [eh] = a.end.split(':').map(Number)
@@ -117,8 +126,9 @@ export function DailyCoverageChart({
                             dataKey="hour"
                             tickLine={false}
                             axisLine={false}
-                            fontSize={11}
+                            fontSize={10}
                             tickMargin={8}
+                            interval={0}
                         />
                         <YAxis
                             tickLine={false}
