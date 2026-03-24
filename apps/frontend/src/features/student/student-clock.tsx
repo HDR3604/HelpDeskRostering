@@ -11,6 +11,7 @@ import {
     QrCode,
     CalendarDays,
     LocateFixed,
+    Timer,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -28,6 +29,7 @@ import { playClockInTone, playClockOutTone, playErrorTone } from '@/lib/tones'
 import { getApiErrorMessage } from '@/lib/error-messages'
 import { getTodayWeekdayIndex } from '@/lib/constants'
 import { formatHour } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type { Assignment } from '@/types/schedule'
 import type { ShiftTemplate } from '@/types/shift-template'
 
@@ -44,7 +46,6 @@ function formatTime(iso: string): string {
     })
 }
 
-/** Formats a time string like "12:00:00" or "12:00" to "12:00 PM" */
 function formatShiftTime(time: string): string {
     const [h, m] = time.split(':').map(Number)
     const period = h >= 12 ? 'PM' : 'AM'
@@ -52,15 +53,6 @@ function formatShiftTime(time: string): string {
     return m
         ? `${hour}:${String(m).padStart(2, '0')} ${period}`
         : `${hour} ${period}`
-}
-
-function formatDuration(entryAt: string): string {
-    const diff = Date.now() - new Date(entryAt).getTime()
-    const mins = Math.floor(diff / 60_000)
-    if (mins < 1) return '0m'
-    const hrs = Math.floor(mins / 60)
-    if (hrs > 0) return `${hrs}h ${mins % 60}m`
-    return `${mins}m`
 }
 
 interface TodayShift {
@@ -87,6 +79,8 @@ function getTodayShifts(
         })
 }
 
+// ── Sub-components ──────────────────────────────────────────────────
+
 function LiveClock() {
     const [now, setNow] = useState(() => new Date())
 
@@ -95,23 +89,45 @@ function LiveClock() {
         return () => clearInterval(id)
     }, [])
 
-    const time = now.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-    })
-    const seconds = now.toLocaleTimeString([], { second: '2-digit' }).slice(-2)
-
     return (
-        <div className="flex items-baseline gap-1">
-            <span className="text-5xl font-bold tabular-nums tracking-tight sm:text-6xl">
-                {time}
-            </span>
-            <span className="text-2xl font-medium tabular-nums text-muted-foreground sm:text-3xl">
-                {seconds}
-            </span>
-        </div>
+        <span className="text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
+            {now.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+            })}
+        </span>
     )
 }
+
+function ElapsedTimer({ entryAt }: { entryAt: string }) {
+    const [elapsed, setElapsed] = useState('')
+
+    useEffect(() => {
+        const update = () => {
+            const diff = Date.now() - new Date(entryAt).getTime()
+            const hrs = Math.floor(diff / 3_600_000)
+            const mins = Math.floor((diff % 3_600_000) / 60_000)
+            const secs = Math.floor((diff % 60_000) / 1000)
+            setElapsed(
+                hrs > 0
+                    ? `${hrs}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                    : `${mins}:${String(secs).padStart(2, '0')}`,
+            )
+        }
+        update()
+        const id = setInterval(update, 1000)
+        return () => clearInterval(id)
+    }, [entryAt])
+
+    return (
+        <span className="text-3xl font-bold tabular-nums tracking-tight sm:text-4xl">
+            {elapsed}
+        </span>
+    )
+}
+
+// ── Main component ──────────────────────────────────────────────────
 
 export function StudentClock() {
     useDocumentTitle('Time Clock')
@@ -126,7 +142,6 @@ export function StudentClock() {
     const shiftTemplatesQuery = useShiftTemplates()
 
     const [geo, setGeo] = useState<GeoState>({ status: 'idle' })
-    const [elapsed, setElapsed] = useState('')
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [locationPermission, setLocationPermission] = useState<
         'unknown' | 'granted' | 'prompt' | 'denied' | 'unavailable'
@@ -151,7 +166,6 @@ export function StudentClock() {
                     setLocationPermission(result.state)
                 })
 
-                // Pre-fetch coordinates if already granted
                 if (result.state === 'granted') {
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
@@ -161,9 +175,7 @@ export function StudentClock() {
                                 lng: pos.coords.longitude,
                             })
                         },
-                        () => {
-                            // Non-critical — will retry on clock-in
-                        },
+                        () => {},
                         { enableHighAccuracy: true, timeout: 10_000 },
                     )
                 }
@@ -171,7 +183,6 @@ export function StudentClock() {
             .catch(() => setLocationPermission('prompt'))
     }, [])
 
-    // Sync geo state back to permission state
     useEffect(() => {
         if (geo.status === 'granted') setLocationPermission('granted')
         if (geo.status === 'denied') setLocationPermission('denied')
@@ -198,15 +209,6 @@ export function StudentClock() {
     )
 
     useEffect(() => {
-        if (!status?.current_log) return
-        const update = () =>
-            setElapsed(formatDuration(status.current_log!.entry_at))
-        update()
-        const id = setInterval(update, 30_000)
-        return () => clearInterval(id)
-    }, [status?.current_log])
-
-    useEffect(() => {
         setErrorMessage(null)
     }, [isClockedIn])
 
@@ -214,7 +216,6 @@ export function StudentClock() {
         lat: number
         lng: number
     }> => {
-        // Reuse pre-fetched coordinates if available
         if (geo.status === 'granted') {
             return Promise.resolve({ lat: geo.lat, lng: geo.lng })
         }
@@ -315,12 +316,95 @@ export function StudentClock() {
         )
     }
 
+    // ── On-shift view ───────────────────────────────────────────────
+    if (isClockedIn && status?.current_log) {
+        return (
+            <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center px-4">
+                {/* Elapsed timer — hero element */}
+                <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 text-emerald-500">
+                        <Timer className="h-5 w-5" />
+                        <span className="text-sm font-medium">
+                            Time on shift
+                        </span>
+                    </div>
+                    <div className="mt-2">
+                        <ElapsedTimer entryAt={status.current_log.entry_at} />
+                    </div>
+                    <Badge
+                        variant="outline"
+                        className="mt-3 gap-1.5 border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-600"
+                    >
+                        <span className="relative flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                        </span>
+                        On Shift
+                    </Badge>
+                </div>
+
+                <div className="mt-8 w-full max-w-sm space-y-4">
+                    {/* Shift details */}
+                    <div className="rounded-xl border bg-card p-4 space-y-3">
+                        {status.current_shift && (
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                        {status.current_shift.name}
+                                    </span>
+                                </div>
+                                <span className="text-sm tabular-nums text-muted-foreground">
+                                    {formatShiftTime(
+                                        status.current_shift.start_time,
+                                    )}
+                                    {' \u2013 '}
+                                    {formatShiftTime(
+                                        status.current_shift.end_time,
+                                    )}
+                                </span>
+                            </div>
+                        )}
+                        <Separator />
+                        <div className="flex items-center gap-2 text-sm">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                            <span className="text-muted-foreground">
+                                Clocked in at{' '}
+                                <span className="font-medium text-foreground">
+                                    {formatTime(status.current_log.entry_at)}
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+
+                    {errorMessage && <ErrorBanner message={errorMessage} />}
+
+                    <Button
+                        onClick={handleClockOut}
+                        disabled={isActioning}
+                        variant="destructive"
+                        size="lg"
+                        className="h-14 w-full text-base"
+                    >
+                        {clockOutMutation.isPending ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        ) : (
+                            <LogOut className="mr-2 h-5 w-5" />
+                        )}
+                        Clock Out
+                    </Button>
+                </div>
+            </div>
+        )
+    }
+
+    // ── Off-shift view ──────────────────────────────────────────────
     return (
         <div className="mx-auto flex min-h-[70vh] max-w-lg flex-col items-center justify-center px-4">
-            {/* Hero clock */}
+            {/* Live clock */}
             <div className="text-center">
                 <LiveClock />
-                <p className="mt-1 text-sm text-muted-foreground">
+                <p className="mt-1.5 text-sm text-muted-foreground">
                     {new Date().toLocaleDateString([], {
                         weekday: 'long',
                         month: 'long',
@@ -329,106 +413,26 @@ export function StudentClock() {
                 </p>
             </div>
 
-            {/* Status badge */}
-            <div className="mt-6">
-                <Badge
-                    variant="outline"
-                    className={
-                        isClockedIn
-                            ? 'gap-1.5 border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-600'
-                            : 'gap-1.5 px-3 py-1 text-sm'
-                    }
-                >
-                    {isClockedIn ? (
-                        <>
-                            <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                            </span>
-                            On Shift
-                        </>
-                    ) : (
-                        'Off Shift'
-                    )}
+            <div className="mt-3">
+                <Badge variant="outline" className="gap-1.5 px-3 py-1 text-sm">
+                    Off Shift
                 </Badge>
             </div>
 
-            {/* Main content area */}
-            <div className="mt-8 w-full max-w-sm space-y-5">
-                {isClockedIn && status?.current_log ? (
+            <div className="mt-8 w-full max-w-sm space-y-4">
+                {!urlCode ? (
                     <>
-                        {/* Clocked-in info panel */}
-                        <div className="rounded-xl border bg-card p-5 space-y-4">
-                            {status.current_shift && (
-                                <div className="flex items-start gap-3">
-                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                                        <CalendarDays className="h-4 w-4 text-primary" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium">
-                                            {status.current_shift.name}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">
-                                            {formatShiftTime(
-                                                status.current_shift.start_time,
-                                            )}
-                                            {' \u2013 '}
-                                            {formatShiftTime(
-                                                status.current_shift.end_time,
-                                            )}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                            <Separator />
-                            <div className="flex items-center justify-between text-sm">
-                                <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                    <span>
-                                        Clocked in at{' '}
-                                        <span className="font-medium">
-                                            {formatTime(
-                                                status.current_log.entry_at,
-                                            )}
-                                        </span>
-                                    </span>
-                                </div>
-                                <span className="tabular-nums text-muted-foreground">
-                                    {elapsed}
-                                </span>
-                            </div>
-                        </div>
-
-                        {errorMessage && <ErrorBanner message={errorMessage} />}
-
-                        <Button
-                            onClick={handleClockOut}
-                            disabled={isActioning}
-                            variant="destructive"
-                            size="lg"
-                            className="h-14 w-full text-base"
-                        >
-                            {clockOutMutation.isPending ? (
-                                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                            ) : (
-                                <LogOut className="mr-2 h-5 w-5" />
-                            )}
-                            Clock Out
-                        </Button>
-                    </>
-                ) : !urlCode ? (
-                    <>
-                        {/* No code state */}
+                        {/* No code — scan prompt */}
                         <div className="rounded-xl border border-dashed p-8 text-center">
-                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-                                <QrCode className="h-8 w-8 text-primary" />
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+                                <QrCode className="h-7 w-7 text-primary" />
                             </div>
                             <h2 className="mt-4 text-lg font-semibold">
                                 Scan to clock in
                             </h2>
-                            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                Open your phone camera and scan the QR code
-                                displayed at the help desk to start your shift.
+                            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                                Open your camera and scan the QR code at the
+                                help desk to start your shift.
                             </p>
                         </div>
 
@@ -436,7 +440,6 @@ export function StudentClock() {
                             shifts={todayShifts}
                             loaded={scheduleQuery.isSuccess}
                         />
-
                         <LocationBanner permission={locationPermission} />
                     </>
                 ) : (
@@ -473,6 +476,8 @@ export function StudentClock() {
     )
 }
 
+// ── Helper components ───────────────────────────────────────────────
+
 const VISIBLE_SHIFTS = 3
 
 function TodayShiftsList({
@@ -499,7 +504,7 @@ function TodayShiftsList({
     const hiddenCount = shifts.length - VISIBLE_SHIFTS
 
     return (
-        <div className="space-y-1.5 transition-all duration-300 ease-in-out">
+        <div className="space-y-1.5">
             {visible.map((shift, i) => (
                 <div
                     key={i}
@@ -575,7 +580,10 @@ function LocationBanner({
 
     return (
         <div
-            className={`flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-xs ${config.className}`}
+            className={cn(
+                'flex items-center gap-2.5 rounded-xl border px-4 py-2.5 text-xs',
+                config.className,
+            )}
         >
             <Icon className="h-3.5 w-3.5 shrink-0" />
             <span>{config.text}</span>
