@@ -65,6 +65,9 @@ export async function exportPaymentsCsv(
     periodStart: string,
     periodEnd: string,
 ): Promise<void> {
+    // Regenerate payments first so the export includes the latest hours
+    await generatePayments(periodStart, periodEnd)
+
     const response = await apiClient.get<Blob>(
         `/payments/export?period_start=${periodStart}&period_end=${periodEnd}`,
     )

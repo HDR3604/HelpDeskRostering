@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { RefreshCw, Copy, Check, User, Timer } from 'lucide-react'
+import {
+    RefreshCw,
+    Copy,
+    Check,
+    Timer,
+    AlertTriangle,
+    ChevronRight,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
@@ -13,6 +20,15 @@ import { useDocumentTitle } from '@/hooks/use-document-title'
 import type { AdminTimeLog } from '@/types/time-log'
 
 const CODE_EXPIRY_MINUTES = 1
+
+function getInitials(name: string): string {
+    return name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+}
 
 function formatTimeShort(iso: string): string {
     return new Date(iso).toLocaleTimeString([], {
@@ -79,14 +95,11 @@ export function ClockInStation() {
         }
     }, [clockUrl])
 
-    // Activity feed
+    // Activity feed — only currently clocked-in students
     const activeEntries = useMemo(() => {
         const logs = logsQuery.data?.data ?? []
         return logs
-            .filter(
-                (l): l is AdminTimeLog & { exit_at: null } =>
-                    l.exit_at === null,
-            )
+            .filter((l) => l.exit_at === null)
             .sort(
                 (a, b) =>
                     new Date(b.entry_at).getTime() -
@@ -94,67 +107,98 @@ export function ClockInStation() {
             )
     }, [logsQuery.data])
 
+    const activeCount = activeEntries.length
+    const flaggedCount = activeEntries.filter((l) => l.is_flagged).length
+
     const isLoading = codeQuery.isLoading || (!code && generateCode.isPending)
 
+    // Timer progress (0 to 1)
+    const progress = secondsLeft / 60
+
     return (
-        <div className="mx-auto max-w-4xl space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">
-                    Clock-In Station
-                </h1>
-                <p className="text-muted-foreground">
-                    Display this QR code for students to scan and clock in.
-                </p>
+        <div className="mx-auto max-w-5xl space-y-6">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        Clock-In Station
+                    </h1>
+                    <p className="text-muted-foreground">
+                        Display this QR code for students to scan and clock in.
+                    </p>
+                </div>
+                {/* Summary stats */}
+                <div className="hidden items-center gap-3 sm:flex">
+                    {activeCount > 0 && (
+                        <Badge className="gap-1.5 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+                            <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            </span>
+                            {activeCount} active
+                        </Badge>
+                    )}
+                    {flaggedCount > 0 && (
+                        <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15">
+                            {flaggedCount} flagged
+                        </Badge>
+                    )}
+                </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
                 {/* QR Code — main area */}
-                <div className="rounded-xl border bg-card">
+                <div className="rounded-2xl border bg-card">
                     {isLoading ? (
-                        <div className="flex h-[480px] items-center justify-center">
+                        <div className="flex h-[520px] items-center justify-center">
                             <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                     ) : clockUrl ? (
-                        <div className="flex flex-col items-center gap-6 p-8">
-                            {/* Timer ring */}
+                        <div className="flex flex-col items-center gap-8 p-8 sm:p-10">
+                            {/* Timer ring + QR */}
                             <div className="relative">
                                 <svg
-                                    className="h-[320px] w-[320px]"
-                                    viewBox="0 0 340 340"
+                                    className="h-[300px] w-[300px] sm:h-[340px] sm:w-[340px]"
+                                    viewBox="0 0 360 360"
                                 >
+                                    {/* Track */}
                                     <circle
-                                        cx="170"
-                                        cy="170"
-                                        r="164"
+                                        cx="180"
+                                        cy="180"
+                                        r="174"
                                         fill="none"
                                         stroke="currentColor"
-                                        strokeWidth="3"
+                                        strokeWidth="4"
                                         className="text-border"
                                     />
+                                    {/* Progress */}
                                     <circle
-                                        cx="170"
-                                        cy="170"
-                                        r="164"
+                                        cx="180"
+                                        cy="180"
+                                        r="174"
                                         fill="none"
                                         stroke="currentColor"
-                                        strokeWidth="3"
+                                        strokeWidth="4"
                                         strokeLinecap="round"
-                                        className="text-emerald-500 transition-all duration-1000 ease-linear"
-                                        strokeDasharray={2 * Math.PI * 164}
+                                        className={cn(
+                                            'transition-all duration-1000 ease-linear',
+                                            progress > 0.25
+                                                ? 'text-emerald-500'
+                                                : progress > 0.1
+                                                  ? 'text-amber-500'
+                                                  : 'text-red-500',
+                                        )}
+                                        strokeDasharray={2 * Math.PI * 174}
                                         strokeDashoffset={
-                                            2 *
-                                            Math.PI *
-                                            164 *
-                                            (1 - secondsLeft / 60)
+                                            2 * Math.PI * 174 * (1 - progress)
                                         }
-                                        transform="rotate(-90 170 170)"
+                                        transform="rotate(-90 180 180)"
                                     />
                                 </svg>
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="rounded-2xl bg-white p-4">
+                                    <div className="rounded-2xl bg-white p-3 shadow-sm sm:p-4">
                                         <QRCodeSVG
                                             value={clockUrl}
-                                            size={220}
+                                            size={210}
                                             level="M"
                                             marginSize={0}
                                         />
@@ -162,16 +206,16 @@ export function ClockInStation() {
                                 </div>
                             </div>
 
-                            {/* Code + actions */}
-                            <div className="flex flex-col items-center gap-3 text-center">
-                                <div className="flex items-center gap-3">
-                                    <p className="font-mono text-3xl font-bold tracking-[0.3em]">
+                            {/* Code display */}
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-2xl font-bold tracking-[0.25em] sm:text-3xl">
                                         {code!.code}
-                                    </p>
+                                    </span>
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8"
+                                        className="h-8 w-8 shrink-0"
                                         onClick={handleCopy}
                                     >
                                         {copied ? (
@@ -181,47 +225,60 @@ export function ClockInStation() {
                                         )}
                                     </Button>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    Refreshes in{' '}
-                                    <span className="tabular-nums font-medium text-foreground">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>New code in</span>
+                                    <span
+                                        className={cn(
+                                            'tabular-nums font-semibold',
+                                            progress > 0.25
+                                                ? 'text-foreground'
+                                                : progress > 0.1
+                                                  ? 'text-amber-500'
+                                                  : 'text-red-500',
+                                        )}
+                                    >
                                         {secondsLeft}s
                                     </span>
-                                </p>
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        <div className="flex h-[480px] items-center justify-center">
+                        <div className="flex h-[520px] items-center justify-center">
                             <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                     )}
                 </div>
 
                 {/* Live activity sidebar */}
-                <div className="rounded-xl border bg-card">
-                    <div className="border-b px-4 py-3">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-semibold">
-                                Live Activity
-                            </h2>
-                            {activeEntries.length > 0 && (
-                                <Badge className="gap-1.5 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[11px] px-1.5 py-0">
-                                    <span className="relative flex h-1.5 w-1.5">
-                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                    </span>
-                                    {activeEntries.length}
-                                </Badge>
-                            )}
+                <div className="flex flex-col rounded-2xl border bg-card">
+                    {/* Header */}
+                    <div className="shrink-0 px-4 py-3.5">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-sm font-semibold">Activity</h2>
+                            <div className="flex items-center gap-1.5">
+                                {flaggedCount > 0 && (
+                                    <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15 text-[10px] px-1.5 py-0">
+                                        {flaggedCount}
+                                    </Badge>
+                                )}
+                                {activeCount > 0 && (
+                                    <Badge className="gap-1 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[10px] px-1.5 py-0">
+                                        <span className="relative flex h-1.5 w-1.5">
+                                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                        </span>
+                                        {activeCount} on shift
+                                    </Badge>
+                                )}
+                            </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            Students currently on shift
-                        </p>
                     </div>
 
-                    <div className="max-h-[420px] overflow-y-auto p-2">
+                    {/* Entries */}
+                    <div className="flex-1 overflow-y-auto">
                         {activeEntries.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <Timer className="h-8 w-8 text-muted-foreground/30" />
+                            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                                <Timer className="h-8 w-8 text-muted-foreground/20" />
                                 <p className="mt-3 text-sm text-muted-foreground">
                                     No one on shift
                                 </p>
@@ -230,9 +287,13 @@ export function ClockInStation() {
                                 </p>
                             </div>
                         ) : (
-                            <div className="space-y-1">
-                                {activeEntries.map((entry) => (
-                                    <ActivityRow key={entry.id} entry={entry} />
+                            <div>
+                                {activeEntries.map((entry, i) => (
+                                    <ActivityRow
+                                        key={entry.id}
+                                        entry={entry}
+                                        isLast={i === activeEntries.length - 1}
+                                    />
                                 ))}
                             </div>
                         )}
@@ -243,7 +304,13 @@ export function ClockInStation() {
     )
 }
 
-function ActivityRow({ entry }: { entry: AdminTimeLog }) {
+function ActivityRow({
+    entry,
+    isLast,
+}: {
+    entry: AdminTimeLog
+    isLast?: boolean
+}) {
     const [elapsed, setElapsed] = useState('')
 
     useEffect(() => {
@@ -265,40 +332,42 @@ function ActivityRow({ entry }: { entry: AdminTimeLog }) {
     return (
         <div
             className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5',
-                entry.is_flagged
-                    ? 'bg-red-500/10 ring-1 ring-red-500/20'
-                    : 'bg-muted/40',
+                'group flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50',
+                !isLast && 'border-b',
+                entry.is_flagged && 'bg-red-500/5 hover:bg-red-500/10',
             )}
         >
             <div
                 className={cn(
-                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold',
                     entry.is_flagged
-                        ? 'bg-red-500/20 text-red-500'
-                        : 'bg-emerald-500/15 text-emerald-500',
+                        ? 'bg-red-500/15 text-red-500'
+                        : 'bg-emerald-500/10 text-emerald-600',
                 )}
             >
-                <User className="h-3.5 w-3.5" />
+                {entry.is_flagged ? (
+                    <AlertTriangle className="h-3 w-3" />
+                ) : (
+                    getInitials(entry.student_name)
+                )}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
+                <p className="truncate text-xs font-medium">
                     {entry.student_name}
                 </p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground tabular-nums">
                     {formatTimeShort(entry.entry_at)}
                 </p>
             </div>
             <span
                 className={cn(
-                    'shrink-0 text-[11px] tabular-nums',
-                    entry.is_flagged
-                        ? 'text-red-500'
-                        : 'font-medium text-emerald-500',
+                    'shrink-0 text-[11px] tabular-nums font-medium',
+                    entry.is_flagged ? 'text-red-500' : 'text-emerald-500',
                 )}
             >
                 {elapsed}
             </span>
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
         </div>
     )
 }
