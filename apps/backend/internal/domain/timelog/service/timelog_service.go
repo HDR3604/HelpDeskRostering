@@ -158,6 +158,11 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 			return err
 		}
 
+		// f. Auto-flag if too far from help desk (>100m)
+		if distanceMeters > 100 {
+			_ = tl.Flag(fmt.Sprintf("Clocked in %.0fm from help desk", distanceMeters))
+		}
+
 		created, err := s.timeLogRepo.Create(ctx, tx, tl)
 		if err != nil {
 			return err

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
     AlertTriangle,
     ChevronDown,
+    ChevronRight,
     ChevronUp,
     Loader2,
     Radio,
@@ -22,19 +23,19 @@ import type { AdminTimeLog } from '@/types/time-log'
 
 const COLLAPSED_COUNT = 3
 
-interface ClockedInEntry {
+interface ActivityEntry {
     id: string
     studentId: number
     name: string
-    since: string
+    entryAt: string
+    exitAt: string | null
     distanceMeters: number
     isFlagged: boolean
     flagReason?: string
 }
 
-function toEntries(logs: AdminTimeLog[]): ClockedInEntry[] {
+function toEntries(logs: AdminTimeLog[]): ActivityEntry[] {
     return logs
-        .filter((l) => l.exit_at === null)
         .sort(
             (a, b) =>
                 new Date(b.entry_at).getTime() - new Date(a.entry_at).getTime(),
@@ -43,7 +44,8 @@ function toEntries(logs: AdminTimeLog[]): ClockedInEntry[] {
             id: l.id,
             studentId: l.student_id,
             name: l.student_name,
-            since: l.entry_at,
+            entryAt: l.entry_at,
+            exitAt: l.exit_at,
             distanceMeters: l.distance_meters,
             isFlagged: l.is_flagged,
             flagReason: l.flag_reason ?? undefined,
@@ -59,6 +61,23 @@ function formatSince(iso: string): string {
     return `${hrs}h ${mins % 60}m ago`
 }
 
+function formatTimeShort(iso: string): string {
+    return new Date(iso).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+    })
+}
+
+function formatDuration(entryAt: string, exitAt: string | null): string {
+    const end = exitAt ? new Date(exitAt).getTime() : Date.now()
+    const diff = end - new Date(entryAt).getTime()
+    const mins = Math.floor(diff / 60_000)
+    if (mins < 1) return '<1m'
+    const hrs = Math.floor(mins / 60)
+    if (hrs > 0) return `${hrs}h ${mins % 60}m`
+    return `${mins}m`
+}
+
 export function TimelogStatus() {
     const [expanded, setExpanded] = useState(false)
     const logsQuery = useTodayTimeLogs()
@@ -70,6 +89,7 @@ export function TimelogStatus() {
     const hasMore =
         (logsQuery.data?.total ?? 0) > (logsQuery.data?.data?.length ?? 0)
 
+    const activeCount = entries.filter((e) => e.exitAt === null).length
     const flaggedEntries = entries.filter((e) => e.isFlagged)
     const cleanEntries = entries.filter((e) => !e.isFlagged)
 
@@ -84,25 +104,23 @@ export function TimelogStatus() {
                     <div>
                         <CardTitle className="flex flex-wrap items-center gap-2">
                             Activity
-                            {entries.length > 0 && (
+                            {activeCount > 0 && (
                                 <Badge className="gap-1.5 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
                                     <span className="relative flex h-1.5 w-1.5">
                                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                     </span>
-                                    {entries.length} on shift
+                                    {activeCount} on shift
+                                </Badge>
+                            )}
+                            {flaggedEntries.length > 0 && (
+                                <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15">
+                                    {flaggedEntries.length} suspicious
                                 </Badge>
                             )}
                         </CardTitle>
-                        <CardDescription>
-                            Clocked in students and flagged entries
-                        </CardDescription>
+                        <CardDescription>Today's time logs</CardDescription>
                     </div>
-                    {flaggedEntries.length > 0 && (
-                        <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15">
-                            {flaggedEntries.length} suspicious
-                        </Badge>
-                    )}
                 </div>
             </CardHeader>
             <CardContent className="flex-1">
@@ -117,11 +135,10 @@ export function TimelogStatus() {
                         </div>
                         <div>
                             <p className="text-sm font-medium">
-                                No one clocked in
+                                No activity yet
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                Students will appear here when they clock in to
-                                their shifts
+                                Time logs will appear here as students clock in
                             </p>
                         </div>
                     </div>
@@ -129,7 +146,7 @@ export function TimelogStatus() {
                     <div className="space-y-3">
                         <div
                             className={cn(
-                                'space-y-1.5 overflow-y-auto transition-[max-height] duration-300 ease-in-out',
+                                'space-y-1.5 overflow-y-auto p-px transition-[max-height] duration-300 ease-in-out',
                                 expanded ? 'max-h-[280px]' : 'max-h-[180px]',
                             )}
                         >
@@ -184,43 +201,62 @@ export function TimelogStatus() {
     )
 }
 
-function EntryRow({ entry }: { entry: ClockedInEntry }) {
+function EntryRow({ entry }: { entry: ActivityEntry }) {
+    const isActive = entry.exitAt === null
+
+    if (entry.isFlagged) {
+        return (
+            <div className="group flex items-center gap-3 rounded-lg bg-red-500/10 ring-1 ring-red-500/20 px-3 py-2.5 cursor-pointer transition-colors hover:bg-red-500/15">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/20">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{entry.name}</p>
+                    <p className="truncate text-xs text-red-500/70">
+                        {entry.flagReason ?? 'Suspicious entry'}
+                        <span className="ml-2 text-muted-foreground">
+                            {formatSince(entry.entryAt)}
+                        </span>
+                    </p>
+                </div>
+                <span className="shrink-0 text-[11px] tabular-nums text-red-500/50">
+                    {formatDuration(entry.entryAt, entry.exitAt)}
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-red-500/50 transition-transform group-hover:translate-x-0.5" />
+            </div>
+        )
+    }
+
     return (
-        <div
-            className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5',
-                entry.isFlagged
-                    ? 'bg-red-500/10 ring-1 ring-red-500/20'
-                    : 'bg-muted/40',
-            )}
-        >
+        <div className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2.5">
             <div
                 className={cn(
                     'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                    entry.isFlagged
-                        ? 'bg-red-500/20 text-red-500'
-                        : 'bg-emerald-500/15 text-emerald-500',
+                    isActive
+                        ? 'bg-emerald-500/15 text-emerald-500'
+                        : 'bg-muted text-muted-foreground',
                 )}
             >
-                {entry.isFlagged ? (
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                ) : (
-                    <User className="h-3.5 w-3.5" />
-                )}
+                <User className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{entry.name}</p>
                 <p className="text-xs text-muted-foreground">
-                    {entry.isFlagged
-                        ? (entry.flagReason ?? 'Suspicious entry')
-                        : `Clocked in ${formatSince(entry.since)}`}
+                    {isActive
+                        ? `Clocked in ${formatSince(entry.entryAt)}`
+                        : `${formatTimeShort(entry.entryAt)} – ${formatTimeShort(entry.exitAt!)}`}
                 </p>
             </div>
-            {entry.isFlagged && (
-                <span className="shrink-0 text-[11px] font-medium text-red-500">
-                    Review
-                </span>
-            )}
+            <span
+                className={cn(
+                    'shrink-0 text-[11px] tabular-nums',
+                    isActive
+                        ? 'font-medium text-emerald-500'
+                        : 'text-muted-foreground',
+                )}
+            >
+                {formatDuration(entry.entryAt, entry.exitAt)}
+            </span>
         </div>
     )
 }

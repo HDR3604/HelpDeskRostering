@@ -90,10 +90,9 @@ export function useGenerateClockInCode() {
 
     return useMutation({
         mutationFn: generateClockInCode,
-        onSuccess: () => {
-            queryClient.invalidateQueries({
-                queryKey: timeLogKeys.activeCode(),
-            })
+        onSuccess: (newCode) => {
+            // Write the new code directly into cache so QR updates immediately
+            queryClient.setQueryData(timeLogKeys.activeCode(), newCode)
         },
         onError: (error) => {
             toast.error('Failed to generate code', {
