@@ -43,21 +43,47 @@ export async function getActiveClockInCode(): Promise<ClockInCode> {
     return data
 }
 
-export async function listTimeLogs(params?: {
+export interface TimeLogFilters {
+    page?: number
+    per_page?: number
+    student_id?: number
     from?: string
     to?: string
     flagged?: boolean
-    per_page?: number
-}): Promise<AdminTimeLogList> {
-    const search = new URLSearchParams()
-    if (params?.from) search.set('from', params.from)
-    if (params?.to) search.set('to', params.to)
-    if (params?.flagged !== undefined)
-        search.set('flagged', String(params.flagged))
-    if (params?.per_page) search.set('per_page', String(params.per_page))
-    const qs = search.toString()
+}
+
+export async function listTimeLogs(
+    filters: TimeLogFilters = {},
+): Promise<AdminTimeLogList> {
+    const params = new URLSearchParams()
+    if (filters.page) params.set('page', String(filters.page))
+    if (filters.per_page) params.set('per_page', String(filters.per_page))
+    if (filters.student_id)
+        params.set('student_id', String(filters.student_id))
+    if (filters.from) params.set('from', filters.from)
+    if (filters.to) params.set('to', filters.to)
+    if (filters.flagged !== undefined)
+        params.set('flagged', String(filters.flagged))
+
+    const qs = params.toString()
     const { data } = await apiClient.get<AdminTimeLogList>(
-        `/time-logs${qs ? `?${qs}` : ''}`,
+        `/time-logs${qs ? '?' + qs : ''}`,
     )
+    return data
+}
+
+export async function flagTimeLog(
+    id: string,
+    reason: string,
+): Promise<TimeLog> {
+    const { data } = await apiClient.patch<TimeLog>(
+        `/time-logs/${id}/flag`,
+        { reason },
+    )
+    return data
+}
+
+export async function unflagTimeLog(id: string): Promise<TimeLog> {
+    const { data } = await apiClient.patch<TimeLog>(`/time-logs/${id}/unflag`)
     return data
 }

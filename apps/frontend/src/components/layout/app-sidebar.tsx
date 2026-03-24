@@ -267,6 +267,9 @@ export function AppSidebar() {
                                                                 isOnAssistants &&
                                                                 !currentPath.endsWith(
                                                                     '/payments',
+                                                                ) &&
+                                                                !currentPath.endsWith(
+                                                                    '/time-logs',
                                                                 )
                                                             }
                                                             className="h-8"
@@ -296,6 +299,25 @@ export function AppSidebar() {
                                                                 </span>
                                                                 <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">
                                                                     2
+                                                                </kbd>
+                                                            </Link>
+                                                        </SidebarMenuSubButton>
+                                                    </SidebarMenuSubItem>
+                                                    <SidebarMenuSubItem>
+                                                        <SidebarMenuSubButton
+                                                            asChild
+                                                            isActive={
+                                                                currentPath ===
+                                                                '/assistants/time-logs'
+                                                            }
+                                                            className="h-8"
+                                                        >
+                                                            <Link to="/assistants/time-logs">
+                                                                <span>
+                                                                    Time Logs
+                                                                </span>
+                                                                <kbd className="ml-auto text-[10px] font-mono text-sidebar-foreground/40">
+                                                                    3
                                                                 </kbd>
                                                             </Link>
                                                         </SidebarMenuSubButton>

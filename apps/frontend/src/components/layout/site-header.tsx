@@ -31,6 +31,7 @@ const PAGE_TITLES: Record<string, string> = {
     '/applications': 'Applications',
     '/assistants': 'Assistants',
     '/assistants/payments': 'Payroll',
+    '/assistants/time-logs': 'Time Logs',
     '/schedule': 'Schedule',
     '/settings': 'Settings',
     '/complete-onboarding': 'Complete Onboarding',
