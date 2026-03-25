@@ -35,7 +35,7 @@ interface ActivityEntry {
 }
 
 function toEntries(logs: AdminTimeLog[]): ActivityEntry[] {
-    return logs
+    return [...logs]
         .sort(
             (a, b) =>
                 new Date(b.entry_at).getTime() - new Date(a.entry_at).getTime(),
@@ -95,7 +95,6 @@ export function TimelogStatus() {
 
     const allOrdered = [...flaggedEntries, ...cleanEntries]
     const canCollapse = allOrdered.length > COLLAPSED_COUNT
-    const hiddenCount = allOrdered.length - COLLAPSED_COUNT
 
     return (
         <Card className="flex flex-col">
@@ -182,7 +181,7 @@ export function TimelogStatus() {
                                     </>
                                 ) : (
                                     <>
-                                        Show {hiddenCount} more
+                                        Expand
                                         <ChevronDown className="ml-1 h-3 w-3" />
                                     </>
                                 )}

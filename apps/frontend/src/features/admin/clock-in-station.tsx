@@ -113,7 +113,8 @@ export function ClockInStation() {
     const isLoading = codeQuery.isLoading || (!code && generateCode.isPending)
 
     // Timer progress (0 to 1)
-    const progress = secondsLeft / 60
+    const totalSeconds = CODE_EXPIRY_MINUTES * 60
+    const progress = totalSeconds > 0 ? secondsLeft / totalSeconds : 0
 
     return (
         <div className="mx-auto max-w-5xl space-y-6">

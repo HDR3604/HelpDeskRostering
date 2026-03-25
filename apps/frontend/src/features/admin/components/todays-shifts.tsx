@@ -86,7 +86,6 @@ export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
         (s) => !s.isCurrent && !s.isPast,
     ).length
     const canCollapse = todaysShifts.length > COLLAPSED_COUNT
-    const hiddenCount = todaysShifts.length - COLLAPSED_COUNT
 
     return (
         <Card className="flex flex-col">
@@ -157,7 +156,7 @@ export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
                                     </>
                                 ) : (
                                     <>
-                                        Show {hiddenCount} more
+                                        Expand
                                         <ChevronDown className="ml-1 h-3 w-3" />
                                     </>
                                 )}

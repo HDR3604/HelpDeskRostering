@@ -158,13 +158,17 @@ export function StudentClock() {
             return
         }
 
+        let permStatus: PermissionStatus | null = null
+        const onChange = () => {
+            if (permStatus) setLocationPermission(permStatus.state)
+        }
+
         navigator.permissions
             .query({ name: 'geolocation' })
             .then((result) => {
+                permStatus = result
                 setLocationPermission(result.state)
-                result.addEventListener('change', () => {
-                    setLocationPermission(result.state)
-                })
+                result.addEventListener('change', onChange)
 
                 if (result.state === 'granted') {
                     navigator.geolocation.getCurrentPosition(
@@ -181,6 +185,10 @@ export function StudentClock() {
                 }
             })
             .catch(() => setLocationPermission('prompt'))
+
+        return () => {
+            if (permStatus) permStatus.removeEventListener('change', onChange)
+        }
     }, [])
 
     useEffect(() => {

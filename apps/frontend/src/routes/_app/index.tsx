@@ -20,42 +20,44 @@ export const Route = createFileRoute('/_app/')({
         const payload = getTokenPayload()
         const today = new Date().toISOString().slice(0, 10)
 
+        const prefetch = (
+            opts: Parameters<typeof queryClient.prefetchQuery>[0],
+        ) => void queryClient.prefetchQuery(opts).catch(() => undefined)
+
         if (payload?.role === 'admin') {
-            // Fire all admin queries in parallel — don't await, just prime the cache
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: studentKeys.list(),
                 queryFn: () => listStudents(),
                 staleTime: 30_000,
             })
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: scheduleKeys.active(),
                 queryFn: getActiveSchedule,
                 staleTime: 30_000,
             })
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: shiftTemplateKeys.list(),
                 queryFn: listShiftTemplates,
                 staleTime: 5 * 60_000,
             })
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: timeLogKeys.list({ from: today, to: today }),
                 queryFn: () =>
                     listTimeLogs({ from: today, to: today, per_page: 100 }),
                 staleTime: 15_000,
             })
         } else {
-            // Fire student queries in parallel
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: studentKeys.me(),
                 queryFn: getMyStudentProfile,
                 staleTime: 30_000,
             })
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: scheduleKeys.active(),
                 queryFn: getActiveSchedule,
                 staleTime: 30_000,
             })
-            queryClient.prefetchQuery({
+            prefetch({
                 queryKey: shiftTemplateKeys.list(),
                 queryFn: listShiftTemplates,
                 staleTime: 5 * 60_000,

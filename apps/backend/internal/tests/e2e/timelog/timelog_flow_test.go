@@ -240,13 +240,15 @@ func (s *TimeLogE2ETestSuite) seedActiveSchedule(studentID int32, adminUserID st
 	s.T().Helper()
 
 	// Schedule times are in local time (AST = UTC-4).
-	// Build a shift window around the current local time.
+	// Pin to midday local to avoid midnight boundary flakiness.
 	localTZ := time.FixedZone("AST", -4*60*60)
 	nowLocal := time.Now().In(localTZ)
+	midday := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 12, 0, 0, 0, localTZ)
+	s.timeLogSvc.WithNowFn(func() time.Time { return midday.UTC() })
 
-	scheduleDay := (int(nowLocal.Weekday()) + 6) % 7
-	start := nowLocal.Add(-30 * time.Minute).Format("15:04:05")
-	end := nowLocal.Add(30 * time.Minute).Format("15:04:05")
+	scheduleDay := (int(midday.Weekday()) + 6) % 7
+	start := midday.Add(-30 * time.Minute).Format("15:04:05")
+	end := midday.Add(30 * time.Minute).Format("15:04:05")
 
 	assignments, _ := json.Marshal([]map[string]any{
 		{

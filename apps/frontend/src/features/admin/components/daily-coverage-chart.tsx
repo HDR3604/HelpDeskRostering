@@ -57,9 +57,11 @@ export function DailyCoverageChart({
         let maxHour = 16
         for (const a of todaysAssignments) {
             const [sh] = a.start.split(':').map(Number)
-            const [eh] = a.end.split(':').map(Number)
+            const [eh, em] = a.end.split(':').map(Number)
             if (sh < minHour) minHour = sh
-            if (eh > maxHour) maxHour = eh
+            // Round up to next hour if end has minutes
+            const endCeil = em > 0 ? eh + 1 : eh
+            if (endCeil > maxHour) maxHour = endCeil
         }
 
         const hours: { hour: string; staff: number; rawHour: number }[] = []

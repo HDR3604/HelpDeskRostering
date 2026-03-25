@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils'
 import { getPaymentColumns, HOURLY_RATE } from '../columns/payment-columns'
 import { TranscriptDialog } from '@/features/admin/components/transcript-dialog'
 import { useStudents } from '@/features/admin/student-management/student-context'
-import { useQueryClient } from '@tanstack/react-query'
 import {
     usePayments,
     useGeneratePayments,
@@ -29,7 +28,6 @@ import {
     useRevertPayment,
     useBulkProcessPayments,
     usePrefetchPayments,
-    paymentKeys,
 } from '@/lib/queries/payments'
 import { useTodayTimeLogs } from '@/lib/queries/time-logs'
 import { exportPaymentsCsv } from '@/lib/api/payments'
@@ -126,7 +124,6 @@ const CURRENT_YEAR_PERIODS = generateFortnightlyPeriods(CURRENT_YEAR)
 const CURRENT_PERIOD_IDX = findCurrentPeriodIdx(CURRENT_YEAR_PERIODS)
 
 export function PaymentsCentre() {
-    const queryClient = useQueryClient()
     const { students } = useStudents()
     const [year, setYear] = useState(CURRENT_YEAR)
     const [periodIdx, setPeriodIdx] = useState(CURRENT_PERIOD_IDX)
@@ -151,7 +148,7 @@ export function PaymentsCentre() {
     const today = new Date().toISOString().slice(0, 10)
     const isCurrentPeriod =
         currentPeriod.start <= today && currentPeriod.end >= today
-    const todayLogsQuery = useTodayTimeLogs()
+    const todayLogsQuery = useTodayTimeLogs({ enabled: isCurrentPeriod })
 
     // Build a map of live hours from today's time logs (completed + in-progress)
     const liveHoursMap = useMemo(() => {
@@ -193,14 +190,13 @@ export function PaymentsCentre() {
                 const student = studentMap.get(p.student_id)
                 if (!student) return null
                 const liveExtra = liveHoursMap.get(p.student_id) ?? 0
-                const hoursWorked = p.hours_worked + liveExtra
                 return {
                     paymentId: p.payment_id,
                     student,
                     periodStart: p.period_start,
                     periodEnd: p.period_end,
-                    hoursWorked,
-                    grossAmount: hoursWorked * HOURLY_RATE,
+                    hoursWorked: p.hours_worked + liveExtra,
+                    grossAmount: p.gross_amount + liveExtra * HOURLY_RATE,
                     processedAt: p.processed_at,
                 }
             })
@@ -291,13 +287,6 @@ export function PaymentsCentre() {
         setIsExporting(true)
         exportPaymentsCsv(currentPeriod.start, currentPeriod.end)
             .then(() => {
-                // Refresh payment data since export regenerated them
-                queryClient.invalidateQueries({
-                    queryKey: paymentKeys.list(
-                        currentPeriod.start,
-                        currentPeriod.end,
-                    ),
-                })
                 toast.success('Payment sheet exported')
             })
             .catch(() => {

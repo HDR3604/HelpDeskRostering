@@ -138,7 +138,7 @@ func (s *TimeLogService) ClockIn(ctx context.Context, input ClockInInput) (*aggr
 			return timelogErrors.ErrAlreadyClockedIn
 		}
 
-		// c. Check student has an active shift now (±10 min early)
+		// c. Check student has an active shift now (5 min early buffer)
 		activeSchedule, err := s.scheduleRepo.GetActive(ctx, tx)
 		if err != nil {
 			if errors.Is(err, scheduleErrors.ErrNotFound) {
@@ -499,8 +499,8 @@ type assignmentEntry struct {
 
 // hasActiveShift checks if the given student has a shift assignment right now
 // (within earlyMinutes before the shift start up to the shift end).
-// NOTE: Shifts that span midnight (e.g. 23:00–01:00) are not supported because
-// time comparison is done lexicographically on "HH:MM:SS" strings within a single day.
+// Times are compared as minutes since midnight after converting to local time.
+// NOTE: Shifts that span midnight (end < start) are not supported.
 func (s *TimeLogService) hasActiveShift(assignments json.RawMessage, studentID int32, now time.Time, earlyMinutes int) (*ShiftInfo, bool, error) {
 	var entries []assignmentEntry
 	if err := json.Unmarshal(assignments, &entries); err != nil {
