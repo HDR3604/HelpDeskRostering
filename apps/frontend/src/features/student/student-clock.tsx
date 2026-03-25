@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearch } from '@tanstack/react-router'
 import {
     LogIn,
@@ -12,9 +12,11 @@ import {
     CalendarDays,
     LocateFixed,
     Timer,
+    Keyboard,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import {
     useClockInStatus,
@@ -133,6 +135,10 @@ export function StudentClock() {
     useDocumentTitle('Time Clock')
 
     const { code: urlCode } = useSearch({ from: '/_app/clock' })
+    const [manualCode, setManualCode] = useState('')
+    const [showManualEntry, setShowManualEntry] = useState(false)
+    const activeCode = urlCode || manualCode.trim() || null
+
     const statusQuery = useClockInStatus()
     const clockInMutation = useClockIn()
     const clockOutMutation = useClockOut()
@@ -143,17 +149,21 @@ export function StudentClock() {
 
     const [geo, setGeo] = useState<GeoState>({ status: 'idle' })
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [isGeoError, setIsGeoError] = useState(false)
     const [locationPermission, setLocationPermission] = useState<
         'unknown' | 'granted' | 'prompt' | 'denied' | 'unavailable'
     >('unknown')
 
-    // Probe location permission on mount and pre-fetch if already granted
+    // Probe location permission status (display only — no pre-fetch).
+    // Safari doesn't support navigator.permissions for geolocation, so
+    // on Safari the banner stays neutral ("will be requested when you clock in").
     useEffect(() => {
         if (!navigator.geolocation) {
             setLocationPermission('unavailable')
             return
         }
         if (!navigator.permissions) {
+            // Safari — can't probe, stay neutral
             setLocationPermission('prompt')
             return
         }
@@ -169,20 +179,6 @@ export function StudentClock() {
                 permStatus = result
                 setLocationPermission(result.state)
                 result.addEventListener('change', onChange)
-
-                if (result.state === 'granted') {
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                            setGeo({
-                                status: 'granted',
-                                lat: pos.coords.latitude,
-                                lng: pos.coords.longitude,
-                            })
-                        },
-                        () => {},
-                        { enableHighAccuracy: true, timeout: 10_000 },
-                    )
-                }
             })
             .catch(() => setLocationPermission('prompt'))
 
@@ -190,11 +186,6 @@ export function StudentClock() {
             if (permStatus) permStatus.removeEventListener('change', onChange)
         }
     }, [])
-
-    useEffect(() => {
-        if (geo.status === 'granted') setLocationPermission('granted')
-        if (geo.status === 'denied') setLocationPermission('denied')
-    }, [geo.status])
 
     const status = statusQuery.data
     const isClockedIn = status?.is_clocked_in ?? false
@@ -220,12 +211,25 @@ export function StudentClock() {
         setErrorMessage(null)
     }, [isClockedIn])
 
+    // Prevent double-tap: store the in-flight promise
+    const locationPromiseRef = useRef<Promise<{
+        lat: number
+        lng: number
+    }> | null>(null)
+
     const requestLocation = useCallback((): Promise<{
         lat: number
         lng: number
     }> => {
-        if (geo.status === 'granted') {
-            return Promise.resolve({ lat: geo.lat, lng: geo.lng })
+        // Return existing in-flight request if already running
+        if (locationPromiseRef.current) return locationPromiseRef.current
+
+        // Check secure context — geolocation requires HTTPS
+        if (window.isSecureContext === false) {
+            const message =
+                'Location requires a secure (HTTPS) connection. Please contact an administrator.'
+            setGeo({ status: 'denied', message })
+            return Promise.reject(new Error(message))
         }
 
         if (!navigator.geolocation) {
@@ -235,51 +239,184 @@ export function StudentClock() {
             return Promise.reject(new Error(message))
         }
 
-        return new Promise((resolve, reject) => {
-            setGeo({ status: 'requesting' })
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const coords = {
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
+        setGeo({ status: 'requesting' })
+
+        const promise = new Promise<{ lat: number; lng: number }>(
+            (resolve, reject) => {
+                let settled = false
+                let attemptCount = 0
+
+                // Safety timeout — if the browser never responds
+                const safetyTimer = setTimeout(() => {
+                    if (!settled) {
+                        settled = true
+                        const message =
+                            'Location request timed out after 30 seconds. Please check your location settings and try again.'
+                        setGeo({ status: 'denied', message })
+                        setLocationPermission('denied')
+                        reject(new Error(message))
                     }
-                    setGeo({ status: 'granted', ...coords })
-                    resolve(coords)
-                },
-                (err) => {
-                    const message =
-                        err.code === err.PERMISSION_DENIED
-                            ? 'Location access was denied. Please enable location permissions in your browser settings and try again.'
-                            : 'Could not determine your location. Please check your connection and try again.'
-                    setGeo({ status: 'denied', message })
-                    reject(new Error(message))
-                },
-                { enableHighAccuracy: true, timeout: 10_000 },
-            )
+                }, 30_000)
+
+                const finish = (
+                    result:
+                        | { ok: true; lat: number; lng: number }
+                        | { ok: false; message: string },
+                ) => {
+                    if (settled) return
+                    settled = true
+                    clearTimeout(safetyTimer)
+
+                    if (result.ok) {
+                        setGeo({
+                            status: 'granted',
+                            lat: result.lat,
+                            lng: result.lng,
+                        })
+                        setLocationPermission('granted')
+                        resolve({ lat: result.lat, lng: result.lng })
+                    } else {
+                        setGeo({ status: 'denied', message: result.message })
+                        setLocationPermission('denied')
+                        reject(new Error(result.message))
+                    }
+                }
+
+                const onSuccess = (pos: GeolocationPosition) => {
+                    const { latitude, longitude, accuracy } = pos.coords
+
+                    // Validate coordinates
+                    if (
+                        !Number.isFinite(latitude) ||
+                        !Number.isFinite(longitude) ||
+                        (latitude === 0 && longitude === 0)
+                    ) {
+                        finish({
+                            ok: false,
+                            message:
+                                'Received invalid location data. Please try again.',
+                        })
+                        return
+                    }
+
+                    // Reject extremely poor accuracy (>5km = likely IP-based, useless)
+                    if (accuracy && accuracy > 5000) {
+                        finish({
+                            ok: false,
+                            message:
+                                'Location accuracy is too low. Please enable WiFi or move outdoors and try again.',
+                        })
+                        return
+                    }
+
+                    finish({ ok: true, lat: latitude, lng: longitude })
+                }
+
+                const getErrorMessage = (
+                    err: GeolocationPositionError,
+                ): string => {
+                    if (err.code === 1) {
+                        const ua = navigator.userAgent
+                        if (/iPad|iPhone|iPod/.test(ua)) {
+                            return 'Location blocked. Tap the "aA" icon in Safari\u2019s address bar \u203a Website Settings \u203a Location \u203a Allow. Then try again.'
+                        }
+                        if (/Android/.test(ua)) {
+                            return 'Location blocked. Tap the lock icon next to the URL, then allow Location access.'
+                        }
+                        return 'Location blocked. Click the lock/tune icon in the address bar and allow location access for this site.'
+                    }
+                    if (err.code === 3) {
+                        return 'Location request timed out. Please move to an area with better signal and try again.'
+                    }
+                    return 'Your location could not be determined. Please ensure Location Services are enabled and try again.'
+                }
+
+                const attempt = (highAccuracy: boolean, timeout: number) => {
+                    attemptCount++
+                    navigator.geolocation.getCurrentPosition(
+                        onSuccess,
+                        (err) => {
+                            if (settled) return
+                            // Permission denied — never retry
+                            if (err.code === 1) {
+                                finish({
+                                    ok: false,
+                                    message: getErrorMessage(err),
+                                })
+                                return
+                            }
+                            // Retry up to 3 attempts
+                            if (attemptCount < 3) {
+                                attempt(
+                                    attemptCount === 2, // 3rd attempt uses high accuracy
+                                    15_000,
+                                )
+                            } else {
+                                finish({
+                                    ok: false,
+                                    message: getErrorMessage(err),
+                                })
+                            }
+                        },
+                        {
+                            enableHighAccuracy: highAccuracy,
+                            timeout,
+                            maximumAge: 0, // always fresh position
+                        },
+                    )
+                }
+
+                // Start: low accuracy, 10s timeout
+                attempt(false, 10_000)
+            },
+        )
+
+        // Track in-flight promise, clear on settle
+        locationPromiseRef.current = promise
+        promise.finally(() => {
+            locationPromiseRef.current = null
         })
-    }, [geo])
+
+        return promise
+    }, [])
 
     const handleClockIn = useCallback(async () => {
-        if (!urlCode) return
+        if (!activeCode) return
         setErrorMessage(null)
+        setIsGeoError(false)
 
+        let coords: { lat: number; lng: number }
         try {
-            const { lat, lng } = await requestLocation()
-            clockInMutation.mutate(
-                { code: urlCode, longitude: lng, latitude: lat },
-                {
-                    onSuccess: () => playClockInTone(),
-                    onError: (error) => {
-                        playErrorTone()
-                        setErrorMessage(getApiErrorMessage(error))
-                    },
-                },
-            )
+            coords = await requestLocation()
         } catch (err) {
             playErrorTone()
-            if (err instanceof Error) setErrorMessage(err.message)
+            setIsGeoError(true)
+            setErrorMessage(
+                err instanceof Error
+                    ? err.message
+                    : 'Could not get your location. Please try again.',
+            )
+            return
         }
-    }, [urlCode, requestLocation, clockInMutation])
+
+        clockInMutation.mutate(
+            { code: activeCode!, longitude: coords.lng, latitude: coords.lat },
+            {
+                onSuccess: () => playClockInTone(),
+                onError: (error) => {
+                    playErrorTone()
+                    setIsGeoError(false)
+                    setErrorMessage(getApiErrorMessage(error))
+                },
+            },
+        )
+    }, [activeCode, requestLocation, clockInMutation])
+
+    const handleResetCode = useCallback(() => {
+        setManualCode('')
+        setShowManualEntry(true)
+        setErrorMessage(null)
+    }, [])
 
     const handleClockOut = useCallback(() => {
         setErrorMessage(null)
@@ -428,9 +565,9 @@ export function StudentClock() {
             </div>
 
             <div className="mt-8 w-full max-w-sm space-y-4">
-                {!urlCode ? (
+                {!activeCode ? (
                     <>
-                        {/* No code — scan prompt */}
+                        {/* No code — scan prompt + manual entry */}
                         <div className="rounded-xl border border-dashed p-8 text-center">
                             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                                 <QrCode className="h-7 w-7 text-primary" />
@@ -443,6 +580,42 @@ export function StudentClock() {
                                 help desk to start your shift.
                             </p>
                         </div>
+
+                        {/* Manual code entry toggle */}
+                        {!showManualEntry ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowManualEntry(true)}
+                                className="flex w-full items-center justify-center gap-2 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <Keyboard className="h-3.5 w-3.5" />
+                                Enter code manually
+                            </button>
+                        ) : (
+                            <div className="space-y-2">
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Enter 8-digit code"
+                                        value={manualCode}
+                                        onChange={(e) =>
+                                            setManualCode(
+                                                e.target.value
+                                                    .toUpperCase()
+                                                    .replace(/[^A-Z0-9]/g, '')
+                                                    .slice(0, 8),
+                                            )
+                                        }
+                                        className="font-mono text-center text-lg tracking-widest"
+                                        maxLength={8}
+                                        autoFocus
+                                    />
+                                </div>
+                                <p className="text-center text-[11px] text-muted-foreground">
+                                    Ask the admin for the code shown on the
+                                    clock-in station
+                                </p>
+                            </div>
+                        )}
 
                         <TodayShiftsList
                             shifts={todayShifts}
@@ -458,7 +631,26 @@ export function StudentClock() {
                             loaded={scheduleQuery.isSuccess}
                         />
 
-                        {errorMessage && <ErrorBanner message={errorMessage} />}
+                        {errorMessage && (
+                            <>
+                                <ErrorBanner
+                                    message={errorMessage}
+                                    onRetry={
+                                        isGeoError ? handleClockIn : undefined
+                                    }
+                                />
+                                {!isGeoError && (
+                                    <button
+                                        type="button"
+                                        onClick={handleResetCode}
+                                        className="flex w-full items-center justify-center gap-1.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                                    >
+                                        <Keyboard className="h-3.5 w-3.5" />
+                                        Try a different code
+                                    </button>
+                                )}
+                            </>
+                        )}
 
                         <Button
                             onClick={handleClockIn}
@@ -544,11 +736,30 @@ function TodayShiftsList({
     )
 }
 
-function ErrorBanner({ message }: { message: string }) {
+function ErrorBanner({
+    message,
+    onRetry,
+}: {
+    message: string
+    onRetry?: () => void
+}) {
     return (
-        <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-            <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
-            <p className="text-sm text-red-600">{message}</p>
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 space-y-2.5">
+            <div className="flex items-start gap-3">
+                <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+                <p className="text-sm text-red-600">{message}</p>
+            </div>
+            {onRetry && (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={onRetry}
+                >
+                    <LocateFixed className="mr-1.5 h-3.5 w-3.5" />
+                    Try again
+                </Button>
+            )}
         </div>
     )
 }
