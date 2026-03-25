@@ -66,6 +66,12 @@ const ADMIN_PAGES: NavItem[] = [
         keywords: ['payroll', 'payments', 'salary', 'hours'],
     },
     {
+        label: 'Assistants — Time Logs',
+        to: '/assistants/time-logs',
+        icon: Clock,
+        keywords: ['time', 'logs', 'clock', 'flagged', 'activity'],
+    },
+    {
         label: 'Clock-In Station',
         to: '/clock-in-station',
         icon: QrCode,

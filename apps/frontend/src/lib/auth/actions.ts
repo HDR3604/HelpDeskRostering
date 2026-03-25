@@ -6,7 +6,7 @@ import { authHttpClient } from './refresh'
 export async function loginUser(
     email: string,
     password: string,
-    rememberMe: boolean = false,
+    rememberMe: boolean = true,
 ): Promise<JwtPayload> {
     const { data } = await authHttpClient.post<AuthTokenResponse>(
         '/auth/login',

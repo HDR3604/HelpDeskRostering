@@ -7,6 +7,9 @@ import {
     generateClockInCode,
     getActiveClockInCode,
     listTimeLogs,
+    flagTimeLog,
+    unflagTimeLog,
+    type TimeLogFilters,
 } from '@/lib/api/time-logs'
 import { getApiErrorMessage } from '@/lib/error-messages'
 
@@ -15,8 +18,9 @@ import { getApiErrorMessage } from '@/lib/error-messages'
 export const timeLogKeys = {
     all: () => ['time-logs'] as const,
     status: () => [...timeLogKeys.all(), 'status'] as const,
+    lists: () => [...timeLogKeys.all(), 'list'] as const,
     list: (params?: Record<string, unknown>) =>
-        [...timeLogKeys.all(), 'list', params] as const,
+        [...timeLogKeys.lists(), params] as const,
     activeCode: () => ['clock-in-codes', 'active'] as const,
 }
 
@@ -42,6 +46,14 @@ export function useTodayTimeLogs(options?: {
         staleTime: options?.fastPoll ? 2_000 : 15_000,
         refetchInterval: options?.fastPoll ? 3_000 : 30_000,
         enabled: options?.enabled ?? true,
+    })
+}
+
+export function useTimeLogs(filters: TimeLogFilters = {}) {
+    return useQuery({
+        queryKey: timeLogKeys.list(filters as Record<string, unknown>),
+        queryFn: () => listTimeLogs(filters),
+        staleTime: 30_000,
     })
 }
 
@@ -94,11 +106,45 @@ export function useGenerateClockInCode() {
     return useMutation({
         mutationFn: generateClockInCode,
         onSuccess: (newCode) => {
-            // Write the new code directly into cache so QR updates immediately
             queryClient.setQueryData(timeLogKeys.activeCode(), newCode)
         },
         onError: (error) => {
             toast.error('Failed to generate code', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
+
+export function useFlagTimeLog() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+            flagTimeLog(id, reason),
+        onSuccess: () => {
+            toast.success('Time log flagged as suspicious')
+            queryClient.invalidateQueries({ queryKey: timeLogKeys.lists() })
+        },
+        onError: (error) => {
+            toast.error('Failed to flag time log', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
+
+export function useUnflagTimeLog() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (id: string) => unflagTimeLog(id),
+        onSuccess: () => {
+            toast.success('Time log unflagged')
+            queryClient.invalidateQueries({ queryKey: timeLogKeys.lists() })
+        },
+        onError: (error) => {
+            toast.error('Failed to unflag time log', {
                 description: getApiErrorMessage(error),
             })
         },

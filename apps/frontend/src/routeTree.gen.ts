@@ -29,6 +29,7 @@ import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/ind
 import { Route as AppAssistantsIndexRouteImport } from './routes/_app/assistants/index'
 import { Route as AppSettingsSchedulerRouteImport } from './routes/_app/settings/scheduler'
 import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedule/$scheduleId'
+import { Route as AppAssistantsTimeLogsRouteImport } from './routes/_app/assistants/time-logs'
 import { Route as AppAssistantsPaymentsRouteImport } from './routes/_app/assistants/payments'
 
 const AuthRoute = AuthRouteImport.update({
@@ -129,6 +130,11 @@ const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
   path: '/$scheduleId',
   getParentRoute: () => AppScheduleRoute,
 } as any)
+const AppAssistantsTimeLogsRoute = AppAssistantsTimeLogsRouteImport.update({
+  id: '/time-logs',
+  path: '/time-logs',
+  getParentRoute: () => AppAssistantsRoute,
+} as any)
 const AppAssistantsPaymentsRoute = AppAssistantsPaymentsRouteImport.update({
   id: '/payments',
   path: '/payments',
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/assistants/payments': typeof AppAssistantsPaymentsRoute
+  '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
   '/settings/scheduler': typeof AppSettingsSchedulerRoute
   '/assistants/': typeof AppAssistantsIndexRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof AuthSignInRoute
   '/sign-up': typeof AuthSignUpRoute
   '/assistants/payments': typeof AppAssistantsPaymentsRoute
+  '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
   '/settings/scheduler': typeof AppSettingsSchedulerRoute
   '/assistants': typeof AppAssistantsIndexRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/_auth/sign-up': typeof AuthSignUpRoute
   '/_app/': typeof AppIndexRoute
   '/_app/assistants/payments': typeof AppAssistantsPaymentsRoute
+  '/_app/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
   '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
   '/_app/settings/scheduler': typeof AppSettingsSchedulerRoute
   '/_app/assistants/': typeof AppAssistantsIndexRoute
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/assistants/payments'
+    | '/assistants/time-logs'
     | '/schedule/$scheduleId'
     | '/settings/scheduler'
     | '/assistants/'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/assistants/payments'
+    | '/assistants/time-logs'
     | '/schedule/$scheduleId'
     | '/settings/scheduler'
     | '/assistants'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-up'
     | '/_app/'
     | '/_app/assistants/payments'
+    | '/_app/assistants/time-logs'
     | '/_app/schedule/$scheduleId'
     | '/_app/settings/scheduler'
     | '/_app/assistants/'
@@ -410,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppScheduleScheduleIdRouteImport
       parentRoute: typeof AppScheduleRoute
     }
+    '/_app/assistants/time-logs': {
+      id: '/_app/assistants/time-logs'
+      path: '/time-logs'
+      fullPath: '/assistants/time-logs'
+      preLoaderRoute: typeof AppAssistantsTimeLogsRouteImport
+      parentRoute: typeof AppAssistantsRoute
+    }
     '/_app/assistants/payments': {
       id: '/_app/assistants/payments'
       path: '/payments'
@@ -422,11 +441,13 @@ declare module '@tanstack/react-router' {
 
 interface AppAssistantsRouteChildren {
   AppAssistantsPaymentsRoute: typeof AppAssistantsPaymentsRoute
+  AppAssistantsTimeLogsRoute: typeof AppAssistantsTimeLogsRoute
   AppAssistantsIndexRoute: typeof AppAssistantsIndexRoute
 }
 
 const AppAssistantsRouteChildren: AppAssistantsRouteChildren = {
   AppAssistantsPaymentsRoute: AppAssistantsPaymentsRoute,
+  AppAssistantsTimeLogsRoute: AppAssistantsTimeLogsRoute,
   AppAssistantsIndexRoute: AppAssistantsIndexRoute,
 }
 

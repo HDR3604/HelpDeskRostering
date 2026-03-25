@@ -115,6 +115,8 @@ function AssistantsLayout() {
                 navigate({ to: '/assistants' })
             } else if (e.key === '2') {
                 navigate({ to: '/assistants/payments' })
+            } else if (e.key === '3') {
+                navigate({ to: '/assistants/time-logs' })
             }
         }
         window.addEventListener('keydown', onKeyDown)
@@ -181,7 +183,11 @@ function AssistantsLayout() {
         [stats, deactivatedStudents.length],
     )
 
-    const activeTab = currentPath.endsWith('/payments') ? 'payments' : 'team'
+    const activeTab = currentPath.endsWith('/payments')
+        ? 'payments'
+        : currentPath.endsWith('/time-logs')
+          ? 'time-logs'
+          : 'team'
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -243,6 +249,15 @@ function AssistantsLayout() {
                                 Payroll
                                 <kbd className="ml-1 hidden rounded border bg-background px-1 py-0.5 font-mono text-[10px] text-muted-foreground/70 sm:inline-block">
                                     2
+                                </kbd>
+                            </Link>
+                        </TabsTrigger>
+                        <TabsTrigger value="time-logs" asChild>
+                            <Link to="/assistants/time-logs">
+                                <Clock className="h-4 w-4" />
+                                Time Logs
+                                <kbd className="ml-1 hidden rounded border bg-background px-1 py-0.5 font-mono text-[10px] text-muted-foreground/70 sm:inline-block">
+                                    3
                                 </kbd>
                             </Link>
                         </TabsTrigger>
