@@ -8,7 +8,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { RouteError } from '@/components/layout/route-error'
 import { RouteNotFound } from '@/components/layout/route-not-found'
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             retry: 1,

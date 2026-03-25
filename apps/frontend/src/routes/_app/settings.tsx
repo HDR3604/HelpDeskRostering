@@ -13,13 +13,22 @@ export const Route = createFileRoute('/_app/settings')({
     component: SettingsLayout,
 })
 
-const navItems = [
-    { label: 'Profile', to: '/settings', icon: UserPen, exact: true as const },
+interface NavItem {
+    label: string
+    to: string
+    icon: React.ComponentType<{ className?: string }>
+    exact: boolean
+    adminOnly?: boolean
+}
+
+const navItems: NavItem[] = [
+    { label: 'Profile', to: '/settings', icon: UserPen, exact: true },
     {
         label: 'Scheduler',
         to: '/settings/scheduler',
         icon: MonitorCog,
-        exact: false as const,
+        exact: false,
+        adminOnly: true,
     },
 ]
 
@@ -28,6 +37,10 @@ function SettingsLayout() {
     const { role } = useUser()
     const router = useRouterState()
     const currentPath = router.location.pathname
+
+    const visibleNavItems = navItems.filter(
+        (item) => !item.adminOnly || role === 'admin',
+    )
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -43,7 +56,7 @@ function SettingsLayout() {
             </div>
             <div className="flex gap-8">
                 <nav className="w-48 shrink-0 space-y-1">
-                    {navItems.map(({ label, to, icon: Icon, exact }) => {
+                    {visibleNavItems.map(({ label, to, icon: Icon, exact }) => {
                         const isActive = exact
                             ? currentPath === to || currentPath === to + '/'
                             : currentPath.startsWith(to)

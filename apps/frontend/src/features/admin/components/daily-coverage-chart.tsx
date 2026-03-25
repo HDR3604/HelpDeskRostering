@@ -47,14 +47,25 @@ export function DailyCoverageChart({
     const isWeekday = scheduleDay >= 0 && scheduleDay < 5
 
     const data = useMemo(() => {
-        // Count staff per hour for today (or Monday if weekend)
         const day = isWeekday ? scheduleDay : 0
         const todaysAssignments = assignments.filter(
             (a) => a.day_of_week === day,
         )
 
+        // Determine hour range from actual assignments (fallback 8-16)
+        let minHour = 8
+        let maxHour = 16
+        for (const a of todaysAssignments) {
+            const [sh] = a.start.split(':').map(Number)
+            const [eh, em] = a.end.split(':').map(Number)
+            if (sh < minHour) minHour = sh
+            // Round up to next hour if end has minutes
+            const endCeil = em > 0 ? eh + 1 : eh
+            if (endCeil > maxHour) maxHour = endCeil
+        }
+
         const hours: { hour: string; staff: number; rawHour: number }[] = []
-        for (let h = 8; h < 18; h++) {
+        for (let h = minHour; h < maxHour; h++) {
             const count = todaysAssignments.filter((a) => {
                 const [sh] = a.start.split(':').map(Number)
                 const [eh] = a.end.split(':').map(Number)
@@ -79,7 +90,7 @@ export function DailyCoverageChart({
     )
 
     return (
-        <Card>
+        <Card className="flex flex-col">
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <div>
@@ -101,10 +112,10 @@ export function DailyCoverageChart({
                     )}
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1">
                 <ChartContainer
                     config={chartConfig}
-                    className="h-[220px] w-full"
+                    className="min-h-[220px] h-full w-full"
                 >
                     <BarChart
                         accessibilityLayer
@@ -117,8 +128,9 @@ export function DailyCoverageChart({
                             dataKey="hour"
                             tickLine={false}
                             axisLine={false}
-                            fontSize={11}
+                            fontSize={10}
                             tickMargin={8}
+                            interval={0}
                         />
                         <YAxis
                             tickLine={false}

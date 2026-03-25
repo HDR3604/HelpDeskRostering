@@ -102,7 +102,7 @@ export function getPaymentColumns(
             header: () => <div className="text-right">Hours</div>,
             cell: ({ row }) => (
                 <div className="text-right tabular-nums">
-                    {row.original.hoursWorked}
+                    {row.original.hoursWorked.toFixed(2)}
                 </div>
             ),
         },

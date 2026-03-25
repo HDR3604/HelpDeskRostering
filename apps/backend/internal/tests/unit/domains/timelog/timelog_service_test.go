@@ -72,11 +72,13 @@ func (s *TimeLogServiceTestSuite) validCode() *aggregate.ClockInCode {
 }
 
 // buildAssignments creates assignments JSON with a shift for the given student
-// at the current day/time.
+// at the current day/time. Schedule times are in local time (AST = UTC-4).
 func (s *TimeLogServiceTestSuite) buildAssignments(studentID string, now time.Time) json.RawMessage {
-	scheduleDay := (int(now.Weekday()) + 6) % 7
-	start := now.Add(-30 * time.Minute).Format("15:04:05")
-	end := now.Add(30 * time.Minute).Format("15:04:05")
+	localTZ := time.FixedZone("AST", -4*60*60)
+	local := now.In(localTZ)
+	scheduleDay := (int(local.Weekday()) + 6) % 7
+	start := local.Add(-30 * time.Minute).Format("15:04:05")
+	end := local.Add(30 * time.Minute).Format("15:04:05")
 
 	assignments := []map[string]any{
 		{
@@ -217,15 +219,18 @@ func (s *TimeLogServiceTestSuite) TestClockIn_NoActiveShift() {
 	s.Nil(result)
 }
 
-func (s *TimeLogServiceTestSuite) TestClockIn_10MinEarly_Allowed() {
+func (s *TimeLogServiceTestSuite) TestClockIn_5MinEarly_Allowed() {
 	// Use a fixed time to avoid race conditions between test setup and service call
 	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
 	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
-	scheduleDay := (int(fixedNow.Weekday()) + 6) % 7
+	localTZ := time.FixedZone("AST", -4*60*60)
+	local := fixedNow.In(localTZ)
+	scheduleDay := (int(local.Weekday()) + 6) % 7
 
-	// Shift starts 8 minutes from fixedNow, ends 60 minutes from fixedNow
-	start := fixedNow.Add(8 * time.Minute).Format("15:04:05")
-	end := fixedNow.Add(60 * time.Minute).Format("15:04:05")
+	// Shift starts 3 minutes from now (local), ends 60 minutes from now (local)
+	// With 5-min early buffer, clocking in 3 minutes before shift should be allowed
+	start := local.Add(3 * time.Minute).Format("15:04:05")
+	end := local.Add(60 * time.Minute).Format("15:04:05")
 
 	assignments, _ := json.Marshal([]map[string]any{
 		{
@@ -265,11 +270,13 @@ func (s *TimeLogServiceTestSuite) TestClockIn_10MinEarly_Allowed() {
 func (s *TimeLogServiceTestSuite) TestClockIn_ShiftEnded_Rejected() {
 	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
 	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
-	scheduleDay := (int(fixedNow.Weekday()) + 6) % 7
+	localTZ := time.FixedZone("AST", -4*60*60)
+	local := fixedNow.In(localTZ)
+	scheduleDay := (int(local.Weekday()) + 6) % 7
 
-	// Shift ended 30 minutes ago
-	start := fixedNow.Add(-90 * time.Minute).Format("15:04:05")
-	end := fixedNow.Add(-30 * time.Minute).Format("15:04:05")
+	// Shift ended 30 minutes ago (in local time)
+	start := local.Add(-90 * time.Minute).Format("15:04:05")
+	end := local.Add(-30 * time.Minute).Format("15:04:05")
 
 	assignments, _ := json.Marshal([]map[string]any{
 		{
@@ -358,6 +365,7 @@ func (s *TimeLogServiceTestSuite) TestGetMyStatus_ClockedIn() {
 	fixedNow := time.Date(2026, 3, 18, 10, 0, 0, 0, time.UTC) // Wednesday
 	s.service.(*service.TimeLogService).WithNowFn(func() time.Time { return fixedNow })
 	openLog, _ := aggregate.NewTimeLog(12345, -61.277, 10.642, 15.0)
+	openLog.EntryAt = fixedNow // match the pinned clock
 	assignments := s.buildAssignments("12345", fixedNow)
 	schedule := s.activeScheduleWith(assignments)
 

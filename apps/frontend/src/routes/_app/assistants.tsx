@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/tooltip'
 import { useStudents } from '@/features/admin/student-management/student-context'
 import { HOURLY_RATE } from '@/features/admin/columns/payment-columns'
+import { useTodayTimeLogs } from '@/lib/queries/time-logs'
 
 export const Route = createFileRoute('/_app/assistants')({
     component: AssistantsLayout,
@@ -121,6 +122,7 @@ function AssistantsLayout() {
     }, [navigate])
 
     const { activeStudents, deactivatedStudents, isLoading } = useStudents()
+    const todayLogsQuery = useTodayTimeLogs()
 
     const newToday = useMemo(() => {
         const today = new Date().toDateString()
@@ -141,10 +143,21 @@ function AssistantsLayout() {
                       0,
                   ) / activeCount
                 : 0
-        const totalHours = 0 // TODO: integrate with time logging API
+
+        // Calculate hours from today's time logs
+        const logs = todayLogsQuery.data?.data ?? []
+        const now = Date.now()
+        let totalHours = 0
+        for (const log of logs) {
+            const end = log.exit_at ? new Date(log.exit_at).getTime() : now
+            const hours = (end - new Date(log.entry_at).getTime()) / 3_600_000
+            if (hours > 0) totalHours += hours
+        }
+        totalHours = Math.round(totalHours * 100) / 100
+
         const totalPayroll = totalHours * HOURLY_RATE
         return { activeCount, avgGpa, totalHours, totalPayroll }
-    }, [activeStudents])
+    }, [activeStudents, todayLogsQuery.data])
 
     const cardValues = useMemo(
         () => [
@@ -157,12 +170,12 @@ function AssistantsLayout() {
                 subtitle: 'Across active roster',
             },
             {
-                value: String(stats.totalHours),
-                subtitle: `${stats.activeCount} assistants scheduled`,
+                value: stats.totalHours.toFixed(1),
+                subtitle: 'Hours logged today',
             },
             {
-                value: `$${stats.totalPayroll.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                subtitle: `$${HOURLY_RATE.toFixed(2)}/hr rate`,
+                value: `$${stats.totalPayroll.toFixed(2)}`,
+                subtitle: `$${HOURLY_RATE.toFixed(2)}/hr \u00b7 today`,
             },
         ],
         [stats, deactivatedStudents.length],

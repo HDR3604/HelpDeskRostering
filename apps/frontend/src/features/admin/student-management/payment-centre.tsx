@@ -29,6 +29,7 @@ import {
     useBulkProcessPayments,
     usePrefetchPayments,
 } from '@/lib/queries/payments'
+import { useTodayTimeLogs } from '@/lib/queries/time-logs'
 import { exportPaymentsCsv } from '@/lib/api/payments'
 import type { PaymentEntry } from '../columns/payment-columns'
 import type { Student } from '@/types/student'
@@ -143,6 +144,27 @@ export function PaymentsCentre() {
         isFetching,
     } = usePayments(currentPeriod.start, currentPeriod.end)
 
+    // Fetch live time logs to include currently clocked-in hours
+    const today = new Date().toISOString().slice(0, 10)
+    const isCurrentPeriod =
+        currentPeriod.start <= today && currentPeriod.end >= today
+    const todayLogsQuery = useTodayTimeLogs({ enabled: isCurrentPeriod })
+
+    // Build a map of live hours from today's time logs (completed + in-progress)
+    const liveHoursMap = useMemo(() => {
+        const map = new Map<number, number>()
+        if (!isCurrentPeriod || !todayLogsQuery.data?.data) return map
+        const now = Date.now()
+        for (const log of todayLogsQuery.data.data) {
+            const end = log.exit_at ? new Date(log.exit_at).getTime() : now
+            const hours = (end - new Date(log.entry_at).getTime()) / 3_600_000
+            if (hours > 0) {
+                map.set(log.student_id, (map.get(log.student_id) ?? 0) + hours)
+            }
+        }
+        return map
+    }, [isCurrentPeriod, todayLogsQuery.data])
+
     // Prefetch adjacent periods for instant navigation
     const prefetchPayments = usePrefetchPayments()
     useEffect(() => {
@@ -161,24 +183,25 @@ export function PaymentsCentre() {
         return map
     }, [students])
 
-    // Merge API payment data with student objects
+    // Merge API payment data with student objects + live hours
     const payments: PaymentEntry[] = useMemo(() => {
         return apiPayments
             .map((p) => {
                 const student = studentMap.get(p.student_id)
                 if (!student) return null
+                const liveExtra = liveHoursMap.get(p.student_id) ?? 0
                 return {
                     paymentId: p.payment_id,
                     student,
                     periodStart: p.period_start,
                     periodEnd: p.period_end,
-                    hoursWorked: p.hours_worked,
-                    grossAmount: p.gross_amount,
+                    hoursWorked: p.hours_worked + liveExtra,
+                    grossAmount: p.gross_amount + liveExtra * HOURLY_RATE,
                     processedAt: p.processed_at,
                 }
             })
             .filter((p): p is PaymentEntry => p !== null)
-    }, [apiPayments, studentMap])
+    }, [apiPayments, studentMap, liveHoursMap])
 
     // Mutations
     const generateMutation = useGeneratePayments()
@@ -607,7 +630,7 @@ export function PaymentsCentre() {
                                 <span className="text-muted-foreground">
                                     Total Hours{' '}
                                     <span className="ml-1 font-medium text-foreground tabular-nums">
-                                        {totalHours}
+                                        {totalHours.toFixed(2)}
                                     </span>
                                 </span>
                                 <span className="text-muted-foreground">

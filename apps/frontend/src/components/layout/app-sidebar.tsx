@@ -10,6 +10,8 @@ import {
     LogOut,
     ChevronsUpDown,
     UserSearch,
+    QrCode,
+    Clock,
 } from 'lucide-react'
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router'
 import { useUser, useLogout } from '@/lib/auth'
@@ -120,6 +122,21 @@ export function AppSidebar() {
                                             <Link to="/">
                                                 <LayoutDashboard />
                                                 <span>Dashboard</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            asChild
+                                            isActive={
+                                                currentPath ===
+                                                '/clock-in-station'
+                                            }
+                                            tooltip="Clock-In Station"
+                                        >
+                                            <Link to="/clock-in-station">
+                                                <QrCode />
+                                                <span>Clock-In Station</span>
                                             </Link>
                                         </SidebarMenuButton>
                                     </SidebarMenuItem>
@@ -374,6 +391,18 @@ export function AppSidebar() {
                                         <Link to="/">
                                             <Calendar />
                                             <span>My Schedule</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                                <SidebarMenuItem>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={currentPath === '/clock'}
+                                        tooltip="Time Clock"
+                                    >
+                                        <Link to="/clock">
+                                            <Clock />
+                                            <span>Time Clock</span>
                                         </Link>
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>

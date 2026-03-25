@@ -42,6 +42,7 @@ func (r *TimeLogRepository) Create(ctx context.Context, tx *sql.Tx, timeLog *agg
 		table.TimeLogs.Latitude,
 		table.TimeLogs.DistanceMeters,
 		table.TimeLogs.IsFlagged,
+		table.TimeLogs.FlagReason,
 	).MODEL(m).RETURNING(table.TimeLogs.AllColumns)
 
 	var result model.TimeLogs

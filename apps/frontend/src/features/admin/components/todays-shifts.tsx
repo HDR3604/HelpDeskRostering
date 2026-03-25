@@ -9,7 +9,6 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import type { Assignment } from '@/types/schedule'
 
@@ -55,7 +54,7 @@ function isPastShift(end: string): boolean {
     return currentMinutes >= endMin
 }
 
-const COLLAPSED_COUNT = 5
+const COLLAPSED_COUNT = 3
 
 export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
     const now = new Date()
@@ -87,41 +86,34 @@ export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
         (s) => !s.isCurrent && !s.isPast,
     ).length
     const canCollapse = todaysShifts.length > COLLAPSED_COUNT
-    const visibleShifts =
-        canCollapse && !expanded
-            ? todaysShifts.slice(0, COLLAPSED_COUNT)
-            : todaysShifts
-    const hiddenCount = todaysShifts.length - COLLAPSED_COUNT
 
     return (
         <Card className="flex flex-col">
             <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <CardTitle className="flex items-center gap-2">
+                        <CardTitle className="flex flex-wrap items-center gap-2">
                             Today's Shifts
+                            {currentCount > 0 && (
+                                <Badge className="gap-1.5 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                    </span>
+                                    {currentCount} now
+                                </Badge>
+                            )}
                         </CardTitle>
                         <CardDescription>{dayName}</CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {upcomingCount > 0 && (
-                            <Badge
-                                variant="outline"
-                                className="text-muted-foreground"
-                            >
-                                {upcomingCount} upcoming
-                            </Badge>
-                        )}
-                        {currentCount > 0 && (
-                            <Badge className="gap-1.5 bg-green-500/15 text-green-500 hover:bg-green-500/15">
-                                <span className="relative flex h-1.5 w-1.5">
-                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-                                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-green-500" />
-                                </span>
-                                {currentCount} active
-                            </Badge>
-                        )}
-                    </div>
+                    {upcomingCount > 0 && (
+                        <Badge
+                            variant="outline"
+                            className="text-muted-foreground"
+                        >
+                            {upcomingCount} upcoming
+                        </Badge>
+                    )}
                 </div>
             </CardHeader>
             <CardContent className="flex-1">
@@ -139,78 +131,17 @@ export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        {/* Shift timeline */}
-                        <ScrollArea
+                        <div
                             className={cn(
-                                canCollapse && expanded && 'max-h-[280px]',
+                                'space-y-1 overflow-y-auto transition-[max-height] duration-300 ease-in-out',
+                                expanded ? 'max-h-[280px]' : 'max-h-[180px]',
                             )}
                         >
-                            <div className="space-y-1">
-                                {visibleShifts.map((shift) => (
-                                    <div
-                                        key={shift.id}
-                                        className={cn(
-                                            'group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
-                                            shift.isCurrent &&
-                                                'bg-green-500/10 border border-green-500/20',
-                                            shift.isPast &&
-                                                !shift.isCurrent &&
-                                                'opacity-50',
-                                            !shift.isCurrent &&
-                                                !shift.isPast &&
-                                                'bg-muted/40',
-                                        )}
-                                    >
-                                        {/* Avatar / status indicator */}
-                                        <div
-                                            className={cn(
-                                                'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                                                shift.isCurrent
-                                                    ? 'bg-green-500/20 text-green-500'
-                                                    : 'bg-muted text-muted-foreground',
-                                            )}
-                                        >
-                                            <User className="h-3.5 w-3.5" />
-                                        </div>
+                            {todaysShifts.map((shift) => (
+                                <ShiftRow key={shift.id} shift={shift} />
+                            ))}
+                        </div>
 
-                                        {/* Name + time */}
-                                        <div className="min-w-0 flex-1">
-                                            <p
-                                                className={cn(
-                                                    'truncate text-sm font-medium',
-                                                    shift.isPast &&
-                                                        !shift.isCurrent &&
-                                                        'text-muted-foreground',
-                                                )}
-                                            >
-                                                {shift.name}
-                                            </p>
-                                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                <Clock className="h-3 w-3 shrink-0" />
-                                                <span className="tabular-nums">
-                                                    {formatTime(shift.start)} –{' '}
-                                                    {formatTime(shift.end)}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Status */}
-                                        {shift.isCurrent && (
-                                            <span className="shrink-0 text-[11px] font-medium text-green-500">
-                                                On shift
-                                            </span>
-                                        )}
-                                        {shift.isPast && !shift.isCurrent && (
-                                            <span className="shrink-0 text-[11px] text-muted-foreground">
-                                                Done
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </ScrollArea>
-
-                        {/* Show more / less */}
                         {canCollapse && (
                             <Button
                                 variant="ghost"
@@ -225,7 +156,7 @@ export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
                                     </>
                                 ) : (
                                     <>
-                                        Show {hiddenCount} more
+                                        Expand
                                         <ChevronDown className="ml-1 h-3 w-3" />
                                     </>
                                 )}
@@ -235,5 +166,66 @@ export function TodaysShifts({ assignments, studentNames }: TodaysShiftsProps) {
                 )}
             </CardContent>
         </Card>
+    )
+}
+
+function ShiftRow({
+    shift,
+}: {
+    shift: {
+        id: string
+        name: string
+        start: string
+        end: string
+        isCurrent: boolean
+        isPast: boolean
+    }
+}) {
+    return (
+        <div
+            className={cn(
+                'group flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-2.5',
+                shift.isPast && !shift.isCurrent && 'opacity-50',
+            )}
+        >
+            <div
+                className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                    shift.isCurrent
+                        ? 'bg-emerald-500/15 text-emerald-500'
+                        : 'bg-muted text-muted-foreground',
+                )}
+            >
+                <User className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+                <p
+                    className={cn(
+                        'truncate text-sm font-medium',
+                        shift.isPast &&
+                            !shift.isCurrent &&
+                            'text-muted-foreground',
+                    )}
+                >
+                    {shift.name}
+                </p>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    <span className="tabular-nums">
+                        {formatTime(shift.start)} – {formatTime(shift.end)}
+                    </span>
+                </div>
+            </div>
+            {shift.isCurrent && (
+                <span className="shrink-0 text-[11px] font-medium text-emerald-500">
+                    Now
+                </span>
+            )}
+            {shift.isPast && !shift.isCurrent && (
+                <span className="shrink-0 text-[11px] text-muted-foreground">
+                    Done
+                </span>
+            )}
+        </div>
     )
 }
