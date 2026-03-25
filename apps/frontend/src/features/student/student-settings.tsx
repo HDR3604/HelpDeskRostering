@@ -7,9 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
     Card,
-    CardContent,
-    CardHeader,
-    CardDescription,
+    CardContent
 } from '@/components/ui/card'
 import { 
     Dialog, 
