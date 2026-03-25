@@ -124,25 +124,36 @@ export function getTimeLogColumns(
             cell: ({ row }) => {
                 const flagged = row.original.is_flagged
                 return flagged ? (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15 cursor-default">
-                                <Flag className="mr-1 h-3 w-3" />
-                                Flagged
-                            </Badge>
-                        </TooltipTrigger>
-                        {row.original.flag_reason && (
-                            <TooltipContent>
-                                <p className="max-w-xs">
-                                    {row.original.flag_reason}
-                                </p>
-                            </TooltipContent>
-                        )}
-                    </Tooltip>
+                    <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15">
+                        <Flag className="mr-1 h-3 w-3" />
+                        Flagged
+                    </Badge>
                 ) : (
                     <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
                         Clear
                     </Badge>
+                )
+            },
+        },
+        {
+            id: 'reason',
+            accessorKey: 'flag_reason',
+            header: 'Reason',
+            cell: ({ row }) => {
+                const reason = row.original.flag_reason
+                if (!reason)
+                    return <span className="text-muted-foreground">—</span>
+                return (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <p className="max-w-[200px] truncate text-sm text-red-500">
+                                {reason}
+                            </p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p className="max-w-xs">{reason}</p>
+                        </TooltipContent>
+                    </Tooltip>
                 )
             },
         },

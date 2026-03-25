@@ -33,502 +33,502 @@ import { Route as AppAssistantsTimeLogsRouteImport } from './routes/_app/assista
 import { Route as AppAssistantsPaymentsRouteImport } from './routes/_app/assistants/payments'
 
 const AuthRoute = AuthRouteImport.update({
-    id: '/_auth',
-    getParentRoute: () => rootRouteImport,
+  id: '/_auth',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppRoute = AppRouteImport.update({
-    id: '/_app',
-    getParentRoute: () => rootRouteImport,
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
 } as any)
 const AuthSignUpRoute = AuthSignUpRouteImport.update({
-    id: '/sign-up',
-    path: '/sign-up',
-    getParentRoute: () => AuthRoute,
+  id: '/sign-up',
+  path: '/sign-up',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
-    id: '/sign-in',
-    path: '/sign-in',
-    getParentRoute: () => AuthRoute,
+  id: '/sign-in',
+  path: '/sign-in',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-    id: '/reset-password',
-    path: '/reset-password',
-    getParentRoute: () => AuthRoute,
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthOnboardingRoute = AuthOnboardingRouteImport.update({
-    id: '/onboarding',
-    path: '/onboarding',
-    getParentRoute: () => AuthRoute,
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-    id: '/forgot-password',
-    path: '/forgot-password',
-    getParentRoute: () => AuthRoute,
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => AuthRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => AppRoute,
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppScheduleRoute = AppScheduleRouteImport.update({
-    id: '/schedule',
-    path: '/schedule',
-    getParentRoute: () => AppRoute,
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppCompleteOnboardingRoute = AppCompleteOnboardingRouteImport.update({
-    id: '/complete-onboarding',
-    path: '/complete-onboarding',
-    getParentRoute: () => AppRoute,
+  id: '/complete-onboarding',
+  path: '/complete-onboarding',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppClockInStationRoute = AppClockInStationRouteImport.update({
-    id: '/clock-in-station',
-    path: '/clock-in-station',
-    getParentRoute: () => AppRoute,
+  id: '/clock-in-station',
+  path: '/clock-in-station',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppClockRoute = AppClockRouteImport.update({
-    id: '/clock',
-    path: '/clock',
-    getParentRoute: () => AppRoute,
+  id: '/clock',
+  path: '/clock',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAssistantsRoute = AppAssistantsRouteImport.update({
-    id: '/assistants',
-    path: '/assistants',
-    getParentRoute: () => AppRoute,
+  id: '/assistants',
+  path: '/assistants',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppApplicationsRoute = AppApplicationsRouteImport.update({
-    id: '/applications',
-    path: '/applications',
-    getParentRoute: () => AppRoute,
+  id: '/applications',
+  path: '/applications',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppSettingsRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppScheduleIndexRoute = AppScheduleIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppScheduleRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppScheduleRoute,
 } as any)
 const AppAssistantsIndexRoute = AppAssistantsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppAssistantsRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAssistantsRoute,
 } as any)
 const AppSettingsSchedulerRoute = AppSettingsSchedulerRouteImport.update({
-    id: '/scheduler',
-    path: '/scheduler',
-    getParentRoute: () => AppSettingsRoute,
+  id: '/scheduler',
+  path: '/scheduler',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
-    id: '/$scheduleId',
-    path: '/$scheduleId',
-    getParentRoute: () => AppScheduleRoute,
+  id: '/$scheduleId',
+  path: '/$scheduleId',
+  getParentRoute: () => AppScheduleRoute,
 } as any)
 const AppAssistantsTimeLogsRoute = AppAssistantsTimeLogsRouteImport.update({
-    id: '/time-logs',
-    path: '/time-logs',
-    getParentRoute: () => AppAssistantsRoute,
+  id: '/time-logs',
+  path: '/time-logs',
+  getParentRoute: () => AppAssistantsRoute,
 } as any)
 const AppAssistantsPaymentsRoute = AppAssistantsPaymentsRouteImport.update({
-    id: '/payments',
-    path: '/payments',
-    getParentRoute: () => AppAssistantsRoute,
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AppAssistantsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-    '/': typeof AppIndexRoute
-    '/applications': typeof AppApplicationsRoute
-    '/assistants': typeof AppAssistantsRouteWithChildren
-    '/clock': typeof AppClockRoute
-    '/clock-in-station': typeof AppClockInStationRoute
-    '/complete-onboarding': typeof AppCompleteOnboardingRoute
-    '/schedule': typeof AppScheduleRouteWithChildren
-    '/settings': typeof AppSettingsRouteWithChildren
-    '/forgot-password': typeof AuthForgotPasswordRoute
-    '/onboarding': typeof AuthOnboardingRoute
-    '/reset-password': typeof AuthResetPasswordRoute
-    '/sign-in': typeof AuthSignInRoute
-    '/sign-up': typeof AuthSignUpRoute
-    '/assistants/payments': typeof AppAssistantsPaymentsRoute
-    '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
-    '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
-    '/settings/scheduler': typeof AppSettingsSchedulerRoute
-    '/assistants/': typeof AppAssistantsIndexRoute
-    '/schedule/': typeof AppScheduleIndexRoute
-    '/settings/': typeof AppSettingsIndexRoute
+  '/': typeof AppIndexRoute
+  '/applications': typeof AppApplicationsRoute
+  '/assistants': typeof AppAssistantsRouteWithChildren
+  '/clock': typeof AppClockRoute
+  '/clock-in-station': typeof AppClockInStationRoute
+  '/complete-onboarding': typeof AppCompleteOnboardingRoute
+  '/schedule': typeof AppScheduleRouteWithChildren
+  '/settings': typeof AppSettingsRouteWithChildren
+  '/forgot-password': typeof AuthForgotPasswordRoute
+  '/onboarding': typeof AuthOnboardingRoute
+  '/reset-password': typeof AuthResetPasswordRoute
+  '/sign-in': typeof AuthSignInRoute
+  '/sign-up': typeof AuthSignUpRoute
+  '/assistants/payments': typeof AppAssistantsPaymentsRoute
+  '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
+  '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/settings/scheduler': typeof AppSettingsSchedulerRoute
+  '/assistants/': typeof AppAssistantsIndexRoute
+  '/schedule/': typeof AppScheduleIndexRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
-    '/': typeof AppIndexRoute
-    '/applications': typeof AppApplicationsRoute
-    '/clock': typeof AppClockRoute
-    '/clock-in-station': typeof AppClockInStationRoute
-    '/complete-onboarding': typeof AppCompleteOnboardingRoute
-    '/forgot-password': typeof AuthForgotPasswordRoute
-    '/onboarding': typeof AuthOnboardingRoute
-    '/reset-password': typeof AuthResetPasswordRoute
-    '/sign-in': typeof AuthSignInRoute
-    '/sign-up': typeof AuthSignUpRoute
-    '/assistants/payments': typeof AppAssistantsPaymentsRoute
-    '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
-    '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
-    '/settings/scheduler': typeof AppSettingsSchedulerRoute
-    '/assistants': typeof AppAssistantsIndexRoute
-    '/schedule': typeof AppScheduleIndexRoute
-    '/settings': typeof AppSettingsIndexRoute
+  '/': typeof AppIndexRoute
+  '/applications': typeof AppApplicationsRoute
+  '/clock': typeof AppClockRoute
+  '/clock-in-station': typeof AppClockInStationRoute
+  '/complete-onboarding': typeof AppCompleteOnboardingRoute
+  '/forgot-password': typeof AuthForgotPasswordRoute
+  '/onboarding': typeof AuthOnboardingRoute
+  '/reset-password': typeof AuthResetPasswordRoute
+  '/sign-in': typeof AuthSignInRoute
+  '/sign-up': typeof AuthSignUpRoute
+  '/assistants/payments': typeof AppAssistantsPaymentsRoute
+  '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
+  '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/settings/scheduler': typeof AppSettingsSchedulerRoute
+  '/assistants': typeof AppAssistantsIndexRoute
+  '/schedule': typeof AppScheduleIndexRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
-    __root__: typeof rootRouteImport
-    '/_app': typeof AppRouteWithChildren
-    '/_auth': typeof AuthRouteWithChildren
-    '/_app/applications': typeof AppApplicationsRoute
-    '/_app/assistants': typeof AppAssistantsRouteWithChildren
-    '/_app/clock': typeof AppClockRoute
-    '/_app/clock-in-station': typeof AppClockInStationRoute
-    '/_app/complete-onboarding': typeof AppCompleteOnboardingRoute
-    '/_app/schedule': typeof AppScheduleRouteWithChildren
-    '/_app/settings': typeof AppSettingsRouteWithChildren
-    '/_auth/forgot-password': typeof AuthForgotPasswordRoute
-    '/_auth/onboarding': typeof AuthOnboardingRoute
-    '/_auth/reset-password': typeof AuthResetPasswordRoute
-    '/_auth/sign-in': typeof AuthSignInRoute
-    '/_auth/sign-up': typeof AuthSignUpRoute
-    '/_app/': typeof AppIndexRoute
-    '/_app/assistants/payments': typeof AppAssistantsPaymentsRoute
-    '/_app/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
-    '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
-    '/_app/settings/scheduler': typeof AppSettingsSchedulerRoute
-    '/_app/assistants/': typeof AppAssistantsIndexRoute
-    '/_app/schedule/': typeof AppScheduleIndexRoute
-    '/_app/settings/': typeof AppSettingsIndexRoute
+  __root__: typeof rootRouteImport
+  '/_app': typeof AppRouteWithChildren
+  '/_auth': typeof AuthRouteWithChildren
+  '/_app/applications': typeof AppApplicationsRoute
+  '/_app/assistants': typeof AppAssistantsRouteWithChildren
+  '/_app/clock': typeof AppClockRoute
+  '/_app/clock-in-station': typeof AppClockInStationRoute
+  '/_app/complete-onboarding': typeof AppCompleteOnboardingRoute
+  '/_app/schedule': typeof AppScheduleRouteWithChildren
+  '/_app/settings': typeof AppSettingsRouteWithChildren
+  '/_auth/forgot-password': typeof AuthForgotPasswordRoute
+  '/_auth/onboarding': typeof AuthOnboardingRoute
+  '/_auth/reset-password': typeof AuthResetPasswordRoute
+  '/_auth/sign-in': typeof AuthSignInRoute
+  '/_auth/sign-up': typeof AuthSignUpRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/assistants/payments': typeof AppAssistantsPaymentsRoute
+  '/_app/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
+  '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/_app/settings/scheduler': typeof AppSettingsSchedulerRoute
+  '/_app/assistants/': typeof AppAssistantsIndexRoute
+  '/_app/schedule/': typeof AppScheduleIndexRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
-    fileRoutesByFullPath: FileRoutesByFullPath
-    fullPaths:
-        | '/'
-        | '/applications'
-        | '/assistants'
-        | '/clock'
-        | '/clock-in-station'
-        | '/complete-onboarding'
-        | '/schedule'
-        | '/settings'
-        | '/forgot-password'
-        | '/onboarding'
-        | '/reset-password'
-        | '/sign-in'
-        | '/sign-up'
-        | '/assistants/payments'
-        | '/assistants/time-logs'
-        | '/schedule/$scheduleId'
-        | '/settings/scheduler'
-        | '/assistants/'
-        | '/schedule/'
-        | '/settings/'
-    fileRoutesByTo: FileRoutesByTo
-    to:
-        | '/'
-        | '/applications'
-        | '/clock'
-        | '/clock-in-station'
-        | '/complete-onboarding'
-        | '/forgot-password'
-        | '/onboarding'
-        | '/reset-password'
-        | '/sign-in'
-        | '/sign-up'
-        | '/assistants/payments'
-        | '/assistants/time-logs'
-        | '/schedule/$scheduleId'
-        | '/settings/scheduler'
-        | '/assistants'
-        | '/schedule'
-        | '/settings'
-    id:
-        | '__root__'
-        | '/_app'
-        | '/_auth'
-        | '/_app/applications'
-        | '/_app/assistants'
-        | '/_app/clock'
-        | '/_app/clock-in-station'
-        | '/_app/complete-onboarding'
-        | '/_app/schedule'
-        | '/_app/settings'
-        | '/_auth/forgot-password'
-        | '/_auth/onboarding'
-        | '/_auth/reset-password'
-        | '/_auth/sign-in'
-        | '/_auth/sign-up'
-        | '/_app/'
-        | '/_app/assistants/payments'
-        | '/_app/assistants/time-logs'
-        | '/_app/schedule/$scheduleId'
-        | '/_app/settings/scheduler'
-        | '/_app/assistants/'
-        | '/_app/schedule/'
-        | '/_app/settings/'
-    fileRoutesById: FileRoutesById
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/applications'
+    | '/assistants'
+    | '/clock'
+    | '/clock-in-station'
+    | '/complete-onboarding'
+    | '/schedule'
+    | '/settings'
+    | '/forgot-password'
+    | '/onboarding'
+    | '/reset-password'
+    | '/sign-in'
+    | '/sign-up'
+    | '/assistants/payments'
+    | '/assistants/time-logs'
+    | '/schedule/$scheduleId'
+    | '/settings/scheduler'
+    | '/assistants/'
+    | '/schedule/'
+    | '/settings/'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/applications'
+    | '/clock'
+    | '/clock-in-station'
+    | '/complete-onboarding'
+    | '/forgot-password'
+    | '/onboarding'
+    | '/reset-password'
+    | '/sign-in'
+    | '/sign-up'
+    | '/assistants/payments'
+    | '/assistants/time-logs'
+    | '/schedule/$scheduleId'
+    | '/settings/scheduler'
+    | '/assistants'
+    | '/schedule'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/_auth'
+    | '/_app/applications'
+    | '/_app/assistants'
+    | '/_app/clock'
+    | '/_app/clock-in-station'
+    | '/_app/complete-onboarding'
+    | '/_app/schedule'
+    | '/_app/settings'
+    | '/_auth/forgot-password'
+    | '/_auth/onboarding'
+    | '/_auth/reset-password'
+    | '/_auth/sign-in'
+    | '/_auth/sign-up'
+    | '/_app/'
+    | '/_app/assistants/payments'
+    | '/_app/assistants/time-logs'
+    | '/_app/schedule/$scheduleId'
+    | '/_app/settings/scheduler'
+    | '/_app/assistants/'
+    | '/_app/schedule/'
+    | '/_app/settings/'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-    AppRoute: typeof AppRouteWithChildren
-    AuthRoute: typeof AuthRouteWithChildren
+  AppRoute: typeof AppRouteWithChildren
+  AuthRoute: typeof AuthRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
-    interface FileRoutesByPath {
-        '/_auth': {
-            id: '/_auth'
-            path: ''
-            fullPath: '/'
-            preLoaderRoute: typeof AuthRouteImport
-            parentRoute: typeof rootRouteImport
-        }
-        '/_app': {
-            id: '/_app'
-            path: ''
-            fullPath: '/'
-            preLoaderRoute: typeof AppRouteImport
-            parentRoute: typeof rootRouteImport
-        }
-        '/_app/': {
-            id: '/_app/'
-            path: '/'
-            fullPath: '/'
-            preLoaderRoute: typeof AppIndexRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_auth/sign-up': {
-            id: '/_auth/sign-up'
-            path: '/sign-up'
-            fullPath: '/sign-up'
-            preLoaderRoute: typeof AuthSignUpRouteImport
-            parentRoute: typeof AuthRoute
-        }
-        '/_auth/sign-in': {
-            id: '/_auth/sign-in'
-            path: '/sign-in'
-            fullPath: '/sign-in'
-            preLoaderRoute: typeof AuthSignInRouteImport
-            parentRoute: typeof AuthRoute
-        }
-        '/_auth/reset-password': {
-            id: '/_auth/reset-password'
-            path: '/reset-password'
-            fullPath: '/reset-password'
-            preLoaderRoute: typeof AuthResetPasswordRouteImport
-            parentRoute: typeof AuthRoute
-        }
-        '/_auth/onboarding': {
-            id: '/_auth/onboarding'
-            path: '/onboarding'
-            fullPath: '/onboarding'
-            preLoaderRoute: typeof AuthOnboardingRouteImport
-            parentRoute: typeof AuthRoute
-        }
-        '/_auth/forgot-password': {
-            id: '/_auth/forgot-password'
-            path: '/forgot-password'
-            fullPath: '/forgot-password'
-            preLoaderRoute: typeof AuthForgotPasswordRouteImport
-            parentRoute: typeof AuthRoute
-        }
-        '/_app/settings': {
-            id: '/_app/settings'
-            path: '/settings'
-            fullPath: '/settings'
-            preLoaderRoute: typeof AppSettingsRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/schedule': {
-            id: '/_app/schedule'
-            path: '/schedule'
-            fullPath: '/schedule'
-            preLoaderRoute: typeof AppScheduleRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/complete-onboarding': {
-            id: '/_app/complete-onboarding'
-            path: '/complete-onboarding'
-            fullPath: '/complete-onboarding'
-            preLoaderRoute: typeof AppCompleteOnboardingRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/clock-in-station': {
-            id: '/_app/clock-in-station'
-            path: '/clock-in-station'
-            fullPath: '/clock-in-station'
-            preLoaderRoute: typeof AppClockInStationRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/clock': {
-            id: '/_app/clock'
-            path: '/clock'
-            fullPath: '/clock'
-            preLoaderRoute: typeof AppClockRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/assistants': {
-            id: '/_app/assistants'
-            path: '/assistants'
-            fullPath: '/assistants'
-            preLoaderRoute: typeof AppAssistantsRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/applications': {
-            id: '/_app/applications'
-            path: '/applications'
-            fullPath: '/applications'
-            preLoaderRoute: typeof AppApplicationsRouteImport
-            parentRoute: typeof AppRoute
-        }
-        '/_app/settings/': {
-            id: '/_app/settings/'
-            path: '/'
-            fullPath: '/settings/'
-            preLoaderRoute: typeof AppSettingsIndexRouteImport
-            parentRoute: typeof AppSettingsRoute
-        }
-        '/_app/schedule/': {
-            id: '/_app/schedule/'
-            path: '/'
-            fullPath: '/schedule/'
-            preLoaderRoute: typeof AppScheduleIndexRouteImport
-            parentRoute: typeof AppScheduleRoute
-        }
-        '/_app/assistants/': {
-            id: '/_app/assistants/'
-            path: '/'
-            fullPath: '/assistants/'
-            preLoaderRoute: typeof AppAssistantsIndexRouteImport
-            parentRoute: typeof AppAssistantsRoute
-        }
-        '/_app/settings/scheduler': {
-            id: '/_app/settings/scheduler'
-            path: '/scheduler'
-            fullPath: '/settings/scheduler'
-            preLoaderRoute: typeof AppSettingsSchedulerRouteImport
-            parentRoute: typeof AppSettingsRoute
-        }
-        '/_app/schedule/$scheduleId': {
-            id: '/_app/schedule/$scheduleId'
-            path: '/$scheduleId'
-            fullPath: '/schedule/$scheduleId'
-            preLoaderRoute: typeof AppScheduleScheduleIdRouteImport
-            parentRoute: typeof AppScheduleRoute
-        }
-        '/_app/assistants/time-logs': {
-            id: '/_app/assistants/time-logs'
-            path: '/time-logs'
-            fullPath: '/assistants/time-logs'
-            preLoaderRoute: typeof AppAssistantsTimeLogsRouteImport
-            parentRoute: typeof AppAssistantsRoute
-        }
-        '/_app/assistants/payments': {
-            id: '/_app/assistants/payments'
-            path: '/payments'
-            fullPath: '/assistants/payments'
-            preLoaderRoute: typeof AppAssistantsPaymentsRouteImport
-            parentRoute: typeof AppAssistantsRoute
-        }
+  interface FileRoutesByPath {
+    '/_auth': {
+      id: '/_auth'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
     }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_auth/sign-up': {
+      id: '/_auth/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof AuthSignUpRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/sign-in': {
+      id: '/_auth/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof AuthSignInRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/reset-password': {
+      id: '/_auth/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/onboarding': {
+      id: '/_auth/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof AuthOnboardingRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/forgot-password': {
+      id: '/_auth/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/schedule': {
+      id: '/_app/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AppScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/complete-onboarding': {
+      id: '/_app/complete-onboarding'
+      path: '/complete-onboarding'
+      fullPath: '/complete-onboarding'
+      preLoaderRoute: typeof AppCompleteOnboardingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clock-in-station': {
+      id: '/_app/clock-in-station'
+      path: '/clock-in-station'
+      fullPath: '/clock-in-station'
+      preLoaderRoute: typeof AppClockInStationRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/clock': {
+      id: '/_app/clock'
+      path: '/clock'
+      fullPath: '/clock'
+      preLoaderRoute: typeof AppClockRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/assistants': {
+      id: '/_app/assistants'
+      path: '/assistants'
+      fullPath: '/assistants'
+      preLoaderRoute: typeof AppAssistantsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/applications': {
+      id: '/_app/applications'
+      path: '/applications'
+      fullPath: '/applications'
+      preLoaderRoute: typeof AppApplicationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/schedule/': {
+      id: '/_app/schedule/'
+      path: '/'
+      fullPath: '/schedule/'
+      preLoaderRoute: typeof AppScheduleIndexRouteImport
+      parentRoute: typeof AppScheduleRoute
+    }
+    '/_app/assistants/': {
+      id: '/_app/assistants/'
+      path: '/'
+      fullPath: '/assistants/'
+      preLoaderRoute: typeof AppAssistantsIndexRouteImport
+      parentRoute: typeof AppAssistantsRoute
+    }
+    '/_app/settings/scheduler': {
+      id: '/_app/settings/scheduler'
+      path: '/scheduler'
+      fullPath: '/settings/scheduler'
+      preLoaderRoute: typeof AppSettingsSchedulerRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/schedule/$scheduleId': {
+      id: '/_app/schedule/$scheduleId'
+      path: '/$scheduleId'
+      fullPath: '/schedule/$scheduleId'
+      preLoaderRoute: typeof AppScheduleScheduleIdRouteImport
+      parentRoute: typeof AppScheduleRoute
+    }
+    '/_app/assistants/time-logs': {
+      id: '/_app/assistants/time-logs'
+      path: '/time-logs'
+      fullPath: '/assistants/time-logs'
+      preLoaderRoute: typeof AppAssistantsTimeLogsRouteImport
+      parentRoute: typeof AppAssistantsRoute
+    }
+    '/_app/assistants/payments': {
+      id: '/_app/assistants/payments'
+      path: '/payments'
+      fullPath: '/assistants/payments'
+      preLoaderRoute: typeof AppAssistantsPaymentsRouteImport
+      parentRoute: typeof AppAssistantsRoute
+    }
+  }
 }
 
 interface AppAssistantsRouteChildren {
-    AppAssistantsPaymentsRoute: typeof AppAssistantsPaymentsRoute
-    AppAssistantsTimeLogsRoute: typeof AppAssistantsTimeLogsRoute
-    AppAssistantsIndexRoute: typeof AppAssistantsIndexRoute
+  AppAssistantsPaymentsRoute: typeof AppAssistantsPaymentsRoute
+  AppAssistantsTimeLogsRoute: typeof AppAssistantsTimeLogsRoute
+  AppAssistantsIndexRoute: typeof AppAssistantsIndexRoute
 }
 
 const AppAssistantsRouteChildren: AppAssistantsRouteChildren = {
-    AppAssistantsPaymentsRoute: AppAssistantsPaymentsRoute,
-    AppAssistantsTimeLogsRoute: AppAssistantsTimeLogsRoute,
-    AppAssistantsIndexRoute: AppAssistantsIndexRoute,
+  AppAssistantsPaymentsRoute: AppAssistantsPaymentsRoute,
+  AppAssistantsTimeLogsRoute: AppAssistantsTimeLogsRoute,
+  AppAssistantsIndexRoute: AppAssistantsIndexRoute,
 }
 
 const AppAssistantsRouteWithChildren = AppAssistantsRoute._addFileChildren(
-    AppAssistantsRouteChildren,
+  AppAssistantsRouteChildren,
 )
 
 interface AppScheduleRouteChildren {
-    AppScheduleScheduleIdRoute: typeof AppScheduleScheduleIdRoute
-    AppScheduleIndexRoute: typeof AppScheduleIndexRoute
+  AppScheduleScheduleIdRoute: typeof AppScheduleScheduleIdRoute
+  AppScheduleIndexRoute: typeof AppScheduleIndexRoute
 }
 
 const AppScheduleRouteChildren: AppScheduleRouteChildren = {
-    AppScheduleScheduleIdRoute: AppScheduleScheduleIdRoute,
-    AppScheduleIndexRoute: AppScheduleIndexRoute,
+  AppScheduleScheduleIdRoute: AppScheduleScheduleIdRoute,
+  AppScheduleIndexRoute: AppScheduleIndexRoute,
 }
 
 const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
-    AppScheduleRouteChildren,
+  AppScheduleRouteChildren,
 )
 
 interface AppSettingsRouteChildren {
-    AppSettingsSchedulerRoute: typeof AppSettingsSchedulerRoute
-    AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+  AppSettingsSchedulerRoute: typeof AppSettingsSchedulerRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
-    AppSettingsSchedulerRoute: AppSettingsSchedulerRoute,
-    AppSettingsIndexRoute: AppSettingsIndexRoute,
+  AppSettingsSchedulerRoute: AppSettingsSchedulerRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 
 const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
-    AppSettingsRouteChildren,
+  AppSettingsRouteChildren,
 )
 
 interface AppRouteChildren {
-    AppApplicationsRoute: typeof AppApplicationsRoute
-    AppAssistantsRoute: typeof AppAssistantsRouteWithChildren
-    AppClockRoute: typeof AppClockRoute
-    AppClockInStationRoute: typeof AppClockInStationRoute
-    AppCompleteOnboardingRoute: typeof AppCompleteOnboardingRoute
-    AppScheduleRoute: typeof AppScheduleRouteWithChildren
-    AppSettingsRoute: typeof AppSettingsRouteWithChildren
-    AppIndexRoute: typeof AppIndexRoute
+  AppApplicationsRoute: typeof AppApplicationsRoute
+  AppAssistantsRoute: typeof AppAssistantsRouteWithChildren
+  AppClockRoute: typeof AppClockRoute
+  AppClockInStationRoute: typeof AppClockInStationRoute
+  AppCompleteOnboardingRoute: typeof AppCompleteOnboardingRoute
+  AppScheduleRoute: typeof AppScheduleRouteWithChildren
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
+  AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-    AppApplicationsRoute: AppApplicationsRoute,
-    AppAssistantsRoute: AppAssistantsRouteWithChildren,
-    AppClockRoute: AppClockRoute,
-    AppClockInStationRoute: AppClockInStationRoute,
-    AppCompleteOnboardingRoute: AppCompleteOnboardingRoute,
-    AppScheduleRoute: AppScheduleRouteWithChildren,
-    AppSettingsRoute: AppSettingsRouteWithChildren,
-    AppIndexRoute: AppIndexRoute,
+  AppApplicationsRoute: AppApplicationsRoute,
+  AppAssistantsRoute: AppAssistantsRouteWithChildren,
+  AppClockRoute: AppClockRoute,
+  AppClockInStationRoute: AppClockInStationRoute,
+  AppCompleteOnboardingRoute: AppCompleteOnboardingRoute,
+  AppScheduleRoute: AppScheduleRouteWithChildren,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
+  AppIndexRoute: AppIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface AuthRouteChildren {
-    AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
-    AuthOnboardingRoute: typeof AuthOnboardingRoute
-    AuthResetPasswordRoute: typeof AuthResetPasswordRoute
-    AuthSignInRoute: typeof AuthSignInRoute
-    AuthSignUpRoute: typeof AuthSignUpRoute
+  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
+  AuthOnboardingRoute: typeof AuthOnboardingRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
+  AuthSignInRoute: typeof AuthSignInRoute
+  AuthSignUpRoute: typeof AuthSignUpRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-    AuthForgotPasswordRoute: AuthForgotPasswordRoute,
-    AuthOnboardingRoute: AuthOnboardingRoute,
-    AuthResetPasswordRoute: AuthResetPasswordRoute,
-    AuthSignInRoute: AuthSignInRoute,
-    AuthSignUpRoute: AuthSignUpRoute,
+  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
+  AuthOnboardingRoute: AuthOnboardingRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
+  AuthSignInRoute: AuthSignInRoute,
+  AuthSignUpRoute: AuthSignUpRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-    AppRoute: AppRouteWithChildren,
-    AuthRoute: AuthRouteWithChildren,
+  AppRoute: AppRouteWithChildren,
+  AuthRoute: AuthRouteWithChildren,
 }
 export const routeTree = rootRouteImport
-    ._addFileChildren(rootRouteChildren)
-    ._addFileTypes<FileRouteTypes>()
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
