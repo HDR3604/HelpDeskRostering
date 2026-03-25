@@ -51,6 +51,7 @@ export function ClockInStation() {
     generateCodeRef.current = generateCode
 
     // Derive countdown from backend's expires_at, auto-regenerate at 0
+    const totalSeconds = CODE_EXPIRY_MINUTES * 60
     useEffect(() => {
         if (!code?.expires_at) {
             if (codeQuery.isFetched && !generateCodeRef.current.isPending) {
@@ -59,12 +60,24 @@ export function ClockInStation() {
             return
         }
 
-        const tick = () => {
-            const diff = new Date(code.expires_at).getTime() - Date.now()
-            const remaining = Math.max(0, Math.ceil(diff / 1000))
-            setSecondsLeft(remaining)
+        const diff = new Date(code.expires_at).getTime() - Date.now()
+        const remaining = Math.ceil(diff / 1000)
 
-            if (remaining <= 0 && !generateCodeRef.current.isPending) {
+        // If the code was generated with a different (longer) expiry,
+        // immediately replace it with one matching our configured TTL.
+        if (remaining > totalSeconds + 5) {
+            if (!generateCodeRef.current.isPending) {
+                generateCodeRef.current.mutate(CODE_EXPIRY_MINUTES)
+            }
+            return
+        }
+
+        const tick = () => {
+            const d = new Date(code.expires_at).getTime() - Date.now()
+            const r = Math.max(0, Math.ceil(d / 1000))
+            setSecondsLeft(r)
+
+            if (r <= 0 && !generateCodeRef.current.isPending) {
                 generateCodeRef.current.mutate(CODE_EXPIRY_MINUTES)
             }
         }
@@ -86,7 +99,7 @@ export function ClockInStation() {
     const handleCopy = useCallback(async () => {
         if (!clockUrl) return
         try {
-            await navigator.clipboard.writeText(clockUrl)
+            await navigator.clipboard.writeText(code?.code ?? '')
             setCopied(true)
             if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
             copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000)
@@ -113,7 +126,6 @@ export function ClockInStation() {
     const isLoading = codeQuery.isLoading || (!code && generateCode.isPending)
 
     // Timer progress (0 to 1)
-    const totalSeconds = CODE_EXPIRY_MINUTES * 60
     const progress = totalSeconds > 0 ? secondsLeft / totalSeconds : 0
 
     return (
