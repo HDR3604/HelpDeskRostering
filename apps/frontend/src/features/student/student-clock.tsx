@@ -137,7 +137,15 @@ export function StudentClock() {
     const { code: urlCode } = useSearch({ from: '/_app/clock' })
     const [manualCode, setManualCode] = useState('')
     const [showManualEntry, setShowManualEntry] = useState(false)
-    const activeCode = urlCode || manualCode.trim() || null
+    const [ignoreUrlCode, setIgnoreUrlCode] = useState(false)
+    const normalizedManual = manualCode.trim()
+    const isManualCodeValid = normalizedManual.length === 8
+    const activeCode =
+        showManualEntry || ignoreUrlCode
+            ? isManualCodeValid
+                ? normalizedManual
+                : null
+            : urlCode || null
 
     const statusQuery = useClockInStatus()
     const clockInMutation = useClockIn()
@@ -229,6 +237,7 @@ export function StudentClock() {
             const message =
                 'Location requires a secure (HTTPS) connection. Please contact an administrator.'
             setGeo({ status: 'denied', message })
+            setLocationPermission('denied')
             return Promise.reject(new Error(message))
         }
 
@@ -236,6 +245,7 @@ export function StudentClock() {
             const message =
                 'Location services are not available in this browser. Please use a supported browser.'
             setGeo({ status: 'denied', message })
+            setLocationPermission('unavailable')
             return Promise.reject(new Error(message))
         }
 
@@ -415,7 +425,9 @@ export function StudentClock() {
     const handleResetCode = useCallback(() => {
         setManualCode('')
         setShowManualEntry(true)
+        setIgnoreUrlCode(true)
         setErrorMessage(null)
+        setIsGeoError(false)
     }, [])
 
     const handleClockOut = useCallback(() => {
@@ -595,7 +607,7 @@ export function StudentClock() {
                             <div className="space-y-2">
                                 <div className="flex gap-2">
                                     <Input
-                                        placeholder="Enter 8-digit code"
+                                        placeholder="Enter 8-character code"
                                         value={manualCode}
                                         onChange={(e) =>
                                             setManualCode(
