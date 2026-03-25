@@ -28,6 +28,8 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/ind
 import { Route as AppScheduleIndexRouteImport } from './routes/_app/schedule/index'
 import { Route as AppAssistantsIndexRouteImport } from './routes/_app/assistants/index'
 import { Route as AppSettingsSchedulerRouteImport } from './routes/_app/settings/scheduler'
+import { Route as AppSettingsPaymentRouteImport } from './routes/_app/settings/payment'
+import { Route as AppSettingsAvailabilityRouteImport } from './routes/_app/settings/availability'
 import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedule/$scheduleId'
 import { Route as AppAssistantsTimeLogsRouteImport } from './routes/_app/assistants/time-logs'
 import { Route as AppAssistantsPaymentsRouteImport } from './routes/_app/assistants/payments'
@@ -125,6 +127,16 @@ const AppSettingsSchedulerRoute = AppSettingsSchedulerRouteImport.update({
   path: '/scheduler',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsPaymentRoute = AppSettingsPaymentRouteImport.update({
+  id: '/payment',
+  path: '/payment',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAvailabilityRoute = AppSettingsAvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppScheduleScheduleIdRoute = AppScheduleScheduleIdRouteImport.update({
   id: '/$scheduleId',
   path: '/$scheduleId',
@@ -158,6 +170,8 @@ export interface FileRoutesByFullPath {
   '/assistants/payments': typeof AppAssistantsPaymentsRoute
   '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/settings/availability': typeof AppSettingsAvailabilityRoute
+  '/settings/payment': typeof AppSettingsPaymentRoute
   '/settings/scheduler': typeof AppSettingsSchedulerRoute
   '/assistants/': typeof AppAssistantsIndexRoute
   '/schedule/': typeof AppScheduleIndexRoute
@@ -177,6 +191,8 @@ export interface FileRoutesByTo {
   '/assistants/payments': typeof AppAssistantsPaymentsRoute
   '/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
   '/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/settings/availability': typeof AppSettingsAvailabilityRoute
+  '/settings/payment': typeof AppSettingsPaymentRoute
   '/settings/scheduler': typeof AppSettingsSchedulerRoute
   '/assistants': typeof AppAssistantsIndexRoute
   '/schedule': typeof AppScheduleIndexRoute
@@ -202,6 +218,8 @@ export interface FileRoutesById {
   '/_app/assistants/payments': typeof AppAssistantsPaymentsRoute
   '/_app/assistants/time-logs': typeof AppAssistantsTimeLogsRoute
   '/_app/schedule/$scheduleId': typeof AppScheduleScheduleIdRoute
+  '/_app/settings/availability': typeof AppSettingsAvailabilityRoute
+  '/_app/settings/payment': typeof AppSettingsPaymentRoute
   '/_app/settings/scheduler': typeof AppSettingsSchedulerRoute
   '/_app/assistants/': typeof AppAssistantsIndexRoute
   '/_app/schedule/': typeof AppScheduleIndexRoute
@@ -226,6 +244,8 @@ export interface FileRouteTypes {
     | '/assistants/payments'
     | '/assistants/time-logs'
     | '/schedule/$scheduleId'
+    | '/settings/availability'
+    | '/settings/payment'
     | '/settings/scheduler'
     | '/assistants/'
     | '/schedule/'
@@ -245,6 +265,8 @@ export interface FileRouteTypes {
     | '/assistants/payments'
     | '/assistants/time-logs'
     | '/schedule/$scheduleId'
+    | '/settings/availability'
+    | '/settings/payment'
     | '/settings/scheduler'
     | '/assistants'
     | '/schedule'
@@ -269,6 +291,8 @@ export interface FileRouteTypes {
     | '/_app/assistants/payments'
     | '/_app/assistants/time-logs'
     | '/_app/schedule/$scheduleId'
+    | '/_app/settings/availability'
+    | '/_app/settings/payment'
     | '/_app/settings/scheduler'
     | '/_app/assistants/'
     | '/_app/schedule/'
@@ -415,6 +439,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsSchedulerRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/payment': {
+      id: '/_app/settings/payment'
+      path: '/payment'
+      fullPath: '/settings/payment'
+      preLoaderRoute: typeof AppSettingsPaymentRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/availability': {
+      id: '/_app/settings/availability'
+      path: '/availability'
+      fullPath: '/settings/availability'
+      preLoaderRoute: typeof AppSettingsAvailabilityRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/schedule/$scheduleId': {
       id: '/_app/schedule/$scheduleId'
       path: '/$scheduleId'
@@ -470,11 +508,15 @@ const AppScheduleRouteWithChildren = AppScheduleRoute._addFileChildren(
 )
 
 interface AppSettingsRouteChildren {
+  AppSettingsAvailabilityRoute: typeof AppSettingsAvailabilityRoute
+  AppSettingsPaymentRoute: typeof AppSettingsPaymentRoute
   AppSettingsSchedulerRoute: typeof AppSettingsSchedulerRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAvailabilityRoute: AppSettingsAvailabilityRoute,
+  AppSettingsPaymentRoute: AppSettingsPaymentRoute,
   AppSettingsSchedulerRoute: AppSettingsSchedulerRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }

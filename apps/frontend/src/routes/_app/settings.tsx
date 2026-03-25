@@ -6,30 +6,27 @@ import {
 } from '@tanstack/react-router'
 import { useDocumentTitle } from '@/hooks/use-document-title'
 import { useUser } from '@/lib/auth/hooks/use-user'
-import { MonitorCog, UserPen } from 'lucide-react'
+import { MonitorCog, UserPen, CalendarClock, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/_app/settings')({
     component: SettingsLayout,
 })
 
-interface NavItem {
-    label: string
-    to: string
-    icon: React.ComponentType<{ className?: string }>
-    exact: boolean
-    adminOnly?: boolean
-}
-
-const navItems: NavItem[] = [
-    { label: 'Profile', to: '/settings', icon: UserPen, exact: true },
+const adminNavItems = [
+    { label: 'Profile', to: '/settings', icon: UserPen, exact: true as const },
     {
         label: 'Scheduler',
         to: '/settings/scheduler',
         icon: MonitorCog,
-        exact: false,
-        adminOnly: true,
+        exact: false as const,
     },
+]
+
+const studentNavItems = [
+    { label: 'Profile', to: '/settings', icon: UserPen, exact: true as const },
+    { label: 'Availability', to: '/settings/availability', icon: CalendarClock, exact: false as const },
+    { label: 'Payment', to: '/settings/payment', icon: DollarSign, exact: false as const },
 ]
 
 function SettingsLayout() {
@@ -38,9 +35,7 @@ function SettingsLayout() {
     const router = useRouterState()
     const currentPath = router.location.pathname
 
-    const visibleNavItems = navItems.filter(
-        (item) => !item.adminOnly || role === 'admin',
-    )
+    const navItems = role === 'student' ? studentNavItems : adminNavItems
 
     return (
         <div className="mx-auto max-w-7xl space-y-6">
@@ -56,7 +51,7 @@ function SettingsLayout() {
             </div>
             <div className="flex gap-8">
                 <nav className="w-48 shrink-0 space-y-1">
-                    {visibleNavItems.map(({ label, to, icon: Icon, exact }) => {
+                    {navItems.map(({ label, to, icon: Icon, exact }) => {
                         const isActive = exact
                             ? currentPath === to || currentPath === to + '/'
                             : currentPath.startsWith(to)
