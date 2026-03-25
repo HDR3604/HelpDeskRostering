@@ -3,8 +3,11 @@ import type {
     TimeLog,
     ClockInStatus,
     ClockInCode,
+    AdminTimeLog,
     AdminTimeLogList,
 } from '@/types/time-log'
+
+export type { AdminTimeLog as AdminTimeLogResponse }
 
 // ── Student endpoints ───────────────────────────────────────────────
 
@@ -58,8 +61,7 @@ export async function listTimeLogs(
     const params = new URLSearchParams()
     if (filters.page) params.set('page', String(filters.page))
     if (filters.per_page) params.set('per_page', String(filters.per_page))
-    if (filters.student_id)
-        params.set('student_id', String(filters.student_id))
+    if (filters.student_id) params.set('student_id', String(filters.student_id))
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     if (filters.flagged !== undefined)
@@ -76,10 +78,9 @@ export async function flagTimeLog(
     id: string,
     reason: string,
 ): Promise<TimeLog> {
-    const { data } = await apiClient.patch<TimeLog>(
-        `/time-logs/${id}/flag`,
-        { reason },
-    )
+    const { data } = await apiClient.patch<TimeLog>(`/time-logs/${id}/flag`, {
+        reason,
+    })
     return data
 }
 
