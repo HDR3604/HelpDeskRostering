@@ -117,6 +117,26 @@ func (r *ScheduleGenerationRepository) Update(ctx context.Context, tx *sql.Tx, g
 	return nil
 }
 
+func (r *ScheduleGenerationRepository) HasActive(ctx context.Context, tx *sql.Tx) (bool, error) {
+	// A generation is "active" if it's still pending (not yet completed/failed/infeasible).
+	stmt := table.ScheduleGenerations.
+		SELECT(postgres.COUNT(postgres.STAR)).
+		WHERE(
+			table.ScheduleGenerations.Status.EQ(
+				postgres.String(string(aggregate.GenerationStatus_Pending)),
+			),
+		)
+
+	var dest struct{ Count int64 }
+	err := stmt.QueryContext(ctx, tx, &dest)
+	if err != nil {
+		r.logger.Error("failed to check for active generations", zap.Error(err))
+		return false, fmt.Errorf("failed to check for active generations: %w", err)
+	}
+
+	return dest.Count > 0, nil
+}
+
 func toGenerationAggregates(models []model.ScheduleGenerations) []*aggregate.ScheduleGeneration {
 	generations := make([]*aggregate.ScheduleGeneration, len(models))
 	for i, m := range models {

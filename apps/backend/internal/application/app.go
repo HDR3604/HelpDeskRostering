@@ -30,6 +30,8 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	emailService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/service"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/jobqueue"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/jobqueue/jobs"
 	payrollRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/payroll"
 	scheduleRepo "github.com/HDR3604/HelpDeskApp/internal/infrastructure/schedule"
 	schedulerService "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/service"
@@ -42,15 +44,17 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	_ "github.com/lib/pq"
+	"github.com/riverqueue/river"
 	"go.uber.org/zap"
 )
 
 type App struct {
-	config  Config
-	db      *sql.DB
-	logger  *zap.Logger
-	server  *http.Server
-	authSvc authService.AuthServiceInterface
+	config   Config
+	db       *sql.DB
+	logger   *zap.Logger
+	server   *http.Server
+	authSvc  authService.AuthServiceInterface
+	jobQueue *jobqueue.Client
 }
 
 func NewApp(cfg Config) (*App, error) {
@@ -78,6 +82,12 @@ func NewApp(cfg Config) (*App, error) {
 	}
 
 	logger.Info("connected to database")
+
+	// Run River migrations
+	if err := jobqueue.Migrate(context.Background(), db, logger); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to run river migrations: %w", err)
+	}
 
 	// Infrastructure
 	txManager := database.NewTxManager(db, logger)
@@ -112,7 +122,7 @@ func NewApp(cfg Config) (*App, error) {
 	}
 
 	// Services
-	userSvc := userService.NewUserService(logger, txManager, userRepository) // available for future user CRUD endpoints
+	userSvc := userService.NewUserService(logger, txManager, userRepository)
 	transcriptsSvc := transcriptsService.NewTranscriptsService(logger)
 
 	authSvc := authService.NewAuthService(
@@ -135,7 +145,28 @@ func NewApp(cfg Config) (*App, error) {
 	schedulerSvc := schedulerService.NewSchedulerService(logger)
 	shiftTemplateSvc := scheduleService.NewShiftTemplateService(logger, shiftTemplateRepo, txManager)
 	schedulerConfigSvc := scheduleService.NewSchedulerConfigService(logger, schedulerConfigRepo, txManager)
-	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, schedulerSvc, shiftTemplateSvc, schedulerConfigSvc)
+
+	// Job queue — register workers
+	workers := river.NewWorkers()
+
+	schedGenWorker := jobs.NewScheduleGenerationWorker(
+		logger, scheduleGenerationSvc, scheduleGenerationRepository, schedulerSvc, scheduleRepository, txManager,
+	)
+	river.AddWorker(workers, schedGenWorker)
+
+	emailNotifWorker := jobs.NewEmailNotificationWorker(logger, emailSenderSvc)
+	river.AddWorker(workers, emailNotifWorker)
+
+	jobQueueClient, err := jobqueue.NewClient(db, logger, workers)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create job queue client: %w", err)
+	}
+
+	enqueuer := jobqueue.NewEnqueuer(jobQueueClient)
+
+	// Schedule service now enqueues jobs instead of calling scheduler directly
+	scheduleSvc := scheduleService.NewScheduleService(logger, scheduleRepository, txManager, scheduleGenerationSvc, enqueuer, shiftTemplateSvc, schedulerConfigSvc)
 	bankingDetailsSvc := studentService.NewBankingDetailsService(logger, txManager, bankingDetailsRepository, consentRepository)
 	studentSvc := studentService.NewStudentService(logger, studentRepository, txManager)
 	verificationSvc := verificationService.NewVerificationService(logger, txManager, verificationRepository, emailSenderSvc, cfg.FromEmail)
@@ -146,7 +177,7 @@ func NewApp(cfg Config) (*App, error) {
 	consentHdl := consentHandler.NewConsentHandler(logger)
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
 	transcriptHdl := transcriptHandler.NewTranscriptHandler(logger, transcriptsSvc)
-	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, emailSenderSvc, cfg.FromEmail)
+	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, enqueuer, cfg.FromEmail)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
@@ -181,10 +212,11 @@ func NewApp(cfg Config) (*App, error) {
 	registerRoutes(r, cfg, authHdl, authSvc, consentHdl, transcriptHdl, scheduleHdl, scheduleGenerationHdl, shiftTemplateHdl, schedulerConfigHdl, studentHdl, userHdl, verificationHdl, timeLogHdl, payrollHdl)
 
 	app := &App{
-		config:  cfg,
-		db:      db,
-		logger:  logger,
-		authSvc: authSvc,
+		config:   cfg,
+		db:       db,
+		logger:   logger,
+		authSvc:  authSvc,
+		jobQueue: jobQueueClient,
 		server: &http.Server{
 			Addr:         ":" + cfg.Port,
 			Handler:      r,
@@ -200,6 +232,12 @@ func NewApp(cfg Config) (*App, error) {
 func (a *App) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// Start job queue workers
+	if err := a.jobQueue.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start job queue: %w", err)
+	}
+	a.logger.Info("job queue started")
 
 	// Start background token cleanup
 	go a.runTokenCleanup(ctx)
@@ -223,8 +261,15 @@ func (a *App) Run() error {
 	}
 
 	// Graceful shutdown with timeout
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	// Stop job queue first — let in-flight jobs complete
+	if err := a.jobQueue.Stop(shutdownCtx); err != nil {
+		a.logger.Error("failed to stop job queue", zap.Error(err))
+	} else {
+		a.logger.Info("job queue stopped")
+	}
 
 	if err := a.server.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("server shutdown error: %w", err)

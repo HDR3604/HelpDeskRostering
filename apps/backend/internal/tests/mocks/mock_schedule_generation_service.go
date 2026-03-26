@@ -16,6 +16,7 @@ type MockScheduleGenerationService struct {
 	MarkCompletedFn  func(ctx context.Context, id uuid.UUID, scheduleID uuid.UUID, responsePayload string) error
 	MarkFailedFn     func(ctx context.Context, id uuid.UUID, errorMessage string) error
 	MarkInfeasibleFn func(ctx context.Context, id uuid.UUID, responsePayload string, errorMessage string) error
+	HasActiveFn      func(ctx context.Context) (bool, error)
 	GetByIDFn        func(ctx context.Context, id uuid.UUID) (*aggregate.ScheduleGeneration, error)
 	ListFn           func(ctx context.Context) ([]*aggregate.ScheduleGeneration, error)
 }
@@ -38,6 +39,10 @@ func (m *MockScheduleGenerationService) MarkFailed(ctx context.Context, id uuid.
 
 func (m *MockScheduleGenerationService) MarkInfeasible(ctx context.Context, id uuid.UUID, responsePayload string, errorMessage string) error {
 	return m.MarkInfeasibleFn(ctx, id, responsePayload, errorMessage)
+}
+
+func (m *MockScheduleGenerationService) HasActive(ctx context.Context) (bool, error) {
+	return m.HasActiveFn(ctx)
 }
 
 func (m *MockScheduleGenerationService) GetByID(ctx context.Context, id uuid.UUID) (*aggregate.ScheduleGeneration, error) {

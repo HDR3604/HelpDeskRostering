@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	studentAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
 	studentService "github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
-	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/templates"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
 	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
@@ -27,13 +27,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// EmailJobEnqueuer abstracts enqueueing email notification jobs.
+type EmailJobEnqueuer interface {
+	EnqueueEmailNotification(ctx context.Context, scheduleID uuid.UUID, emails []emailDtos.BatchEmailItem) error
+}
+
 type ScheduleHandler struct {
-	logger      *zap.Logger
-	service     service.ScheduleServiceInterface
-	studentSvc  studentService.StudentServiceInterface
-	shiftTplSvc service.ShiftTemplateServiceInterface
-	emailSender emailInterfaces.EmailSenderInterface
-	fromEmail   string
+	logger        *zap.Logger
+	service       service.ScheduleServiceInterface
+	studentSvc    studentService.StudentServiceInterface
+	shiftTplSvc   service.ShiftTemplateServiceInterface
+	emailEnqueuer EmailJobEnqueuer
+	fromEmail     string
 }
 
 func NewScheduleHandler(
@@ -41,16 +46,16 @@ func NewScheduleHandler(
 	service service.ScheduleServiceInterface,
 	studentSvc studentService.StudentServiceInterface,
 	shiftTplSvc service.ShiftTemplateServiceInterface,
-	emailSender emailInterfaces.EmailSenderInterface,
+	emailEnqueuer EmailJobEnqueuer,
 	fromEmail string,
 ) *ScheduleHandler {
 	return &ScheduleHandler{
-		logger:      logger,
-		service:     service,
-		studentSvc:  studentSvc,
-		shiftTplSvc: shiftTplSvc,
-		emailSender: emailSender,
-		fromEmail:   fromEmail,
+		logger:        logger,
+		service:       service,
+		studentSvc:    studentSvc,
+		shiftTplSvc:   shiftTplSvc,
+		emailEnqueuer: emailEnqueuer,
+		fromEmail:     fromEmail,
 	}
 }
 
@@ -196,13 +201,13 @@ func (h *ScheduleHandler) GenerateSchedule(w http.ResponseWriter, r *http.Reques
 		Assistants:    assistants,
 	}
 
-	schedule, err := h.service.GenerateSchedule(r.Context(), params)
+	generation, err := h.service.GenerateSchedule(r.Context(), params)
 	if err != nil {
 		h.handleServiceError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, dtos.ScheduleToResponse(schedule))
+	writeJSON(w, http.StatusAccepted, dtos.ScheduleGenerationToResponse(generation))
 }
 
 // studentToAssistant converts a Student aggregate into a scheduler Assistant.
@@ -518,24 +523,14 @@ func (h *ScheduleHandler) NotifyStudents(w http.ResponseWriter, r *http.Request)
 		notifiedCount++
 	}
 
-	// Send in batches of 100
-	for i := 0; i < len(batchEmails); i += 100 {
-		end := i + 100
-		if end > len(batchEmails) {
-			end = len(batchEmails)
-		}
-		batch := batchEmails[i:end]
-		if _, err := h.emailSender.SendBatch(ctx, batch); err != nil {
-			h.logger.Error("failed to send email batch",
-				zap.Int("batch_start", i),
-				zap.Error(err),
-			)
-			writeError(w, http.StatusInternalServerError, "failed to send notification emails")
-			return
-		}
+	// Enqueue email notification job for background processing
+	if err := h.emailEnqueuer.EnqueueEmailNotification(ctx, id, batchEmails); err != nil {
+		h.logger.Error("failed to enqueue email notifications", zap.Error(err))
+		writeError(w, http.StatusInternalServerError, "failed to enqueue notification emails")
+		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]int{"notified_count": notifiedCount})
+	writeJSON(w, http.StatusAccepted, map[string]int{"notified_count": notifiedCount})
 }
 
 func (h *ScheduleHandler) parseID(r *http.Request) (uuid.UUID, error) {
@@ -566,6 +561,8 @@ func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusUnprocessableEntity, "no feasible schedule found")
 	case errors.Is(err, scheduleErrors.ErrNoActiveShiftTemplates):
 		writeError(w, http.StatusUnprocessableEntity, "no active shift templates configured")
+	case errors.Is(err, scheduleErrors.ErrGenerationInProgress):
+		writeError(w, http.StatusConflict, "a schedule generation is already in progress")
 	case errors.Is(err, scheduleErrors.ErrSchedulerConfigNotFound):
 		writeError(w, http.StatusNotFound, "scheduler config not found")
 	default:

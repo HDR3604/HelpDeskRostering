@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { isAxiosError } from 'axios'
-import type { ScheduleResponse, GenerationStatusUpdate } from '@/types/schedule'
-import { generateSchedule } from '@/lib/api/schedules'
+import type { GenerationStatusUpdate } from '@/types/schedule'
+import { generateSchedule, getGenerationStatus } from '@/lib/api/schedules'
 
 interface GenerationFormValues {
     title: string
@@ -11,27 +11,37 @@ interface GenerationFormValues {
     studentIds: string[]
 }
 
+const POLL_INTERVAL_MS = 1000
+const MIN_ANIMATION_MS = 2500
+const POLL_TIMEOUT_MS = 120_000 // Stop polling after 2 minutes
+
 export function useGenerationStatus(
     generationId: string | null,
     formValues: GenerationFormValues | null,
 ): {
     status: GenerationStatusUpdate | null
-    schedule: ScheduleResponse | null
 } {
     const [status, setStatus] = useState<GenerationStatusUpdate | null>(null)
-    const [schedule, setSchedule] = useState<ScheduleResponse | null>(null)
+    const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
         if (!generationId || !formValues) {
             setStatus(null)
-            setSchedule(null)
             return
         }
 
         const abort = new AbortController()
         const startTime = Date.now()
-        const MIN_ANIMATION_MS = 2500
-        const pendingTimers: ReturnType<typeof setTimeout>[] = []
+        const timers: ReturnType<typeof setTimeout>[] = []
+
+        function scheduleTimer(fn: () => void, ms: number) {
+            const id = setTimeout(() => {
+                if (abort.signal.aborted) return
+                fn()
+            }, ms)
+            timers.push(id)
+            return id
+        }
 
         const base: GenerationStatusUpdate = {
             id: generationId,
@@ -47,23 +57,20 @@ export function useGenerationStatus(
         setStatus({ ...base })
 
         // Transition to running after a brief delay
-        pendingTimers.push(
-            setTimeout(() => {
-                if (abort.signal.aborted) return
-                setStatus((prev) =>
-                    prev && prev.status === 'pending'
-                        ? {
-                              ...prev,
-                              status: 'running',
-                              started_at: new Date().toISOString(),
-                              progress: 5,
-                          }
-                        : prev,
-                )
-            }, 500),
-        )
+        scheduleTimer(() => {
+            setStatus((prev) =>
+                prev && prev.status === 'pending'
+                    ? {
+                          ...prev,
+                          status: 'running',
+                          started_at: new Date().toISOString(),
+                          progress: 5,
+                      }
+                    : prev,
+            )
+        }, 500)
 
-        // Animate progress while waiting for the API
+        // Animate progress while waiting
         const progressTimer = setInterval(() => {
             if (abort.signal.aborted) return
             setStatus((prev) => {
@@ -80,7 +87,6 @@ export function useGenerationStatus(
             if (remaining === 0) {
                 fn()
             } else {
-                // Force running state if still pending so the user sees progress
                 setStatus((prev) =>
                     prev && prev.status === 'pending'
                         ? {
@@ -91,16 +97,43 @@ export function useGenerationStatus(
                           }
                         : prev,
                 )
-                pendingTimers.push(
-                    setTimeout(() => {
-                        if (abort.signal.aborted) return
-                        fn()
-                    }, remaining),
-                )
+                scheduleTimer(fn, remaining)
             }
         }
 
-        // Fire the real API call
+        function stopPolling() {
+            if (pollRef.current) {
+                clearTimeout(pollRef.current)
+                pollRef.current = null
+            }
+        }
+
+        function applyTerminal(
+            terminalStatus: 'completed' | 'failed' | 'infeasible',
+            scheduleId: string | null,
+            errorMessage: string | null,
+            completedAt: string | null,
+        ) {
+            stopPolling()
+            applyAfterMinDelay(() => {
+                setStatus((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              status: terminalStatus,
+                              schedule_id: scheduleId,
+                              error_message: errorMessage,
+                              completed_at:
+                                  completedAt ?? new Date().toISOString(),
+                              progress:
+                                  terminalStatus === 'completed' ? 100 : 0,
+                          }
+                        : prev,
+                )
+            })
+        }
+
+        // Step 1: Enqueue the generation
         generateSchedule({
             config_id: formValues.configId,
             title: formValues.title,
@@ -108,22 +141,67 @@ export function useGenerationStatus(
             effective_to: formValues.effectiveTo || null,
             student_ids: formValues.studentIds,
         })
-            .then((created) => {
+            .then((generation) => {
                 if (abort.signal.aborted) return
-                applyAfterMinDelay(() => {
-                    setStatus((prev) =>
-                        prev
-                            ? {
-                                  ...prev,
-                                  status: 'completed',
-                                  schedule_id: created.schedule_id,
-                                  completed_at: new Date().toISOString(),
-                                  progress: 100,
-                              }
-                            : prev,
-                    )
-                    setSchedule(created)
-                })
+
+                // Step 2: Poll for completion (recursive setTimeout to avoid overlapping requests)
+                async function poll() {
+                    if (abort.signal.aborted) return
+
+                    // Timeout guard
+                    if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+                        applyTerminal(
+                            'failed',
+                            null,
+                            'Schedule generation timed out. Check the schedule list for results.',
+                            null,
+                        )
+                        return
+                    }
+
+                    try {
+                        const result = await getGenerationStatus(generation.id)
+
+                        if (
+                            result.status === 'completed' &&
+                            result.schedule_id
+                        ) {
+                            applyTerminal(
+                                'completed',
+                                result.schedule_id,
+                                null,
+                                result.completed_at,
+                            )
+                            return
+                        } else if (result.status === 'failed') {
+                            applyTerminal(
+                                'failed',
+                                null,
+                                result.error_message ??
+                                    'Schedule generation failed.',
+                                result.completed_at,
+                            )
+                            return
+                        } else if (result.status === 'infeasible') {
+                            applyTerminal(
+                                'infeasible',
+                                null,
+                                result.error_message ??
+                                    'No feasible schedule found.',
+                                result.completed_at,
+                            )
+                            return
+                        }
+                    } catch {
+                        // Polling error — keep trying until timeout
+                    }
+
+                    // Schedule next poll after current completes
+                    pollRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+                }
+
+                // Start first poll
+                pollRef.current = setTimeout(poll, POLL_INTERVAL_MS)
             })
             .catch((err) => {
                 if (abort.signal.aborted) return
@@ -139,29 +217,21 @@ export function useGenerationStatus(
                         ? err.response.data.error
                         : 'An unexpected error occurred during schedule generation.'
 
-                applyAfterMinDelay(() => {
-                    setStatus((prev) =>
-                        prev
-                            ? {
-                                  ...prev,
-                                  status: isInfeasible
-                                      ? 'infeasible'
-                                      : 'failed',
-                                  completed_at: new Date().toISOString(),
-                                  error_message: errorMessage,
-                                  progress: 0,
-                              }
-                            : prev,
-                    )
-                })
+                applyTerminal(
+                    isInfeasible ? 'infeasible' : 'failed',
+                    null,
+                    errorMessage,
+                    null,
+                )
             })
 
         return () => {
             abort.abort()
-            pendingTimers.forEach(clearTimeout)
+            stopPolling()
+            timers.forEach(clearTimeout)
             clearInterval(progressTimer)
         }
     }, [generationId, formValues])
 
-    return { status, schedule }
+    return { status }
 }

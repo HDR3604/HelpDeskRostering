@@ -13,4 +13,5 @@ type ScheduleGenerationRepositoryInterface interface {
 	GetByID(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ScheduleGeneration, error)
 	List(ctx context.Context, tx *sql.Tx) ([]*aggregate.ScheduleGeneration, error)
 	Update(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) error
+	HasActive(ctx context.Context, tx *sql.Tx) (bool, error)
 }

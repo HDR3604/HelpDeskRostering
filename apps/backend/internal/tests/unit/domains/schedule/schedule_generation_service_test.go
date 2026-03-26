@@ -172,16 +172,20 @@ func (s *ScheduleGenerationServiceTestSuite) TestMarkFailed_Success() {
 	s.NoError(err)
 }
 
-func (s *ScheduleGenerationServiceTestSuite) TestMarkFailed_NotStarted() {
+func (s *ScheduleGenerationServiceTestSuite) TestMarkFailed_FromPending() {
 	gen := s.newGeneration()
 
 	s.repo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.ScheduleGeneration, error) {
 		return gen, nil
 	}
+	s.repo.UpdateFn = func(_ context.Context, _ *sql.Tx, updated *aggregate.ScheduleGeneration) error {
+		s.Equal(aggregate.GenerationStatus_Failed, updated.Status)
+		return nil
+	}
 
-	err := s.service.MarkFailed(context.Background(), gen.ID, "error")
+	err := s.service.MarkFailed(context.Background(), gen.ID, "enqueue failed")
 
-	s.ErrorIs(err, scheduleErrors.ErrGenerationNotStarted)
+	s.NoError(err, "MarkFailed should succeed from pending (e.g. enqueue failure)")
 }
 
 // --- MarkInfeasible (internal — InSystemTx) ---

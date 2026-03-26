@@ -33,6 +33,18 @@ export type GenerationStatus =
     | 'failed'
     | 'infeasible'
 
+export interface GenerationResponse {
+    id: string
+    status: GenerationStatus
+    schedule_id: string | null
+    config_id: string
+    error_message: string | null
+    started_at: string | null
+    completed_at: string | null
+    created_at: string
+    created_by: string
+}
+
 export interface GenerationStatusUpdate {
     id: string
     status: GenerationStatus

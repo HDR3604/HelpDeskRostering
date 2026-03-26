@@ -19,6 +19,7 @@ interface ScheduleGridProps {
     dispatch: React.Dispatch<EditorAction>
     highlightedStudentId: string | null
     studentAvailabilityMap: Record<string, Record<number, number[]>>
+    isLocked?: boolean
 }
 
 export function ScheduleGrid({
@@ -29,6 +30,7 @@ export function ScheduleGrid({
     dispatch,
     highlightedStudentId,
     studentAvailabilityMap,
+    isLocked = false,
 }: ScheduleGridProps) {
     const today = getTodayWeekdayIndex()
 
@@ -137,6 +139,7 @@ export function ScheduleGrid({
                                         studentColorIndex={studentColorIndex}
                                         dispatch={dispatch}
                                         availability={highlightedAvailability}
+                                        isLocked={isLocked}
                                     />
                                 )}
                             </div>

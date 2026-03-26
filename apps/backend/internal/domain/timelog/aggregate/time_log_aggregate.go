@@ -47,6 +47,11 @@ func (t *TimeLog) ClockOut() error {
 		return errors.ErrAlreadyClockedOut
 	}
 	now := time.Now().UTC()
+	// Ensure exit_at is never before entry_at (can happen if the DB clock
+	// is slightly ahead of Go's clock, or with sub-microsecond timing).
+	if now.Before(t.EntryAt) {
+		now = t.EntryAt.Add(time.Microsecond)
+	}
 	t.ExitAt = &now
 	return nil
 }

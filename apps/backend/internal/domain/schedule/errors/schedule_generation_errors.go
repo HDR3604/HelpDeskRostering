@@ -7,4 +7,5 @@ var (
 	ErrGenerationNotFound   = errors.New("schedule generation not found")
 	ErrGenerationNotPending = errors.New("schedule generation is not in pending status")
 	ErrGenerationNotStarted = errors.New("schedule generation has not been started")
+	ErrGenerationInProgress = errors.New("a schedule generation is already in progress")
 )

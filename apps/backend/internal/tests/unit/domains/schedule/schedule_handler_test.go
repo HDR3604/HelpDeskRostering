@@ -348,13 +348,19 @@ func (s *ScheduleHandlerTestSuite) setupStudentMock() {
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Success() {
 	s.setupStudentMock()
-	expected := s.generatedSchedule()
-	s.mockSvc.GenerateScheduleFn = func(_ context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+	genID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, params service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
 		s.Equal("Generated Schedule", params.Title)
 		s.Equal("2025-09-01", params.EffectiveFrom.Format("2006-01-02"))
 		s.Len(params.Assistants, 1)
 		s.Equal("100", params.Assistants[0].ID)
-		return expected, nil
+		return &aggregate.ScheduleGeneration{
+			ID:        genID,
+			ConfigID:  params.ConfigID,
+			Status:    aggregate.GenerationStatus_Pending,
+			CreatedBy: uuid.MustParse("22222222-2222-2222-2222-222222222222"),
+			CreatedAt: time.Now(),
+		}, nil
 	}
 
 	rr := s.doRequest("POST", "/api/v1/schedules/generate", `{
@@ -364,13 +370,12 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Success() {
 		"student_ids": ["100"]
 	}`)
 
-	s.Equal(http.StatusCreated, rr.Code)
+	s.Equal(http.StatusAccepted, rr.Code)
 
 	var resp map[string]any
 	s.Require().NoError(json.Unmarshal(rr.Body.Bytes(), &resp))
-	s.Equal("Generated Schedule", resp["title"])
-	s.Equal("33333333-3333-3333-3333-333333333333", resp["generation_id"])
-	s.NotNil(resp["scheduler_metadata"])
+	s.Equal("33333333-3333-3333-3333-333333333333", resp["id"])
+	s.Equal("pending", resp["status"])
 }
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidBody() {
@@ -414,7 +419,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_InvalidDateFormat() {
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_SchedulerUnavailable() {
 	s.setupStudentMock()
-	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
 		return nil, schedulerErrors.ErrSchedulerUnavailable
 	}
 
@@ -430,7 +435,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_SchedulerUnavailable() {
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Infeasible() {
 	s.setupStudentMock()
-	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
 		return nil, schedulerErrors.ErrInfeasible
 	}
 
@@ -457,7 +462,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_Unauthorized() {
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_NoActiveShiftTemplates() {
 	s.setupStudentMock()
-	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
 		return nil, scheduleErrors.ErrNoActiveShiftTemplates
 	}
 
@@ -473,7 +478,7 @@ func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_NoActiveShiftTemplates()
 
 func (s *ScheduleHandlerTestSuite) TestGenerateSchedule_ConfigNotFound() {
 	s.setupStudentMock()
-	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+	s.mockSvc.GenerateScheduleFn = func(_ context.Context, _ service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
 		return nil, scheduleErrors.ErrSchedulerConfigNotFound
 	}
 

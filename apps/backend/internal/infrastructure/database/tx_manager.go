@@ -51,10 +51,10 @@ func (tm *TxManager) InAuthTx(ctx context.Context, authCtx AuthContext, fn func(
 		}
 	}()
 
-	// Set the database role to authenticated
-	if _, err = tx.ExecContext(ctx, "SET ROLE authenticated;"); err != nil {
-		tm.logger.Error("failed to set role to authenticated", zap.Error(err))
-		return fmt.Errorf("failed to set role to authenticated: %w", err)
+	// Set the database role to authenticated (LOCAL scopes to this transaction only)
+	if _, err = tx.ExecContext(ctx, "SET LOCAL ROLE authenticated;"); err != nil {
+		tm.logger.Error("failed to set local role to authenticated", zap.Error(err))
+		return fmt.Errorf("failed to set local role to authenticated: %w", err)
 	}
 
 	// Set application context variables
@@ -117,10 +117,10 @@ func (tm *TxManager) InSystemTx(ctx context.Context, fn func(tx *sql.Tx) error) 
 		}
 	}()
 
-	// Set the database role to 'internal' which bypasses RLS policies
-	if _, err = tx.ExecContext(ctx, "SET ROLE internal;"); err != nil {
-		tm.logger.Error("failed to set role to internal", zap.Error(err))
-		return fmt.Errorf("failed to set role to internal: %w", err)
+	// Set the database role to 'internal' which bypasses RLS policies (LOCAL scopes to this transaction only)
+	if _, err = tx.ExecContext(ctx, "SET LOCAL ROLE internal;"); err != nil {
+		tm.logger.Error("failed to set local role to internal", zap.Error(err))
+		return fmt.Errorf("failed to set local role to internal: %w", err)
 	}
 
 	// Execute the provided function within the transaction
