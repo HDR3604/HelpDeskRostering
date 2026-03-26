@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Development Guide
 
 This guide walks through the backend architecture and patterns for implementing new features.
