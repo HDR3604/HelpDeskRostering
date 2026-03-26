@@ -36,11 +36,23 @@ func (e *Enqueuer) EnqueueScheduleGeneration(ctx context.Context, args service.S
 	return err
 }
 
-// EnqueueEmailNotification enqueues a batch of emails for background sending.
+// EnqueueEmailNotification splits emails into batches of 100 and enqueues
+// one job per batch. This ensures retries only resend the failed batch.
 func (e *Enqueuer) EnqueueEmailNotification(ctx context.Context, scheduleID uuid.UUID, emails emailDtos.SendEmailBulkRequest) error {
-	_, err := e.client.Insert(ctx, jobs.EmailNotificationArgs{
-		ScheduleID: scheduleID,
-		Emails:     emails,
-	}, nil)
-	return err
+	const batchSize = 100
+	for i := 0; i < len(emails); i += batchSize {
+		end := i + batchSize
+		if end > len(emails) {
+			end = len(emails)
+		}
+		_, err := e.client.Insert(ctx, jobs.EmailNotificationArgs{
+			ScheduleID: scheduleID,
+			Emails:     emails[i:end],
+			BatchIndex: i / batchSize,
+		}, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

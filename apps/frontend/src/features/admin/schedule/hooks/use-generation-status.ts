@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { isAxiosError } from 'axios'
 import type { GenerationStatusUpdate } from '@/types/schedule'
 import { generateSchedule, getGenerationStatus } from '@/lib/api/schedules'
@@ -13,6 +13,7 @@ interface GenerationFormValues {
 
 const POLL_INTERVAL_MS = 1000
 const MIN_ANIMATION_MS = 2500
+const POLL_TIMEOUT_MS = 120_000 // Stop polling after 2 minutes
 
 export function useGenerationStatus(
     generationId: string | null,
@@ -21,6 +22,7 @@ export function useGenerationStatus(
     status: GenerationStatusUpdate | null
 } {
     const [status, setStatus] = useState<GenerationStatusUpdate | null>(null)
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
     useEffect(() => {
         if (!generationId || !formValues) {
@@ -30,7 +32,16 @@ export function useGenerationStatus(
 
         const abort = new AbortController()
         const startTime = Date.now()
-        const pendingTimers: ReturnType<typeof setTimeout>[] = []
+        const timers: ReturnType<typeof setTimeout>[] = []
+
+        function scheduleTimer(fn: () => void, ms: number) {
+            const id = setTimeout(() => {
+                if (abort.signal.aborted) return
+                fn()
+            }, ms)
+            timers.push(id)
+            return id
+        }
 
         const base: GenerationStatusUpdate = {
             id: generationId,
@@ -46,21 +57,18 @@ export function useGenerationStatus(
         setStatus({ ...base })
 
         // Transition to running after a brief delay
-        pendingTimers.push(
-            setTimeout(() => {
-                if (abort.signal.aborted) return
-                setStatus((prev) =>
-                    prev && prev.status === 'pending'
-                        ? {
-                              ...prev,
-                              status: 'running',
-                              started_at: new Date().toISOString(),
-                              progress: 5,
-                          }
-                        : prev,
-                )
-            }, 500),
-        )
+        scheduleTimer(() => {
+            setStatus((prev) =>
+                prev && prev.status === 'pending'
+                    ? {
+                          ...prev,
+                          status: 'running',
+                          started_at: new Date().toISOString(),
+                          progress: 5,
+                      }
+                    : prev,
+            )
+        }, 500)
 
         // Animate progress while waiting
         const progressTimer = setInterval(() => {
@@ -89,13 +97,40 @@ export function useGenerationStatus(
                           }
                         : prev,
                 )
-                pendingTimers.push(
-                    setTimeout(() => {
-                        if (abort.signal.aborted) return
-                        fn()
-                    }, remaining),
-                )
+                scheduleTimer(fn, remaining)
             }
+        }
+
+        function stopPolling() {
+            if (pollRef.current) {
+                clearInterval(pollRef.current)
+                pollRef.current = null
+            }
+        }
+
+        function applyTerminal(
+            terminalStatus: 'completed' | 'failed' | 'infeasible',
+            scheduleId: string | null,
+            errorMessage: string | null,
+            completedAt: string | null,
+        ) {
+            stopPolling()
+            applyAfterMinDelay(() => {
+                setStatus((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              status: terminalStatus,
+                              schedule_id: scheduleId,
+                              error_message: errorMessage,
+                              completed_at:
+                                  completedAt ?? new Date().toISOString(),
+                              progress:
+                                  terminalStatus === 'completed' ? 100 : 0,
+                          }
+                        : prev,
+                )
+            })
         }
 
         // Step 1: Enqueue the generation
@@ -110,9 +145,20 @@ export function useGenerationStatus(
                 if (abort.signal.aborted) return
 
                 // Step 2: Poll for completion
-                const poll = setInterval(async () => {
+                pollRef.current = setInterval(async () => {
                     if (abort.signal.aborted) {
-                        clearInterval(poll)
+                        stopPolling()
+                        return
+                    }
+
+                    // Timeout guard
+                    if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+                        applyTerminal(
+                            'failed',
+                            null,
+                            'Schedule generation timed out. Check the schedule list for results.',
+                            null,
+                        )
                         return
                     }
 
@@ -123,75 +169,33 @@ export function useGenerationStatus(
                             result.status === 'completed' &&
                             result.schedule_id
                         ) {
-                            clearInterval(poll)
-                            applyAfterMinDelay(() => {
-                                setStatus((prev) =>
-                                    prev
-                                        ? {
-                                              ...prev,
-                                              status: 'completed',
-                                              schedule_id: result.schedule_id,
-                                              completed_at:
-                                                  result.completed_at ??
-                                                  new Date().toISOString(),
-                                              progress: 100,
-                                          }
-                                        : prev,
-                                )
-                            })
+                            applyTerminal(
+                                'completed',
+                                result.schedule_id,
+                                null,
+                                result.completed_at,
+                            )
                         } else if (result.status === 'failed') {
-                            clearInterval(poll)
-                            applyAfterMinDelay(() => {
-                                setStatus((prev) =>
-                                    prev
-                                        ? {
-                                              ...prev,
-                                              status: 'failed',
-                                              error_message:
-                                                  result.error_message ??
-                                                  'Schedule generation failed.',
-                                              completed_at:
-                                                  result.completed_at ??
-                                                  new Date().toISOString(),
-                                              progress: 0,
-                                          }
-                                        : prev,
-                                )
-                            })
+                            applyTerminal(
+                                'failed',
+                                null,
+                                result.error_message ??
+                                    'Schedule generation failed.',
+                                result.completed_at,
+                            )
                         } else if (result.status === 'infeasible') {
-                            clearInterval(poll)
-                            applyAfterMinDelay(() => {
-                                setStatus((prev) =>
-                                    prev
-                                        ? {
-                                              ...prev,
-                                              status: 'infeasible',
-                                              error_message:
-                                                  result.error_message ??
-                                                  'No feasible schedule found.',
-                                              completed_at:
-                                                  result.completed_at ??
-                                                  new Date().toISOString(),
-                                              progress: 0,
-                                          }
-                                        : prev,
-                                )
-                            })
+                            applyTerminal(
+                                'infeasible',
+                                null,
+                                result.error_message ??
+                                    'No feasible schedule found.',
+                                result.completed_at,
+                            )
                         }
                     } catch {
-                        // Polling error — keep trying
+                        // Polling error — keep trying until timeout
                     }
                 }, POLL_INTERVAL_MS)
-
-                // Clean up polling on unmount
-                pendingTimers.push(
-                    // Store poll interval ID for cleanup (using setTimeout wrapper)
-                    (() => {
-                        const cleanup = () => clearInterval(poll)
-                        abort.signal.addEventListener('abort', cleanup)
-                        return 0 as unknown as ReturnType<typeof setTimeout>
-                    })(),
-                )
             })
             .catch((err) => {
                 if (abort.signal.aborted) return
@@ -207,26 +211,18 @@ export function useGenerationStatus(
                         ? err.response.data.error
                         : 'An unexpected error occurred during schedule generation.'
 
-                applyAfterMinDelay(() => {
-                    setStatus((prev) =>
-                        prev
-                            ? {
-                                  ...prev,
-                                  status: isInfeasible
-                                      ? 'infeasible'
-                                      : 'failed',
-                                  completed_at: new Date().toISOString(),
-                                  error_message: errorMessage,
-                                  progress: 0,
-                              }
-                            : prev,
-                    )
-                })
+                applyTerminal(
+                    isInfeasible ? 'infeasible' : 'failed',
+                    null,
+                    errorMessage,
+                    null,
+                )
             })
 
         return () => {
             abort.abort()
-            pendingTimers.forEach(clearTimeout)
+            stopPolling()
+            timers.forEach(clearTimeout)
             clearInterval(progressTimer)
         }
     }, [generationId, formValues])

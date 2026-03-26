@@ -71,10 +71,9 @@ func (w *ScheduleGenerationWorker) Work(ctx context.Context, job *river.Job[Sche
 
 	log.Info("starting schedule generation")
 
-	// Mark generation as started
+	// Mark generation as started (ignore error on retries — already started)
 	if err := w.generationSvc.MarkStarted(ctx, args.GenerationID); err != nil {
-		log.Error("failed to mark generation as started", zap.Error(err))
-		return err
+		log.Warn("failed to mark generation as started (may already be started on retry)", zap.Error(err))
 	}
 
 	// Call the Python scheduler (the slow part)

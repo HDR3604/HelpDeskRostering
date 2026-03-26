@@ -17,7 +17,6 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	studentAggregate "github.com/HDR3604/HelpDeskApp/internal/domain/student/aggregate"
 	studentService "github.com/HDR3604/HelpDeskApp/internal/domain/student/service"
-	emailInterfaces "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/interfaces"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/templates"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
 	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
@@ -38,7 +37,6 @@ type ScheduleHandler struct {
 	service       service.ScheduleServiceInterface
 	studentSvc    studentService.StudentServiceInterface
 	shiftTplSvc   service.ShiftTemplateServiceInterface
-	emailSender   emailInterfaces.EmailSenderInterface
 	emailEnqueuer EmailJobEnqueuer
 	fromEmail     string
 }
@@ -48,7 +46,6 @@ func NewScheduleHandler(
 	service service.ScheduleServiceInterface,
 	studentSvc studentService.StudentServiceInterface,
 	shiftTplSvc service.ShiftTemplateServiceInterface,
-	emailSender emailInterfaces.EmailSenderInterface,
 	emailEnqueuer EmailJobEnqueuer,
 	fromEmail string,
 ) *ScheduleHandler {
@@ -57,7 +54,6 @@ func NewScheduleHandler(
 		service:       service,
 		studentSvc:    studentSvc,
 		shiftTplSvc:   shiftTplSvc,
-		emailSender:   emailSender,
 		emailEnqueuer: emailEnqueuer,
 		fromEmail:     fromEmail,
 	}

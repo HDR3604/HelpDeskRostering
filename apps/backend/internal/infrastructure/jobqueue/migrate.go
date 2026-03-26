@@ -27,10 +27,9 @@ func Migrate(ctx context.Context, db *sql.DB, logger *zap.Logger) error {
 		logger.Info("river migration applied", zap.Int("version", v.Version))
 	}
 
-	// Grant all database roles access to River's tables. River's client uses
-	// connections from the pool that may be in any role state (helpdesk, internal,
-	// or authenticated) because SET ROLE in TxManager is session-scoped.
-	// This is idempotent.
+	// Grant all database roles access to River's tables. River's internal
+	// queries run on raw pool connections (not via TxManager), so they need
+	// explicit grants. This is idempotent.
 	grants := []string{
 		"GRANT USAGE ON SCHEMA public TO internal, authenticated, helpdesk",
 		"GRANT ALL ON river_job TO internal, authenticated, helpdesk",

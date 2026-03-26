@@ -177,7 +177,7 @@ func NewApp(cfg Config) (*App, error) {
 	consentHdl := consentHandler.NewConsentHandler(logger)
 	authHdl := authHandler.NewAuthHandler(logger, authSvc, cfg.AccessTokenTTL)
 	transcriptHdl := transcriptHandler.NewTranscriptHandler(logger, transcriptsSvc)
-	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, emailSenderSvc, enqueuer, cfg.FromEmail)
+	scheduleHdl := scheduleHandler.NewScheduleHandler(logger, scheduleSvc, studentSvc, shiftTemplateSvc, enqueuer, cfg.FromEmail)
 	scheduleGenerationHdl := scheduleHandler.NewScheduleGenerationHandler(logger, scheduleGenerationSvc)
 	shiftTemplateHdl := scheduleHandler.NewShiftTemplateHandler(logger, shiftTemplateSvc)
 	schedulerConfigHdl := scheduleHandler.NewSchedulerConfigHandler(logger, schedulerConfigSvc)
