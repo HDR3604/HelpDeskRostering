@@ -39,6 +39,12 @@ import {
 import { useLocation } from '@tanstack/react-router'
 import { useUser } from '@/lib/auth/hooks/use-user'
 import { useMyStudentProfile } from '@/lib/queries/students'
+import {
+    useUpdateMyStudentProfile,
+    useMyBankingDetails,
+    useUpsertMyBankingDetails,
+} from '@/lib/queries/students'
+import { useUpdateMyProfile } from '@/lib/queries/users'
 import { usePasswordReset } from '@/lib/auth/use-password-reset'
 import { StepAvailability } from '@/features/sign-up/components/step-availability'
 import { PhoneNumberInput } from '@/features/sign-up/components/phone-input'
@@ -269,6 +275,9 @@ export function StudentSettings() {
     const student = profileQuery.data
     const transcript = student?.transcript_metadata
 
+    const updateProfile = useUpdateMyProfile()
+    const updateStudentProfile = useUpdateMyStudentProfile()
+
     const [firstName, setFirstName] = useState(userFirstName ?? '')
     const [lastName, setLastName] = useState(userLastName ?? '')
     const [phone, setPhone] = useState('')
@@ -293,8 +302,10 @@ export function StudentSettings() {
     const handleAutoSaveFirstName = useCallback(
         (val: string) => {
             setFirstName(val)
-            flashSaved()
-            // TODO: API call
+            updateProfile.mutate(
+                { first_name: val },
+                { onSuccess: () => flashSaved() },
+            )
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [],
@@ -302,8 +313,10 @@ export function StudentSettings() {
     const handleAutoSaveLastName = useCallback(
         (val: string) => {
             setLastName(val)
-            flashSaved()
-            // TODO: API call
+            updateProfile.mutate(
+                { last_name: val },
+                { onSuccess: () => flashSaved() },
+            )
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [],
@@ -311,8 +324,10 @@ export function StudentSettings() {
     const handleAutoSavePhone = useCallback(
         (val: string) => {
             setPhone(val)
-            flashSaved()
-            // TODO: API call
+            updateStudentProfile.mutate(
+                { phone_number: val },
+                { onSuccess: () => flashSaved() },
+            )
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [],
@@ -350,18 +365,36 @@ export function StudentSettings() {
         'success' | 'error' | null
     >(null)
 
+    // Load availability from student profile
+    useEffect(() => {
+        if (student?.availability) setAvailability(student.availability)
+    }, [student?.availability])
+
     // -- Transcript upload --------------------------------------------------
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [transcriptUrl, setTranscriptUrl] = useState<string | null>(null)
 
-    // -- Payment state (TODO: replace with API calls) -----------------------
+    // -- Payment state -------------------------------------------------------
+
+    const bankingQuery = useMyBankingDetails()
+    const upsertBanking = useUpsertMyBankingDetails()
 
     const [bankName, setBankName] = useState('')
     const [branchName, setBranchName] = useState('')
     const [accountType, setAccountType] = useState('')
     const [accountNumber, setAccountNumber] = useState('')
+
+    // Sync banking details from API
+    useEffect(() => {
+        if (bankingQuery.data) {
+            setBankName(bankingQuery.data.bank_name ?? '')
+            setBranchName(bankingQuery.data.branch_name ?? '')
+            setAccountType(bankingQuery.data.account_type ?? '')
+            setAccountNumber(bankingQuery.data.account_number ?? '')
+        }
+    }, [bankingQuery.data])
 
     const [editingBankName, setEditingBankName] = useState(false)
     const [editingBranch, setEditingBranch] = useState(false)
@@ -379,6 +412,20 @@ export function StudentSettings() {
 
     // -- Handlers -----------------------------------------------------------
 
+    function saveBankingDetails(updates: {
+        bank_name?: string
+        branch_name?: string
+        account_type?: string
+        account_number?: string
+    }) {
+        upsertBanking.mutate({
+            bank_name: updates.bank_name ?? bankName,
+            branch_name: updates.branch_name ?? branchName,
+            account_type: updates.account_type ?? accountType,
+            account_number: updates.account_number ?? accountNumber,
+        })
+    }
+
     function handleSaveBankName() {
         if (!draftBankName) {
             toast.error('Please select a bank.')
@@ -386,7 +433,7 @@ export function StudentSettings() {
         }
         setBankName(draftBankName)
         setEditingBankName(false)
-        toast.success('Bank updated.')
+        saveBankingDetails({ bank_name: draftBankName })
     }
 
     function handleSaveBranch() {
@@ -396,7 +443,7 @@ export function StudentSettings() {
         }
         setBranchName(draftBranch)
         setEditingBranch(false)
-        toast.success('Branch updated.')
+        saveBankingDetails({ branch_name: draftBranch })
     }
 
     function handleSaveAccountType() {
@@ -406,7 +453,7 @@ export function StudentSettings() {
         }
         setAccountType(draftAccountType)
         setEditingAccountType(false)
-        toast.success('Account type updated.')
+        saveBankingDetails({ account_type: draftAccountType })
     }
 
     function handleSaveAccountNumber() {
@@ -416,7 +463,7 @@ export function StudentSettings() {
         }
         setAccountNumber(draftAccountNumber)
         setEditingAccountNumber(false)
-        toast.success('Account number updated.')
+        saveBankingDetails({ account_number: draftAccountNumber })
     }
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -831,13 +878,25 @@ export function StudentSettings() {
                                 defaultValues={availability}
                                 onNext={(updated) => {
                                     setAvailabilitySaving(true)
-                                    // TODO: call API here
-                                    setTimeout(() => {
-                                        setAvailability(updated)
-                                        setAvailabilitySaving(false)
-                                        setAvailabilityDirty(false)
-                                        setAvailabilitySaveStatus('success')
-                                    }, 0)
+                                    updateStudentProfile.mutate(
+                                        { availability: updated },
+                                        {
+                                            onSuccess: () => {
+                                                setAvailability(updated)
+                                                setAvailabilitySaving(false)
+                                                setAvailabilityDirty(false)
+                                                setAvailabilitySaveStatus(
+                                                    'success',
+                                                )
+                                            },
+                                            onError: () => {
+                                                setAvailabilitySaving(false)
+                                                setAvailabilitySaveStatus(
+                                                    'error',
+                                                )
+                                            },
+                                        },
+                                    )
                                 }}
                                 onBack={() => {}}
                             />

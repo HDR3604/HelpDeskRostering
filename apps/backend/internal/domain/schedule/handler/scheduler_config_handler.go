@@ -33,6 +33,7 @@ func (h *SchedulerConfigHandler) RegisterRoutes(r chi.Router) {
 		r.Get("/default", h.GetDefault)
 		r.Get("/{id}", h.GetByID)
 		r.Put("/{id}", h.Update)
+		r.Delete("/{id}", h.Delete)
 		r.Patch("/{id}/set-default", h.SetDefault)
 	})
 }
@@ -154,10 +155,27 @@ func (h *SchedulerConfigHandler) SetDefault(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *SchedulerConfigHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid scheduler config ID")
+		return
+	}
+
+	if err := h.service.Delete(r.Context(), id); err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *SchedulerConfigHandler) handleServiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, scheduleErrors.ErrSchedulerConfigNotFound):
 		writeError(w, http.StatusNotFound, "scheduler config not found")
+	case errors.Is(err, scheduleErrors.ErrCannotDeleteDefault):
+		writeError(w, http.StatusConflict, "cannot delete the default configuration")
 	case errors.Is(err, scheduleErrors.ErrInvalidConfigName):
 		writeError(w, http.StatusBadRequest, "invalid config name")
 	case errors.Is(err, scheduleErrors.ErrInvalidPenaltyWeight):

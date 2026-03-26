@@ -21,11 +21,17 @@ import {
 } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
-import { MOCK_SCHEDULER_CONFIGS } from '@/lib/mock-data'
 import type { SchedulerConfig } from '@/types/scheduler-config'
 import { useUser } from '@/lib/auth/hooks/use-user'
 import { usePasswordReset } from '@/lib/auth/use-password-reset'
-import { Trash2, Pencil, LockOpen } from 'lucide-react'
+import { useUpdateMyProfile } from '@/lib/queries/users'
+import {
+    useSchedulerConfigs,
+    useCreateSchedulerConfig,
+    useDeleteSchedulerConfig,
+    useSetDefaultSchedulerConfig,
+} from '@/lib/queries/scheduler-configs'
+import { Trash2, Pencil, LockOpen, Loader2 } from 'lucide-react'
 import { useLocation } from '@tanstack/react-router'
 
 export function AdminSettings() {
@@ -39,14 +45,12 @@ export function AdminSettings() {
         isLoading: resetLoading,
         resendTimer,
     } = usePasswordReset()
+    const updateProfile = useUpdateMyProfile()
 
     const { pathname } = useLocation()
     const activeTab = pathname.includes('scheduler') ? 'scheduler' : 'profile'
 
-    // Profile
-    const [firstName, setFirstName] = useState(userFirstName ?? '')
-    const [lastName, setLastName] = useState(userLastName ?? '')
-    const [email, setEmail] = useState(userEmail ?? '')
+    // Profile editing state
     const [editingName, setEditingName] = useState(false)
     const [editingEmail, setEditingEmail] = useState(false)
     const [draftFirstName, setDraftFirstName] = useState('')
@@ -57,9 +61,12 @@ export function AdminSettings() {
     const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
     // Scheduler configuration
-    const [configs, setConfigs] = useState<SchedulerConfig[]>(() =>
-        MOCK_SCHEDULER_CONFIGS.map((c) => ({ ...c })),
-    )
+    const { data: configs = [], isLoading: configsLoading } =
+        useSchedulerConfigs()
+    const createConfig = useCreateSchedulerConfig()
+    const deleteConfig = useDeleteSchedulerConfig()
+    const setDefault = useSetDefaultSchedulerConfig()
+
     const [showForm, setShowForm] = useState(false)
     const [deleteTarget, setDeleteTarget] = useState<SchedulerConfig | null>(
         null,
@@ -72,17 +79,24 @@ export function AdminSettings() {
         allow_minimum_violation: false,
     })
 
+    // Display values from JWT (updated via forceRefreshToken after mutation)
+    const firstName = userFirstName ?? ''
+    const lastName = userLastName ?? ''
+    const email = userEmail ?? ''
+
     // Handlers
     function handleSaveName() {
         if (draftFirstName === '' || draftLastName === '') {
             toast.error('Name cannot be empty.')
             return
         }
-        setFirstName(draftFirstName)
-        setLastName(draftLastName)
-        setEditingName(false)
-        toast.success('Name updated.')
-        // TODO: call API here
+        updateProfile.mutate(
+            {
+                first_name: draftFirstName,
+                last_name: draftLastName,
+            },
+            { onSuccess: () => setEditingName(false) },
+        )
     }
 
     function handleSaveEmail() {
@@ -90,17 +104,14 @@ export function AdminSettings() {
             toast.error('Please enter a valid email.')
             return
         }
-        setEmail(draftEmail)
-        setEditingEmail(false)
-        toast.success('Email updated.')
-        // TODO: call API here
+        updateProfile.mutate(
+            { email: draftEmail },
+            { onSuccess: () => setEditingEmail(false) },
+        )
     }
 
     function handleSetDefault(config: SchedulerConfig) {
-        setConfigs((prev) =>
-            prev.map((c) => ({ ...c, is_default: c.id === config.id })),
-        )
-        toast.success(`${config.name} set as default.`)
+        setDefault.mutate(config.id)
     }
 
     function handleCreate() {
@@ -108,42 +119,37 @@ export function AdminSettings() {
             toast.error('Please enter a name for the configuration.')
             return
         }
-        const created: SchedulerConfig = {
-            id: `cfg-${Date.now()}`,
-            name: newConfig.name,
-            baseline_hours_target: newConfig.baseline_hours_target,
-            understaffed_penalty: newConfig.understaffed_penalty,
-            solver_time_limit: newConfig.solver_time_limit,
-            course_shortfall_penalty: 1.0,
-            min_hours_penalty: 1.0,
-            max_hours_penalty: 1.0,
-            extra_hours_penalty: 1.0,
-            max_extra_penalty: 1.5,
-            solver_gap: null,
-            log_solver_output: false,
-            is_default: false,
-            created_at: new Date().toISOString(),
-            updated_at: null,
-        }
-        setConfigs((prev) => [...prev, created])
-        setNewConfig({
-            name: '',
-            baseline_hours_target: 0,
-            understaffed_penalty: 0.0,
-            solver_time_limit: null,
-            allow_minimum_violation: false,
-        })
-        setShowForm(false)
-        toast.success(`${created.name} created.`)
+        createConfig.mutate(
+            {
+                name: newConfig.name,
+                baseline_hours_target: newConfig.baseline_hours_target,
+                understaffed_penalty: newConfig.understaffed_penalty,
+                solver_time_limit: newConfig.solver_time_limit,
+                course_shortfall_penalty: 1.0,
+                min_hours_penalty: 1.0,
+                max_hours_penalty: 1.0,
+                extra_hours_penalty: 1.0,
+                max_extra_penalty: 1.5,
+                solver_gap: null,
+                log_solver_output: false,
+            },
+            {
+                onSuccess: () => {
+                    setNewConfig({
+                        name: '',
+                        baseline_hours_target: 0,
+                        understaffed_penalty: 0.0,
+                        solver_time_limit: null,
+                        allow_minimum_violation: false,
+                    })
+                    setShowForm(false)
+                },
+            },
+        )
     }
 
     function handleDelete(config: SchedulerConfig) {
-        if (config.is_default) {
-            toast.error('Cannot delete the default configuration.')
-            return
-        }
-        setConfigs((prev) => prev.filter((c) => c.id !== config.id))
-        toast.success(`${config.name} deleted.`)
+        deleteConfig.mutate(config.id)
     }
 
     return (
@@ -201,8 +207,13 @@ export function AdminSettings() {
                                         <Button
                                             size="sm"
                                             onClick={handleSaveName}
+                                            disabled={
+                                                updateProfile.isPending
+                                            }
                                         >
-                                            Save
+                                            {updateProfile.isPending
+                                                ? 'Saving…'
+                                                : 'Save'}
                                         </Button>
                                     </div>
                                 </div>
@@ -254,8 +265,13 @@ export function AdminSettings() {
                                         <Button
                                             size="sm"
                                             onClick={handleSaveEmail}
+                                            disabled={
+                                                updateProfile.isPending
+                                            }
                                         >
-                                            Save
+                                            {updateProfile.isPending
+                                                ? 'Saving…'
+                                                : 'Save'}
                                         </Button>
                                     </div>
                                 </div>
@@ -302,6 +318,13 @@ export function AdminSettings() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-0">
+                        {configsLoading ? (
+                            <div className="flex items-center justify-center py-8 text-muted-foreground">
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Loading configurations…
+                            </div>
+                        ) : (
+                        <>
                         {configs.map((config, i) => (
                             <div key={config.id}>
                                 <div className="flex items-center justify-between py-4">
@@ -364,6 +387,8 @@ export function AdminSettings() {
                                 New Configuration
                             </Button>
                         </div>
+                        </>
+                        )}
                     </CardContent>
                 </Card>
             )}
@@ -530,8 +555,8 @@ export function AdminSettings() {
                         >
                             Cancel
                         </Button>
-                        <Button variant="outline" onClick={handleCreate}>
-                            Create
+                        <Button variant="outline" onClick={handleCreate} disabled={createConfig.isPending}>
+                            {createConfig.isPending ? 'Creating…' : 'Create'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

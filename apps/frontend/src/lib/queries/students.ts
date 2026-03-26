@@ -17,7 +17,12 @@ import {
     bulkDeactivateStudents,
     bulkActivateStudents,
     getMyStudentProfile,
+    updateMyStudentProfile,
+    getMyBankingDetails,
+    upsertMyBankingDetails,
     type ApplyStudentRequest,
+    type UpdateMyStudentProfileRequest,
+    type BankingDetailsRequest,
 } from '@/lib/api/students'
 import { getApiErrorMessage } from '@/lib/error-messages'
 
@@ -30,6 +35,7 @@ export const studentKeys = {
     details: () => [...studentKeys.all(), 'detail'] as const,
     detail: (id: number) => [...studentKeys.details(), id] as const,
     me: () => [...studentKeys.all(), 'me'] as const,
+    bankingDetails: () => [...studentKeys.all(), 'banking-details'] as const,
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -203,6 +209,52 @@ export function useBulkActivateStudents() {
         onError: (error) => {
             invalidateLists(queryClient)
             toast.error('Bulk activate failed', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
+
+// ── Student Self-Service Hooks ───────────────────────────────────────
+
+export function useUpdateMyStudentProfile() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (data: UpdateMyStudentProfileRequest) =>
+            updateMyStudentProfile(data),
+        onSuccess: (updated) => {
+            queryClient.setQueryData<Student>(studentKeys.me(), updated)
+            toast.success('Profile updated.')
+        },
+        onError: (error) => {
+            toast.error('Failed to update profile', {
+                description: getApiErrorMessage(error),
+            })
+        },
+    })
+}
+
+export function useMyBankingDetails() {
+    return useQuery({
+        queryKey: studentKeys.bankingDetails(),
+        queryFn: getMyBankingDetails,
+        staleTime: 5 * 60_000,
+    })
+}
+
+export function useUpsertMyBankingDetails() {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (data: BankingDetailsRequest) =>
+            upsertMyBankingDetails(data),
+        onSuccess: (updated) => {
+            queryClient.setQueryData(studentKeys.bankingDetails(), updated)
+            toast.success('Banking details updated.')
+        },
+        onError: (error) => {
+            toast.error('Failed to update banking details', {
                 description: getApiErrorMessage(error),
             })
         },

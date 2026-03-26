@@ -31,9 +31,11 @@ type UserServiceInterface interface {
 }
 
 type UpdateUserInput struct {
-	Email    *string
-	Role     *aggregate.Role
-	IsActive *bool
+	FirstName *string
+	LastName  *string
+	Email     *string
+	Role      *aggregate.Role
+	IsActive  *bool
 }
 
 func NewUserService(
@@ -145,6 +147,18 @@ func (s *UserService) Update(ctx context.Context, userID string, input UpdateUse
 		existingUser, txErr := s.repository.GetByID(ctx, tx, userID)
 		if txErr != nil {
 			return txErr
+		}
+
+		if input.FirstName != nil {
+			if err := existingUser.UpdateFirstName(*input.FirstName); err != nil {
+				return err
+			}
+		}
+
+		if input.LastName != nil {
+			if err := existingUser.UpdateLastName(*input.LastName); err != nil {
+				return err
+			}
 		}
 
 		if input.Email != nil {

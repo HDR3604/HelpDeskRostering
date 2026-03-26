@@ -79,6 +79,20 @@ export async function getMyStudentProfile(): Promise<Student> {
     return data
 }
 
+export interface UpdateMyStudentProfileRequest {
+    phone_number?: string
+    availability?: Record<string, number[]>
+    min_weekly_hours?: number
+    max_weekly_hours?: number
+}
+
+export async function updateMyStudentProfile(
+    req: UpdateMyStudentProfileRequest,
+): Promise<Student> {
+    const { data } = await apiClient.put<Student>('/students/me', req)
+    return data
+}
+
 // --- Banking details ---
 
 export interface BankingDetailsRequest {

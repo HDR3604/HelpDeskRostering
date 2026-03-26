@@ -14,4 +14,5 @@ type SchedulerConfigRepositoryInterface interface {
 	GetDefault(ctx context.Context, tx *sql.Tx) (*aggregate.SchedulerConfig, error)
 	List(ctx context.Context, tx *sql.Tx) ([]*aggregate.SchedulerConfig, error)
 	Update(ctx context.Context, tx *sql.Tx, c *aggregate.SchedulerConfig) error
+	Delete(ctx context.Context, tx *sql.Tx, id uuid.UUID) error
 }

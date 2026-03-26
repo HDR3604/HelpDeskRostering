@@ -24,6 +24,7 @@ export {
 export {
     ensureValidToken,
     forceLogout,
+    forceRefreshToken,
     proactiveRefresh,
     reactiveRefresh,
 } from './refresh'

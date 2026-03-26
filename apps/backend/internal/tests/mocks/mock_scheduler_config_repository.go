@@ -17,6 +17,7 @@ type MockSchedulerConfigRepository struct {
 	GetDefaultFn func(ctx context.Context, tx *sql.Tx) (*aggregate.SchedulerConfig, error)
 	ListFn       func(ctx context.Context, tx *sql.Tx) ([]*aggregate.SchedulerConfig, error)
 	UpdateFn     func(ctx context.Context, tx *sql.Tx, c *aggregate.SchedulerConfig) error
+	DeleteFn     func(ctx context.Context, tx *sql.Tx, id uuid.UUID) error
 }
 
 func (m *MockSchedulerConfigRepository) Create(ctx context.Context, tx *sql.Tx, c *aggregate.SchedulerConfig) (*aggregate.SchedulerConfig, error) {
@@ -37,4 +38,8 @@ func (m *MockSchedulerConfigRepository) List(ctx context.Context, tx *sql.Tx) ([
 
 func (m *MockSchedulerConfigRepository) Update(ctx context.Context, tx *sql.Tx, c *aggregate.SchedulerConfig) error {
 	return m.UpdateFn(ctx, tx, c)
+}
+
+func (m *MockSchedulerConfigRepository) Delete(ctx context.Context, tx *sql.Tx, id uuid.UUID) error {
+	return m.DeleteFn(ctx, tx, id)
 }

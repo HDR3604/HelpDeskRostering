@@ -1,6 +1,5 @@
 import type { Student } from '@/types/student'
 import type { ScheduleResponse } from '@/types/schedule'
-import type { SchedulerConfig } from '@/types/scheduler-config'
 import type { ShiftTemplate } from '@/types/shift-template'
 import type { TimeLog } from '@/types/time-log'
 
@@ -632,62 +631,6 @@ export const MOCK_SCHEDULES: ScheduleResponse[] = [
         effective_to: '2026-02-07',
         generation_id: null,
         config_id: null,
-    },
-]
-
-// --- Scheduler Configs ---
-
-export const MOCK_SCHEDULER_CONFIGS: SchedulerConfig[] = [
-    {
-        id: 'cfg-default',
-        name: 'Default',
-        course_shortfall_penalty: 1.0,
-        min_hours_penalty: 1.0,
-        max_hours_penalty: 1.0,
-        understaffed_penalty: 2.0,
-        extra_hours_penalty: 1.0,
-        max_extra_penalty: 1.5,
-        baseline_hours_target: 6,
-        solver_time_limit: null,
-        solver_gap: null,
-        log_solver_output: false,
-        is_default: true,
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: null,
-    },
-    {
-        id: 'cfg-conservative',
-        name: 'Conservative',
-        course_shortfall_penalty: 2.0,
-        min_hours_penalty: 1.5,
-        max_hours_penalty: 2.0,
-        understaffed_penalty: 3.0,
-        extra_hours_penalty: 0.5,
-        max_extra_penalty: 1.0,
-        baseline_hours_target: 4,
-        solver_time_limit: 60,
-        solver_gap: null,
-        log_solver_output: false,
-        is_default: false,
-        created_at: '2026-02-01T10:00:00Z',
-        updated_at: null,
-    },
-    {
-        id: 'cfg-max-coverage',
-        name: 'Maximise Coverage',
-        course_shortfall_penalty: 0.5,
-        min_hours_penalty: 0.5,
-        max_hours_penalty: 0.5,
-        understaffed_penalty: 5.0,
-        extra_hours_penalty: 0.5,
-        max_extra_penalty: 0.5,
-        baseline_hours_target: 8,
-        solver_time_limit: 120,
-        solver_gap: 0.05,
-        log_solver_output: false,
-        is_default: false,
-        created_at: '2026-02-10T14:30:00Z',
-        updated_at: null,
     },
 ]
 
