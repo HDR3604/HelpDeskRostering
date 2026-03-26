@@ -14,6 +14,7 @@ type TimeLogFilter struct {
 	From      *time.Time
 	To        *time.Time
 	Flagged   *bool
+	Search    string
 	Page      int
 	PerPage   int
 }

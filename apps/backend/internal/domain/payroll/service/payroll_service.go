@@ -269,8 +269,9 @@ func (s *PayrollService) ExportPayments(ctx context.Context, periodStart, period
 
 	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		payments, txErr := s.paymentRepo.ListByPeriod(ctx, tx, repository.PaymentFilter{
-			PeriodStart: &periodStart,
-			PeriodEnd:   &periodEnd,
+			PeriodStart:   &periodStart,
+			PeriodEnd:     &periodEnd,
+			ProcessedOnly: true,
 		})
 		if txErr != nil {
 			return txErr

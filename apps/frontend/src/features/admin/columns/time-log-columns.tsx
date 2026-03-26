@@ -34,6 +34,16 @@ function formatDistance(meters: number): string {
     return `${(meters / 1000).toFixed(1)} km`
 }
 
+function formatDuration(entryAt: string, exitAt: string | null): string {
+    const end = exitAt ? new Date(exitAt).getTime() : Date.now()
+    const diff = end - new Date(entryAt).getTime()
+    const mins = Math.floor(diff / 60_000)
+    if (mins < 1) return '<1m'
+    const hrs = Math.floor(mins / 60)
+    if (hrs > 0) return `${hrs}h ${mins % 60}m`
+    return `${mins}m`
+}
+
 interface TimeLogColumnCallbacks {
     onFlag: (log: AdminTimeLogResponse) => void
     onUnflag: (log: AdminTimeLogResponse) => void
@@ -45,37 +55,19 @@ export function getTimeLogColumns(
 ): ColumnDef<AdminTimeLogResponse>[] {
     return [
         {
-            id: 'studentId',
-            accessorKey: 'student_id',
-            header: 'ID',
-            cell: ({ row }) => (
-                <span className="font-mono text-xs text-muted-foreground">
-                    {row.original.student_id}
-                </span>
-            ),
-        },
-        {
             id: 'name',
             accessorFn: (row) =>
                 `${row.student_name} ${row.student_id} ${row.student_email}`,
             header: 'Student',
             cell: ({ row }) => (
-                <div>
-                    <p className="font-medium">{row.original.student_name}</p>
-                    <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                    <p className="truncate font-medium">
+                        {row.original.student_name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
                         {row.original.student_email}
                     </p>
                 </div>
-            ),
-        },
-        {
-            id: 'phone',
-            accessorKey: 'student_phone',
-            header: 'Phone',
-            cell: ({ row }) => (
-                <span className="text-sm text-muted-foreground">
-                    {row.original.student_phone || '—'}
-                </span>
             ),
         },
         {
@@ -92,11 +84,26 @@ export function getTimeLogColumns(
             id: 'clockOut',
             accessorKey: 'exit_at',
             header: 'Clock Out',
+            cell: ({ row }) =>
+                row.original.exit_at ? (
+                    <span className="text-sm tabular-nums">
+                        {formatDateTime(row.original.exit_at)}
+                    </span>
+                ) : (
+                    <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 text-[10px]">
+                        On shift
+                    </Badge>
+                ),
+        },
+        {
+            id: 'duration',
+            header: 'Duration',
             cell: ({ row }) => (
-                <span className="text-sm tabular-nums">
-                    {row.original.exit_at
-                        ? formatDateTime(row.original.exit_at)
-                        : '—'}
+                <span className="text-sm tabular-nums text-muted-foreground">
+                    {formatDuration(
+                        row.original.entry_at,
+                        row.original.exit_at,
+                    )}
                 </span>
             ),
         },
@@ -109,11 +116,20 @@ export function getTimeLogColumns(
                 const isClose = meters <= 100
                 return (
                     <div className="text-right">
-                        <span
-                            className={`text-sm tabular-nums ${isClose ? 'text-emerald-500' : 'text-amber-500'}`}
-                        >
-                            {formatDistance(meters)}
-                        </span>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span
+                                    className={`text-sm tabular-nums cursor-default ${isClose ? 'text-emerald-500' : 'text-amber-500'}`}
+                                >
+                                    {formatDistance(meters)}
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {isClose
+                                    ? 'Within help desk range'
+                                    : 'Outside help desk range'}
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 )
             },
@@ -124,37 +140,29 @@ export function getTimeLogColumns(
             header: 'Status',
             cell: ({ row }) => {
                 const flagged = row.original.is_flagged
-                return flagged ? (
-                    <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15">
-                        <Flag className="mr-1 h-3 w-3" />
-                        Flagged
-                    </Badge>
-                ) : (
+                if (flagged) {
+                    return (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15 cursor-default">
+                                    <Flag className="mr-1 h-3 w-3" />
+                                    Flagged
+                                </Badge>
+                            </TooltipTrigger>
+                            {row.original.flag_reason && (
+                                <TooltipContent>
+                                    <p className="max-w-xs">
+                                        {row.original.flag_reason}
+                                    </p>
+                                </TooltipContent>
+                            )}
+                        </Tooltip>
+                    )
+                }
+                return (
                     <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
                         Clear
                     </Badge>
-                )
-            },
-        },
-        {
-            id: 'reason',
-            accessorKey: 'flag_reason',
-            header: 'Reason',
-            cell: ({ row }) => {
-                const reason = row.original.flag_reason
-                if (!reason)
-                    return <span className="text-muted-foreground">—</span>
-                return (
-                    <Tooltip>
-                        <TooltipTrigger asChild>
-                            <p className="max-w-[200px] truncate text-sm text-red-500">
-                                {reason}
-                            </p>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                            <p className="max-w-xs">{reason}</p>
-                        </TooltipContent>
-                    </Tooltip>
                 )
             },
         },
@@ -164,43 +172,50 @@ export function getTimeLogColumns(
             cell: ({ row }) => {
                 const log = row.original
                 return (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                            >
-                                <MoreHorizontal className="h-3.5 w-3.5" />
-                                <span className="sr-only">Actions</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                                onClick={() => callbacks.onViewLocation(log)}
-                            >
-                                <MapPin className="mr-2 h-3.5 w-3.5" />
-                                View Location
-                            </DropdownMenuItem>
-                            <CopyMenuItem value={String(log.student_id)} />
-                            <DropdownMenuSeparator />
-                            {log.is_flagged ? (
-                                <DropdownMenuItem
-                                    onClick={() => callbacks.onUnflag(log)}
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
                                 >
-                                    <FlagOff className="mr-2 h-3.5 w-3.5" />
-                                    Unflag
-                                </DropdownMenuItem>
-                            ) : (
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                    <span className="sr-only">Actions</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
                                 <DropdownMenuItem
-                                    onClick={() => callbacks.onFlag(log)}
+                                    onClick={() =>
+                                        callbacks.onViewLocation(log)
+                                    }
                                 >
-                                    <Flag className="mr-2 h-3.5 w-3.5" />
-                                    Flag as Suspicious
+                                    <MapPin className="mr-2 h-3.5 w-3.5" />
+                                    View Location
                                 </DropdownMenuItem>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                                <CopyMenuItem value={String(log.student_id)} />
+                                <DropdownMenuSeparator />
+                                {log.is_flagged ? (
+                                    <DropdownMenuItem
+                                        onClick={() => callbacks.onUnflag(log)}
+                                    >
+                                        <FlagOff className="mr-2 h-3.5 w-3.5" />
+                                        Unflag
+                                    </DropdownMenuItem>
+                                ) : (
+                                    <DropdownMenuItem
+                                        onClick={() => callbacks.onFlag(log)}
+                                    >
+                                        <Flag className="mr-2 h-3.5 w-3.5" />
+                                        Flag as Suspicious
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 )
             },
         },

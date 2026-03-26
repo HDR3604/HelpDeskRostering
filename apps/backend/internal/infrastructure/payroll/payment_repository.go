@@ -92,6 +92,9 @@ func (r *PaymentRepository) ListByPeriod(ctx context.Context, tx *sql.Tx, filter
 	if filter.StudentID != nil {
 		condition = condition.AND(authTable.Payments.StudentID.EQ(postgres.Int32(*filter.StudentID)))
 	}
+	if filter.ProcessedOnly {
+		condition = condition.AND(authTable.Payments.ProcessedAt.IS_NOT_NULL())
+	}
 
 	stmt := authTable.Payments.
 		SELECT(authTable.Payments.AllColumns).

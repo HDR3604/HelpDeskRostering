@@ -198,6 +198,9 @@ func (h *TimeLogHandler) ListTimeLogs(w http.ResponseWriter, r *http.Request) {
 			filter.Flagged = &flagged
 		}
 	}
+	if v := r.URL.Query().Get("search"); v != "" {
+		filter.Search = v
+	}
 
 	logs, total, err := h.service.ListTimeLogs(r.Context(), filter)
 	if err != nil {

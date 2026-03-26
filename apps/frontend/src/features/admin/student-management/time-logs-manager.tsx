@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
     Card,
@@ -9,14 +9,15 @@ import {
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DataTable } from '@/components/ui/data-table'
+import { Input } from '@/components/ui/input'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -26,6 +27,7 @@ import {
     useFlagTimeLog,
     useUnflagTimeLog,
 } from '@/lib/queries/time-logs'
+import { getTimeLog } from '@/lib/api/time-logs'
 import type { AdminTimeLogResponse } from '@/lib/api/time-logs'
 import {
     Loader2,
@@ -34,25 +36,63 @@ import {
     Flag,
     ChevronLeft,
     ChevronRight,
+    Search,
 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { LocationMap } from '@/components/ui/location-map'
 
 const PAGE_SIZE = 10
 
-export function TimeLogsManager() {
+interface TimeLogsManagerProps {
+    initialLogId?: string
+}
+
+export function TimeLogsManager({ initialLogId }: TimeLogsManagerProps) {
     const [page, setPage] = useState(1)
+    const [search, setSearch] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    useEffect(() => {
+        return () => {
+            if (debounceRef.current) clearTimeout(debounceRef.current)
+        }
+    }, [])
+
+    function handleSearch(value: string) {
+        setSearch(value)
+        if (debounceRef.current) clearTimeout(debounceRef.current)
+        debounceRef.current = setTimeout(() => {
+            setDebouncedSearch(value)
+            setPage(1)
+        }, 300)
+    }
+
     const { data, isLoading, isFetching } = useTimeLogs({
         page,
         per_page: PAGE_SIZE,
+        search: debouncedSearch || undefined,
     })
+
+    // Separate query for flagged count (across all pages)
+    const { data: flaggedData } = useTimeLogs({
+        per_page: 1,
+        flagged: true,
+    })
+
+    // Auto-open location dialog for a specific log (linked from activity cards)
+    const openedRef = useRef(false)
+    useEffect(() => {
+        if (!initialLogId || openedRef.current) return
+        openedRef.current = true
+        getTimeLog(initialLogId)
+            .then((log) => setLocationTarget(log))
+            .catch(() => {})
+    }, [initialLogId])
 
     const logs = data?.data ?? []
     const total = data?.total ?? 0
-    const flaggedCount = useMemo(
-        () => logs.filter((l) => l.is_flagged).length,
-        [logs],
-    )
+    const flaggedCount = flaggedData?.total ?? 0
 
     const flagMutation = useFlagTimeLog()
     const unflagMutation = useUnflagTimeLog()
@@ -114,6 +154,8 @@ export function TimeLogsManager() {
         [handleFlag, handleUnflag, handleViewLocation],
     )
 
+    const totalPages = Math.ceil(total / PAGE_SIZE)
+
     return (
         <>
             <Card>
@@ -122,17 +164,17 @@ export function TimeLogsManager() {
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
                                 <CardTitle>Time Logs</CardTitle>
-                                {!isLoading && logs.length > 0 && (
+                                {!isLoading && (
                                     <>
                                         {flaggedCount > 0 ? (
                                             <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15">
                                                 {flaggedCount} flagged
                                             </Badge>
-                                        ) : (
+                                        ) : total > 0 ? (
                                             <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
                                                 All clear
                                             </Badge>
-                                        )}
+                                        ) : null}
                                     </>
                                 )}
                                 {isFetching && (
@@ -153,65 +195,87 @@ export function TimeLogsManager() {
                                 Loading time logs...
                             </p>
                         </div>
-                    ) : logs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-                                <Clock className="size-7 text-primary" />
-                            </div>
-                            <h2 className="mt-5 text-base font-semibold">
-                                No time logs
-                            </h2>
-                            <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-                                No clock-in records found. Time logs will appear
-                                here once students begin clocking in.
-                            </p>
-                        </div>
                     ) : (
-                        <>
-                            <DataTable
-                                columns={columns}
-                                data={logs}
-                                searchPlaceholder="Search by name or email"
-                                globalFilter
-                                emptyMessage="No time logs match your search."
-                                pageSize={PAGE_SIZE}
-                            />
-                            {total > PAGE_SIZE && (
-                                <div className="flex items-center justify-between pt-4">
-                                    <p className="text-xs text-muted-foreground">
-                                        {(page - 1) * PAGE_SIZE + 1}–
-                                        {Math.min(page * PAGE_SIZE, total)} of{' '}
-                                        {total}
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            disabled={page <= 1}
-                                            onClick={() =>
-                                                setPage((p) =>
-                                                    Math.max(1, p - 1),
-                                                )
-                                            }
-                                        >
-                                            <ChevronLeft className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="icon"
-                                            className="h-7 w-7"
-                                            disabled={page * PAGE_SIZE >= total}
-                                            onClick={() =>
-                                                setPage((p) => p + 1)
-                                            }
-                                        >
-                                            <ChevronRight className="h-3.5 w-3.5" />
-                                        </Button>
+                        <div className="space-y-3">
+                            {/* Server-side search */}
+                            <div className="relative w-full sm:w-64">
+                                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                <Input
+                                    placeholder="Search by name or email..."
+                                    value={search}
+                                    onChange={(e) =>
+                                        handleSearch(e.target.value)
+                                    }
+                                    className="h-8 pl-8 text-xs"
+                                />
+                            </div>
+
+                            {logs.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-12 text-center">
+                                    <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
+                                        <Clock className="size-7 text-primary" />
                                     </div>
+                                    <h2 className="mt-5 text-base font-semibold">
+                                        {debouncedSearch
+                                            ? 'No results'
+                                            : 'No time logs'}
+                                    </h2>
+                                    <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
+                                        {debouncedSearch
+                                            ? `No time logs match "${debouncedSearch}".`
+                                            : 'No clock-in records found. Time logs will appear here once students begin clocking in.'}
+                                    </p>
                                 </div>
+                            ) : (
+                                <>
+                                    <DataTable
+                                        columns={columns}
+                                        data={logs}
+                                        emptyMessage="No time logs found."
+                                        pageSize={PAGE_SIZE}
+                                        onRowClick={handleViewLocation}
+                                    />
+
+                                    {/* Server-side pagination */}
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-muted-foreground">
+                                            {(page - 1) * PAGE_SIZE + 1}–
+                                            {Math.min(page * PAGE_SIZE, total)}{' '}
+                                            of {total}
+                                        </p>
+                                        <div className="flex items-center gap-1">
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                disabled={page <= 1}
+                                                onClick={() =>
+                                                    setPage((p) =>
+                                                        Math.max(1, p - 1),
+                                                    )
+                                                }
+                                            >
+                                                <ChevronLeft className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <span className="px-2 text-xs tabular-nums text-muted-foreground">
+                                                {page} / {totalPages || 1}
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-7 w-7"
+                                                disabled={page >= totalPages}
+                                                onClick={() =>
+                                                    setPage((p) => p + 1)
+                                                }
+                                            >
+                                                <ChevronRight className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </>
                             )}
-                        </>
+                        </div>
                     )}
                 </CardContent>
             </Card>
