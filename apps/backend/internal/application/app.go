@@ -150,7 +150,7 @@ func NewApp(cfg Config) (*App, error) {
 	workers := river.NewWorkers()
 
 	schedGenWorker := jobs.NewScheduleGenerationWorker(
-		logger, scheduleGenerationSvc, schedulerSvc, scheduleRepository, txManager,
+		logger, scheduleGenerationSvc, scheduleGenerationRepository, schedulerSvc, scheduleRepository, txManager,
 	)
 	river.AddWorker(workers, schedGenWorker)
 

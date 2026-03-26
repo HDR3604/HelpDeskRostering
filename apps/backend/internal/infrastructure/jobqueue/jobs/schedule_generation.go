@@ -42,26 +42,29 @@ func (ScheduleGenerationArgs) InsertOpts() river.InsertOpts {
 // ScheduleGenerationWorker processes schedule generation jobs by calling the Python scheduler.
 type ScheduleGenerationWorker struct {
 	river.WorkerDefaults[ScheduleGenerationArgs]
-	logger        *zap.Logger
-	generationSvc service.ScheduleGenerationServiceInterface
-	schedulerSvc  schedulerInterfaces.SchedulerServiceInterface
-	scheduleRepo  repository.ScheduleRepositoryInterface
-	txManager     database.TxManagerInterface
+	logger         *zap.Logger
+	generationSvc  service.ScheduleGenerationServiceInterface
+	generationRepo repository.ScheduleGenerationRepositoryInterface
+	schedulerSvc   schedulerInterfaces.SchedulerServiceInterface
+	scheduleRepo   repository.ScheduleRepositoryInterface
+	txManager      database.TxManagerInterface
 }
 
 func NewScheduleGenerationWorker(
 	logger *zap.Logger,
 	generationSvc service.ScheduleGenerationServiceInterface,
+	generationRepo repository.ScheduleGenerationRepositoryInterface,
 	schedulerSvc schedulerInterfaces.SchedulerServiceInterface,
 	scheduleRepo repository.ScheduleRepositoryInterface,
 	txManager database.TxManagerInterface,
 ) *ScheduleGenerationWorker {
 	return &ScheduleGenerationWorker{
-		logger:        logger.Named("schedule_generation_worker"),
-		generationSvc: generationSvc,
-		schedulerSvc:  schedulerSvc,
-		scheduleRepo:  scheduleRepo,
-		txManager:     txManager,
+		logger:         logger.Named("schedule_generation_worker"),
+		generationSvc:  generationSvc,
+		generationRepo: generationRepo,
+		schedulerSvc:   schedulerSvc,
+		scheduleRepo:   scheduleRepo,
+		txManager:      txManager,
 	}
 }
 
@@ -151,21 +154,29 @@ func (w *ScheduleGenerationWorker) Work(ctx context.Context, job *river.Job[Sche
 	schedule.GenerationID = &args.GenerationID
 	schedule.SchedulerMetadata = &schedulerMetadata
 
+	// Create the schedule and mark generation completed in a single transaction
+	// to prevent partial success (schedule exists but generation stuck pending).
 	var result *aggregate.Schedule
 	err = w.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
 		var txErr error
 		result, txErr = w.scheduleRepo.Create(ctx, tx, schedule)
-		return txErr
+		if txErr != nil {
+			return txErr
+		}
+
+		generation, txErr := w.generationRepo.GetByID(ctx, tx, args.GenerationID)
+		if txErr != nil {
+			return txErr
+		}
+		if txErr = generation.MarkCompleted(result.ScheduleID, string(responsePayload)); txErr != nil {
+			return txErr
+		}
+		return w.generationRepo.Update(ctx, tx, generation)
 	})
 	if err != nil {
-		log.Error("failed to create schedule", zap.Error(err))
+		log.Error("failed to create schedule and complete generation", zap.Error(err))
 		w.markFailed(ctx, args.GenerationID, fmt.Sprintf("failed to create schedule: %v", err))
 		return nil
-	}
-
-	// Mark generation completed
-	if err := w.generationSvc.MarkCompleted(ctx, args.GenerationID, result.ScheduleID, string(responsePayload)); err != nil {
-		log.Error("failed to mark generation as completed", zap.Error(err))
 	}
 
 	log.Info("schedule generated successfully",

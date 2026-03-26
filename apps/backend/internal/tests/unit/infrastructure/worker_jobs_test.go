@@ -24,11 +24,12 @@ import (
 
 type ScheduleGenerationWorkerSuite struct {
 	suite.Suite
-	generationSvc *mocks.MockScheduleGenerationService
-	schedulerSvc  *mocks.MockSchedulerService
-	scheduleRepo  *mocks.MockScheduleRepository
-	txManager     *mocks.StubTxManager
-	worker        *jobs.ScheduleGenerationWorker
+	generationSvc  *mocks.MockScheduleGenerationService
+	generationRepo *mocks.MockScheduleGenerationRepository
+	schedulerSvc   *mocks.MockSchedulerService
+	scheduleRepo   *mocks.MockScheduleRepository
+	txManager      *mocks.StubTxManager
+	worker         *jobs.ScheduleGenerationWorker
 }
 
 func TestScheduleGenerationWorkerSuite(t *testing.T) {
@@ -37,11 +38,12 @@ func TestScheduleGenerationWorkerSuite(t *testing.T) {
 
 func (s *ScheduleGenerationWorkerSuite) SetupTest() {
 	s.generationSvc = &mocks.MockScheduleGenerationService{}
+	s.generationRepo = &mocks.MockScheduleGenerationRepository{}
 	s.schedulerSvc = &mocks.MockSchedulerService{}
 	s.scheduleRepo = &mocks.MockScheduleRepository{}
 	s.txManager = &mocks.StubTxManager{}
 	s.worker = jobs.NewScheduleGenerationWorker(
-		zap.NewNop(), s.generationSvc, s.schedulerSvc, s.scheduleRepo, s.txManager,
+		zap.NewNop(), s.generationSvc, s.generationRepo, s.schedulerSvc, s.scheduleRepo, s.txManager,
 	)
 }
 
@@ -89,7 +91,16 @@ func (s *ScheduleGenerationWorkerSuite) setupHappyPath(args jobs.ScheduleGenerat
 		sched.CreatedAt = time.Now()
 		return sched, nil
 	}
-	s.generationSvc.MarkCompletedFn = func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string) error { return nil }
+	// Generation repo mocks for the atomic create+complete transaction
+	now := time.Now()
+	s.generationRepo.GetByIDFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) (*aggregate.ScheduleGeneration, error) {
+		return &aggregate.ScheduleGeneration{
+			ID:        args.GenerationID,
+			Status:    aggregate.GenerationStatus_Pending,
+			StartedAt: &now,
+		}, nil
+	}
+	s.generationRepo.UpdateFn = func(_ context.Context, _ *sql.Tx, _ *aggregate.ScheduleGeneration) error { return nil }
 	s.generationSvc.MarkFailedFn = func(_ context.Context, _ uuid.UUID, _ string) error { return nil }
 	s.generationSvc.MarkInfeasibleFn = func(_ context.Context, _ uuid.UUID, _ string, _ string) error { return nil }
 	return completedScheduleID
@@ -100,8 +111,10 @@ func (s *ScheduleGenerationWorkerSuite) TestWork_Success() {
 	completedScheduleID := s.setupHappyPath(args)
 
 	var capturedScheduleID uuid.UUID
-	s.generationSvc.MarkCompletedFn = func(_ context.Context, _ uuid.UUID, scheduleID uuid.UUID, _ string) error {
-		capturedScheduleID = scheduleID
+	s.generationRepo.UpdateFn = func(_ context.Context, _ *sql.Tx, gen *aggregate.ScheduleGeneration) error {
+		s.Equal(aggregate.GenerationStatus_Completed, gen.Status)
+		s.Require().NotNil(gen.ScheduleID)
+		capturedScheduleID = *gen.ScheduleID
 		return nil
 	}
 
@@ -217,8 +230,10 @@ func (s *ScheduleGenerationWorkerSuite) TestWork_MarkStartedFails_StillProcesses
 	}
 
 	var completedCalled bool
-	s.generationSvc.MarkCompletedFn = func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string) error {
-		completedCalled = true
+	s.generationRepo.UpdateFn = func(_ context.Context, _ *sql.Tx, gen *aggregate.ScheduleGeneration) error {
+		if gen.Status == aggregate.GenerationStatus_Completed {
+			completedCalled = true
+		}
 		return nil
 	}
 
