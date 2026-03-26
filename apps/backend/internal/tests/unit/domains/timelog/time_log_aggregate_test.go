@@ -129,7 +129,7 @@ func (s *TimeLogAggregateTestSuite) TestNewTimeLog_BoundaryCoordinates() {
 func (s *TimeLogAggregateTestSuite) TestClockOut_Success() {
 	tl, _ := aggregate.NewTimeLog(1, -61.5, 10.5, 50.0)
 
-	err := tl.ClockOut()
+	err := tl.ClockOut(time.Now().UTC())
 
 	s.NoError(err)
 	s.NotNil(tl.ExitAt)
@@ -138,9 +138,9 @@ func (s *TimeLogAggregateTestSuite) TestClockOut_Success() {
 
 func (s *TimeLogAggregateTestSuite) TestClockOut_AlreadyClockedOut() {
 	tl, _ := aggregate.NewTimeLog(1, -61.5, 10.5, 50.0)
-	s.NoError(tl.ClockOut())
+	s.NoError(tl.ClockOut(time.Now().UTC()))
 
-	err := tl.ClockOut()
+	err := tl.ClockOut(time.Now().UTC())
 
 	s.ErrorIs(err, timelogErrors.ErrAlreadyClockedOut)
 }
@@ -205,7 +205,7 @@ func (s *TimeLogAggregateTestSuite) TestUnflag_WhenNotFlagged() {
 func (s *TimeLogAggregateTestSuite) TestModelRoundTrip() {
 	tl, _ := aggregate.NewTimeLog(1, -61.5, 10.5, 150.0)
 	tl.CreatedAt = time.Now().UTC()
-	s.NoError(tl.ClockOut())
+	s.NoError(tl.ClockOut(time.Now().UTC()))
 	s.NoError(tl.Flag("too far"))
 
 	m := tl.ToModel()
