@@ -12,10 +12,11 @@ import (
 var _ repository.ScheduleGenerationRepositoryInterface = (*MockScheduleGenerationRepository)(nil)
 
 type MockScheduleGenerationRepository struct {
-	CreateFn  func(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) (*aggregate.ScheduleGeneration, error)
-	GetByIDFn func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ScheduleGeneration, error)
-	ListFn    func(ctx context.Context, tx *sql.Tx) ([]*aggregate.ScheduleGeneration, error)
-	UpdateFn  func(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) error
+	CreateFn    func(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) (*aggregate.ScheduleGeneration, error)
+	GetByIDFn   func(ctx context.Context, tx *sql.Tx, id uuid.UUID) (*aggregate.ScheduleGeneration, error)
+	ListFn      func(ctx context.Context, tx *sql.Tx) ([]*aggregate.ScheduleGeneration, error)
+	UpdateFn    func(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) error
+	HasActiveFn func(ctx context.Context, tx *sql.Tx) (bool, error)
 }
 
 func (m *MockScheduleGenerationRepository) Create(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) (*aggregate.ScheduleGeneration, error) {
@@ -32,4 +33,8 @@ func (m *MockScheduleGenerationRepository) List(ctx context.Context, tx *sql.Tx)
 
 func (m *MockScheduleGenerationRepository) Update(ctx context.Context, tx *sql.Tx, generation *aggregate.ScheduleGeneration) error {
 	return m.UpdateFn(ctx, tx, generation)
+}
+
+func (m *MockScheduleGenerationRepository) HasActive(ctx context.Context, tx *sql.Tx) (bool, error) {
+	return m.HasActiveFn(ctx, tx)
 }

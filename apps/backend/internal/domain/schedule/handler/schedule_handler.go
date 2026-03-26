@@ -561,6 +561,8 @@ func (h *ScheduleHandler) handleServiceError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusUnprocessableEntity, "no feasible schedule found")
 	case errors.Is(err, scheduleErrors.ErrNoActiveShiftTemplates):
 		writeError(w, http.StatusUnprocessableEntity, "no active shift templates configured")
+	case errors.Is(err, scheduleErrors.ErrGenerationInProgress):
+		writeError(w, http.StatusConflict, "a schedule generation is already in progress")
 	case errors.Is(err, scheduleErrors.ErrSchedulerConfigNotFound):
 		writeError(w, http.StatusNotFound, "scheduler config not found")
 	default:

@@ -394,6 +394,16 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 		return nil, scheduleErrors.ErrMissingAuthContext
 	}
 
+	// Reject if a generation is already in progress
+	hasActive, err := s.generationSvc.HasActive(ctx)
+	if err != nil {
+		s.logger.Error("failed to check for active generations", zap.Error(err))
+		return nil, err
+	}
+	if hasActive {
+		return nil, scheduleErrors.ErrGenerationInProgress
+	}
+
 	// Validate schedule params before creating generation record
 	if _, err := aggregate.NewSchedule(params.Title, params.EffectiveFrom, params.EffectiveTo); err != nil {
 		return nil, err

@@ -36,7 +36,9 @@ func TestScheduleServiceTestSuite(t *testing.T) {
 
 func (s *ScheduleServiceTestSuite) SetupTest() {
 	s.repo = &mocks.MockScheduleRepository{}
-	s.generationSvc = &mocks.MockScheduleGenerationService{}
+	s.generationSvc = &mocks.MockScheduleGenerationService{
+		HasActiveFn: func(_ context.Context) (bool, error) { return false, nil },
+	}
 	s.jobEnqueuer = &mocks.MockJobEnqueuer{}
 	s.shiftTemplateSvc = &mocks.MockShiftTemplateService{}
 	s.schedulerConfigSvc = &mocks.MockSchedulerConfigService{}
@@ -293,6 +295,9 @@ func (s *ScheduleServiceTestSuite) newSchedulerResponse() *types.GenerateSchedul
 }
 
 func (s *ScheduleServiceTestSuite) setupGenerationMocks(generationID uuid.UUID) {
+	s.generationSvc.HasActiveFn = func(_ context.Context) (bool, error) {
+		return false, nil
+	}
 	s.generationSvc.CreateFn = func(_ context.Context, _ uuid.UUID, _ uuid.UUID, _ string) (*aggregate.ScheduleGeneration, error) {
 		return &aggregate.ScheduleGeneration{ID: generationID, Status: aggregate.GenerationStatus_Pending}, nil
 	}
@@ -336,6 +341,17 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Success() {
 	s.Equal(s.userID, enqueuedArgs.CreatedBy)
 	s.Len(enqueuedArgs.RequestPayload.Shifts, 1)
 	s.Equal(float32(100.0), enqueuedArgs.RequestPayload.SchedulerConfig.UnderstaffedPenalty)
+}
+
+func (s *ScheduleServiceTestSuite) TestGenerateSchedule_RejectsWhenGenerationInProgress() {
+	s.generationSvc.HasActiveFn = func(_ context.Context) (bool, error) {
+		return true, nil
+	}
+
+	result, err := s.service.GenerateSchedule(s.authCtx, s.newGenerateParams())
+
+	s.ErrorIs(err, scheduleErrors.ErrGenerationInProgress)
+	s.Nil(result)
 }
 
 func (s *ScheduleServiceTestSuite) TestGenerateSchedule_MissingAuthContext() {

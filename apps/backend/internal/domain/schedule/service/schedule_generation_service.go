@@ -19,6 +19,7 @@ type ScheduleGenerationServiceInterface interface {
 	MarkCompleted(ctx context.Context, id uuid.UUID, scheduleID uuid.UUID, responsePayload string) error
 	MarkFailed(ctx context.Context, id uuid.UUID, errorMessage string) error
 	MarkInfeasible(ctx context.Context, id uuid.UUID, responsePayload string, errorMessage string) error
+	HasActive(ctx context.Context) (bool, error)
 
 	// External methods (exposed via handler for admin audit)
 	GetByID(ctx context.Context, id uuid.UUID) (*aggregate.ScheduleGeneration, error)
@@ -163,6 +164,16 @@ func (s *ScheduleGenerationService) MarkInfeasible(ctx context.Context, id uuid.
 
 	s.logger.Info("schedule generation marked as infeasible", zap.String("generation_id", id.String()))
 	return nil
+}
+
+func (s *ScheduleGenerationService) HasActive(ctx context.Context) (bool, error) {
+	var hasActive bool
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		var txErr error
+		hasActive, txErr = s.repository.HasActive(ctx, tx)
+		return txErr
+	})
+	return hasActive, err
 }
 
 // --- External methods (InAuthTx, validates auth context) ---
