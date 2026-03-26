@@ -1,368 +1,641 @@
 import * as React from 'react'
-import { useState, useEffect } from 'react'
-import { toast } from "sonner"
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
     Card,
-    CardContent
+    CardContent,
+    CardHeader,
+    CardTitle,
+    CardDescription,
 } from '@/components/ui/card'
-import { 
-    Dialog, 
-    DialogContent, 
-    DialogHeader, 
-    DialogTitle, 
-    DialogFooter, 
-    DialogDescription
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
 } from '@/components/ui/dialog'
-import { 
-    Select, 
-    SelectContent, 
-    SelectItem, 
-    SelectTrigger, 
-    SelectValue 
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select'
-import { 
-    Upload, 
-    FileText, 
+import {
+    Upload,
+    FileText,
     LockOpen,
     Pencil,
-    Save
+    Check,
+    X,
+    Loader2,
 } from 'lucide-react'
 import { useLocation } from '@tanstack/react-router'
 import { useUser } from '@/lib/auth/hooks/use-user'
+import { useMyStudentProfile } from '@/lib/queries/students'
 import { usePasswordReset } from '@/lib/auth/use-password-reset'
 import { StepAvailability } from '@/features/sign-up/components/step-availability'
+import { PhoneNumberInput } from '@/features/sign-up/components/phone-input'
+import { cn } from '@/lib/utils'
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
-//List of local banks
 const TT_BANKS = [
-    "Republic Bank Ltd.",
-    "Scotiabank (T&T) Ltd.",
-    "First Citizens Bank", 
-    "RBC Royal Bank (T&T) Ltd.",
-    "JMMB Bank (T&T) Ltd.",
-    "ANSA Bank Limited",
-    "Central Bank",
-    "First Caribbean International Bank",
-    "Citibank Trinidad Ltd.",
+    'Republic Bank Ltd.',
+    'Scotiabank (T&T) Ltd.',
+    'First Citizens Bank',
+    'RBC Royal Bank (T&T) Ltd.',
+    'JMMB Bank (T&T) Ltd.',
+    'ANSA Bank Limited',
+    'Central Bank',
+    'First Caribbean International Bank',
+    'Citibank Trinidad Ltd.',
 ]
 
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+/** A row in a settings card — label on the left, value/form on the right. */
+function SettingsRow({
+    label,
+    description,
+    children,
+}: {
+    label: string
+    description?: string
+    children: React.ReactNode
+}) {
+    return (
+        <div className="flex flex-col gap-1.5 py-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="shrink-0 sm:w-40">
+                <p className="text-sm font-medium">{label}</p>
+                {description && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                        {description}
+                    </p>
+                )}
+            </div>
+            <div className="flex flex-1 items-start">{children}</div>
+        </div>
+    )
+}
+
+/** A read-only value that becomes editable on click (pencil icon on hover). */
+function EditableValue({
+    display,
+    onEdit,
+}: {
+    display: string
+    onEdit: () => void
+}) {
+    return (
+        <button
+            type="button"
+            className="group flex flex-1 items-center justify-start text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-muted/60 transition-colors"
+            onClick={onEdit}
+        >
+            <span className="pr-2 text-sm text-foreground">
+                {display || (
+                    <span className="text-muted-foreground">{'\u2014'}</span>
+                )}
+            </span>
+            <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+    )
+}
+
+/** A read-only value that is not editable. */
+function ReadOnlyValue({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="px-2 py-1.5 -mx-2 text-sm text-muted-foreground">
+            {children}
+        </p>
+    )
+}
+
+/** Wraps editable fields in a `<form>` with Save/Cancel — for critical fields. */
+function InlineForm({
+    onSubmit,
+    onCancel,
+    children,
+}: {
+    onSubmit: () => void
+    onCancel: () => void
+    children: React.ReactNode
+}) {
+    return (
+        <form
+            className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end"
+            onSubmit={(e) => {
+                e.preventDefault()
+                onSubmit()
+            }}
+        >
+            <div className="flex-1">{children}</div>
+            <div className="flex gap-2 shrink-0 pb-0.5">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onCancel}
+                >
+                    Cancel
+                </Button>
+                <Button type="submit" size="sm" variant="outline">
+                    Save
+                </Button>
+            </div>
+        </form>
+    )
+}
+
+/** Auto-save input — debounces changes and saves only if validation passes. */
+function AutoSaveInput({
+    value,
+    onSave,
+    validate,
+    placeholder,
+    type = 'text',
+    ...props
+}: {
+    value: string
+    onSave: (value: string) => void
+    validate?: (value: string) => boolean
+    placeholder?: string
+    type?: string
+} & Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange' | 'onSave'>) {
+    const [draft, setDraft] = useState(value)
+    const [invalid, setInvalid] = useState(false)
+    const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+    const savedRef = useRef(value)
+
+    useEffect(() => {
+        setDraft(value)
+        savedRef.current = value
+    }, [value])
+
+    const debounceSave = useCallback(
+        (val: string) => {
+            if (timerRef.current) clearTimeout(timerRef.current)
+            timerRef.current = setTimeout(() => {
+                const trimmed = val.trim()
+                if (!trimmed || trimmed === savedRef.current) {
+                    setInvalid(false)
+                    return
+                }
+                if (validate && !validate(trimmed)) {
+                    setInvalid(true)
+                    return
+                }
+                setInvalid(false)
+                savedRef.current = trimmed
+                onSave(trimmed)
+            }, 800)
+        },
+        [onSave, validate],
+    )
+
+    useEffect(() => {
+        return () => {
+            if (timerRef.current) clearTimeout(timerRef.current)
+        }
+    }, [])
+
+    return (
+        <Input
+            type={type}
+            value={draft}
+            placeholder={placeholder}
+            className={cn(
+                invalid && 'border-red-500 focus-visible:ring-red-500',
+            )}
+            onChange={(e) => {
+                setDraft(e.target.value)
+                setInvalid(false)
+                debounceSave(e.target.value)
+            }}
+            onBlur={() => {
+                if (timerRef.current) clearTimeout(timerRef.current)
+                const trimmed = draft.trim()
+                if (!trimmed || trimmed === savedRef.current) return
+                if (validate && !validate(trimmed)) {
+                    setInvalid(true)
+                    return
+                }
+                setInvalid(false)
+                savedRef.current = trimmed
+                onSave(trimmed)
+            }}
+            {...props}
+        />
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export function StudentSettings() {
-    const { firstName: userFirstName, lastName: userLastName, email: userEmail } = useUser()
-    const { sendResetEmail, isLoading: resetLoading, resendTimer } = usePasswordReset()
+    const {
+        firstName: userFirstName,
+        lastName: userLastName,
+        email: userEmail,
+    } = useUser()
+    const {
+        sendResetEmail,
+        isLoading: resetLoading,
+        resendTimer,
+    } = usePasswordReset()
 
     const { pathname } = useLocation()
-    const activeTab = pathname.includes("availability")
-    ? "availability"
-    : pathname.includes("payment")
-    ? "payment"
-    : "profile"
+    const activeTab = pathname.includes('availability')
+        ? 'availability'
+        : pathname.includes('payment')
+          ? 'payment'
+          : 'profile'
 
-    // Profile (add api call)
-    const [studentId] = useState<number | null>(null)
-    const [firstName, setFirstName] = useState(userFirstName ?? "")
-    const [lastName, setLastName] = useState(userLastName ?? "")
-    const [email, setEmail] = useState(userEmail ?? "")
-    const [phone, setPhone] = useState("")
-    const [degree] = useState<string | null>(null)
+    // -- Student profile data ------------------------------------------------
+
+    const profileQuery = useMyStudentProfile()
+    const student = profileQuery.data
+    const transcript = student?.transcript_metadata
+
+    const [firstName, setFirstName] = useState(userFirstName ?? '')
+    const [lastName, setLastName] = useState(userLastName ?? '')
+    const [phone, setPhone] = useState('')
+    const [savedIndicator, setSavedIndicator] = useState(false)
+
     useEffect(() => {
         if (userFirstName) setFirstName(userFirstName)
         if (userLastName) setLastName(userLastName)
-        if (userEmail) setEmail(userEmail)
-    }, [userFirstName, userLastName, userEmail])
+    }, [userFirstName, userLastName])
 
+    // Load phone from student profile
+    useEffect(() => {
+        if (student?.phone_number) setPhone(student.phone_number)
+    }, [student?.phone_number])
+
+    function flashSaved() {
+        setSavedIndicator(true)
+        setTimeout(() => setSavedIndicator(false), 2000)
+    }
+
+    // Profile auto-save handlers (debounced)
+    const handleAutoSaveFirstName = useCallback(
+        (val: string) => {
+            setFirstName(val)
+            flashSaved()
+            // TODO: API call
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
+    )
+    const handleAutoSaveLastName = useCallback(
+        (val: string) => {
+            setLastName(val)
+            flashSaved()
+            // TODO: API call
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
+    )
+    const handleAutoSavePhone = useCallback(
+        (val: string) => {
+            setPhone(val)
+            flashSaved()
+            // TODO: API call
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [],
+    )
+
+    // Click-to-edit states for profile fields
     const [editingName, setEditingName] = useState(false)
     const [editingPhone, setEditingPhone] = useState(false)
-    const [draftFirstName, setDraftFirstName] = useState("")
-    const [draftLastName, setDraftLastName] = useState("")
-    const [draftPhone, setDraftPhone] = useState("")
 
-    // Availability
-    const [availability, setAvailability] = React.useState<Record<string, number[]>>({})
-    const availabilityFormRef = React.useRef<HTMLDivElement>(null)
-    
-    // Transcript upload
+    // Escape key to close any open editor
+    useEffect(() => {
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape') {
+                setEditingName(false)
+                setEditingPhone(false)
+                setEditingBankName(false)
+                setEditingBranch(false)
+                setEditingAccountType(false)
+                setEditingAccountNumber(false)
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [])
+
+    // -- Availability state -------------------------------------------------
+
+    const [availability, setAvailability] = useState<Record<string, number[]>>(
+        {},
+    )
+    const availabilityFormRef = useRef<HTMLDivElement>(null)
+    const [availabilityDirty, setAvailabilityDirty] = useState(false)
+    const [availabilitySaving, setAvailabilitySaving] = useState(false)
+    const [availabilitySaveStatus, setAvailabilitySaveStatus] = useState<
+        'success' | 'error' | null
+    >(null)
+
+    // -- Transcript upload --------------------------------------------------
+
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isUploading, setIsUploading] = useState(false)
     const [transcriptUrl, setTranscriptUrl] = useState<string | null>(null)
 
-    // Payment states
-    const [bankName, setBankName]       = useState("")
-    const [accountType, setAccountType] = useState("")
-    const [accountNumber, setAccountNumber] = useState("")
+    // -- Payment state (TODO: replace with API calls) -----------------------
 
-    // Payment edit modes
-    const [editingBankName, setEditingBankName]         = useState(false)
-    const [editingAccountType, setEditingAccountType]   = useState(false)
+    const [bankName, setBankName] = useState('')
+    const [branchName, setBranchName] = useState('')
+    const [accountType, setAccountType] = useState('')
+    const [accountNumber, setAccountNumber] = useState('')
+
+    const [editingBankName, setEditingBankName] = useState(false)
+    const [editingBranch, setEditingBranch] = useState(false)
+    const [editingAccountType, setEditingAccountType] = useState(false)
     const [editingAccountNumber, setEditingAccountNumber] = useState(false)
 
-    // Payment draft values
-    const [draftBankName, setDraftBankName]         = useState("")
-    const [draftAccountType, setDraftAccountType]   = useState("")
-    const [draftAccountNumber, setDraftAccountNumber] = useState("")
+    const [draftBankName, setDraftBankName] = useState('')
+    const [draftBranch, setDraftBranch] = useState('')
+    const [draftAccountType, setDraftAccountType] = useState('')
+    const [draftAccountNumber, setDraftAccountNumber] = useState('')
 
-    // Password dialog
+    // -- Password dialog ----------------------------------------------------
+
     const [showPasswordDialog, setShowPasswordDialog] = useState(false)
 
-    // Handlers also api call
-    function handleSaveName() {
-        if (draftFirstName === "" || draftLastName === "") {
-          toast.error("Name cannot be empty.")
-          return
-        }
-        setFirstName(draftFirstName)
-        setLastName(draftLastName)
-        setEditingName(false)
-        toast.success("Name updated.")
-    }
-
-    function handleSavePhone() {
-        setPhone(draftPhone)
-        setEditingPhone(false)
-        toast.success("Phone number updated.")
-    }
+    // -- Handlers -----------------------------------------------------------
 
     function handleSaveBankName() {
-        if (!draftBankName) { toast.error("Please select a bank."); return }
+        if (!draftBankName) {
+            toast.error('Please select a bank.')
+            return
+        }
         setBankName(draftBankName)
         setEditingBankName(false)
-        toast.success("Bank updated.")
+        toast.success('Bank updated.')
+    }
+
+    function handleSaveBranch() {
+        if (!draftBranch.trim()) {
+            toast.error('Branch cannot be empty.')
+            return
+        }
+        setBranchName(draftBranch)
+        setEditingBranch(false)
+        toast.success('Branch updated.')
     }
 
     function handleSaveAccountType() {
-        if (!draftAccountType) { toast.error("Please select an account type."); return }
+        if (!draftAccountType) {
+            toast.error('Please select an account type.')
+            return
+        }
         setAccountType(draftAccountType)
         setEditingAccountType(false)
-        toast.success("Account type updated.")
+        toast.success('Account type updated.')
     }
 
     function handleSaveAccountNumber() {
-        if (!draftAccountNumber) { toast.error("Account number cannot be empty."); return }
+        if (!draftAccountNumber.trim()) {
+            toast.error('Account number cannot be empty.')
+            return
+        }
         setAccountNumber(draftAccountNumber)
         setEditingAccountNumber(false)
-        toast.success("Account number updated.")
+        toast.success('Account number updated.')
     }
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0]
         if (!file) return
-        if (file.type !== "application/pdf") {
-            toast.error("Please upload a PDF file.")
+        if (file.type !== 'application/pdf') {
+            toast.error('Please upload a PDF file.')
             return
         }
         setSelectedFile(file)
     }
 
-    // Update handleUpload to create a local object URL
     async function handleUpload() {
-        if (!selectedFile) 
-            return
+        if (!selectedFile) return
         setIsUploading(true)
         const url = URL.createObjectURL(selectedFile)
         await new Promise((r) => setTimeout(r, 1000))
         setIsUploading(false)
         setTranscriptUrl(url)
         setSelectedFile(null)
-        toast.success("Transcript uploaded successfully.")
-        // replace url with the URL returned from the API
+        toast.success('Transcript uploaded successfully.')
+        // TODO: replace url with the URL returned from the API
     }
+
+    const handleSaveAvailability = useCallback(() => {
+        availabilityFormRef.current
+            ?.querySelector<HTMLButtonElement>("button[type='submit']")
+            ?.click()
+    }, [])
+
+    // Track dirty state for availability form
+    useEffect(() => {
+        if (activeTab !== 'availability') return
+        const el = availabilityFormRef.current
+        if (!el) return
+        const markDirty = () => setAvailabilityDirty(true)
+        el.addEventListener('change', markDirty)
+        el.addEventListener('click', markDirty)
+        return () => {
+            el.removeEventListener('change', markDirty)
+            el.removeEventListener('click', markDirty)
+        }
+    }, [activeTab])
+
+    // Keyboard shortcut for availability save (Cmd+S / Ctrl+S)
+    useEffect(() => {
+        if (activeTab !== 'availability' || !availabilityDirty) return
+        function onKeyDown(e: KeyboardEvent) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault()
+                handleSaveAvailability()
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [activeTab, availabilityDirty, handleSaveAvailability])
+
+    // Clear save status after a delay
+    useEffect(() => {
+        if (!availabilitySaveStatus) return
+        const id = setTimeout(() => setAvailabilitySaveStatus(null), 2500)
+        return () => clearTimeout(id)
+    }, [availabilitySaveStatus])
+
+    // -----------------------------------------------------------------------
+    // Render
+    // -----------------------------------------------------------------------
 
     return (
         <div className="max-w-5xl space-y-6">
-            {/* Profile Tab */}
-            {activeTab === "profile" && (
+            {/* ============================================================= */}
+            {/* Profile Tab                                                    */}
+            {/* ============================================================= */}
+            {activeTab === 'profile' && (
                 <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Profile</CardTitle>
+                                <CardDescription>
+                                    Your personal information and documents.
+                                </CardDescription>
+                            </div>
+                            {savedIndicator && (
+                                <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in duration-150">
+                                    <Check className="h-3.5 w-3.5" /> Saved
+                                </span>
+                            )}
+                        </div>
+                    </CardHeader>
                     <CardContent>
                         <div className="space-y-0">
-
                             {/* Student ID */}
-                            <div className="flex items-center justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Student ID</p>
-                                </div>
-                                <div className="flex flex-1 items-center">
-                                    <p className="text-sm text-muted-foreground">{studentId || "-"}</p>
-                                </div>
-                            </div>
-                            <Separator />
-                            
-                            {/* Email */}
-                            <div className="flex items-center justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Email</p>
-                                </div>
-                                <div className="flex flex-1 items-center">
-                                    <p className="text-sm text-muted-foreground">{userEmail || "-"}</p>
-                                </div>
-                            </div>
-                            <Separator />
-                            
-                            {/* Degree */}
-                            <div className="flex items-center justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Degree programme</p>
-                                </div>
-                                <div className="flex flex-1 items-center">
-                                    <p className="text-sm text-muted-foreground">{degree || "-"}</p>
-                                </div>
-                            </div>
-                            <Separator />
-                            
-                            {/* Names */}
-                            <div className="flex items-start justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Name</p>
-                                </div>
-                              {editingName ? (
-                                  <div className="flex flex-1 items-end gap-3">
-                                      <div className="flex flex-1 gap-3">
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">First Name</Label>
-                                            <Input 
-                                                value={draftFirstName} 
-                                                onChange={(e) => 
-                                                    setDraftFirstName(
-                                                        e.target.value
-                                                    )
-                                                } 
-                                                autoFocus 
-                                            />
-                                        </div>
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">Last Name</Label>
-                                            <Input 
-                                                value={draftLastName} 
-                                                onChange={(e) => 
-                                                    setDraftLastName(
-                                                        e.target.value
-                                                    )   
-                                                } 
-                                            />  
-                                        </div>
-                                      </div>
-                                      <div className="flex gap-2 pb-0.5">
-                                          <Button 
-                                              size="sm" 
-                                              variant="outline" 
-                                              onClick={() => 
-                                                  setEditingName(
-                                                      false
-                                                  )
-                                              }
-                                          >
-                                              Cancel
-                                          </Button>
-                                          <Button 
-                                              size="sm" 
-                                              onClick={handleSaveName}
-                                          >
-                                              Save
-                                          </Button>
-                                      </div>
-                                  </div>
-                              ) : (
-                                <button
-                                    className="group flex flex-1 items-center justify-start text-left rounded-md px-2 py-1 -mx-2 hover:bg-muted transition-colors"
-                                    onClick={() => {
-                                        setDraftFirstName(firstName)
-                                        setDraftLastName(lastName)
-                                        setEditingName(true)
-                                    }}
-                                >
-                                    <p className="pr-2 text-sm text-muted-foreground">{`${firstName} ${lastName}`.trim() || "-"}</p>
-                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
-                              )}
-                            </div>
+                            <SettingsRow label="Student ID">
+                                <ReadOnlyValue>
+                                    {student?.student_id || '\u2014'}
+                                </ReadOnlyValue>
+                            </SettingsRow>
                             <Separator />
 
-                            {/* Phone */}
-                            <div className="flex items-start justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Phone number</p>
-                                </div>
-                                {editingPhone ? (
-                                    <div className="flex flex-1 items-end gap-3">
+                            {/* Email */}
+                            <SettingsRow label="Email">
+                                <ReadOnlyValue>
+                                    {userEmail || '\u2014'}
+                                </ReadOnlyValue>
+                            </SettingsRow>
+                            <Separator />
+
+                            {/* Programme */}
+                            <SettingsRow label="Programme">
+                                <ReadOnlyValue>
+                                    {transcript?.current_programme || '\u2014'}
+                                    {transcript?.major && (
+                                        <span className="text-muted-foreground/60">
+                                            {' \u2014 '}
+                                            {transcript.major}
+                                        </span>
+                                    )}
+                                </ReadOnlyValue>
+                            </SettingsRow>
+                            <Separator />
+
+                            {/* Name — click to edit, auto-saves with debounce */}
+                            <SettingsRow label="Name">
+                                {editingName ? (
+                                    <div className="flex flex-1 gap-3">
                                         <div className="flex-1 space-y-1.5">
-                                            <Input 
-                                                type="tel" 
-                                                placeholder="868-123-4567" 
-                                                value={draftPhone} 
-                                                onChange={(e) => 
-                                                    setDraftPhone(
-                                                        e.target.value
-                                                    )
-                                                } 
+                                            <Label className="text-xs text-muted-foreground">
+                                                First name
+                                            </Label>
+                                            <AutoSaveInput
+                                                value={firstName}
+                                                onSave={handleAutoSaveFirstName}
+                                                validate={(v) =>
+                                                    v.length >= 2 &&
+                                                    /^[a-zA-Z\s'-]+$/.test(v)
+                                                }
+                                                placeholder="First name"
                                                 autoFocus
                                             />
                                         </div>
-                                        <div className="flex gap-2 pb-0.5">
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                onClick={() => 
-                                                setEditingPhone(false)}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            
-                                            <Button 
-                                                size="sm" 
-                                                onClick={handleSavePhone}
-                                            >
-                                                Save
-                                            </Button>
+                                        <div className="flex-1 space-y-1.5">
+                                            <Label className="text-xs text-muted-foreground">
+                                                Last name
+                                            </Label>
+                                            <AutoSaveInput
+                                                value={lastName}
+                                                onSave={handleAutoSaveLastName}
+                                                validate={(v) =>
+                                                    v.length >= 2 &&
+                                                    /^[a-zA-Z\s'-]+$/.test(v)
+                                                }
+                                                placeholder="Last name"
+                                            />
                                         </div>
                                     </div>
                                 ) : (
-                                    <button
-                                        className="group flex flex-1 items-center justify-start text-left rounded-md px-2 py-1 -mx-2 hover:bg-muted transition-colors"
-                                        onClick={() => {
-                                            setDraftPhone(phone)
-                                            setEditingPhone(true)
-                                        }}
-                                    >
-                                        <p className="pr-2 text-sm text-muted-foreground">{phone || "-"}</p>
-                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </button>
+                                    <EditableValue
+                                        display={`${firstName} ${lastName}`.trim()}
+                                        onEdit={() => setEditingName(true)}
+                                    />
                                 )}
-                            </div>
+                            </SettingsRow>
+                            <Separator />
+
+                            {/* Phone — click to edit, auto-saves */}
+                            <SettingsRow label="Phone number">
+                                {editingPhone ? (
+                                    <div className="flex-1">
+                                        <PhoneNumberInput
+                                            value={phone}
+                                            onChange={(val) => {
+                                                const v = val ?? ''
+                                                setPhone(v)
+                                                if (v.length >= 7) {
+                                                    handleAutoSavePhone(v)
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <EditableValue
+                                        display={phone}
+                                        onEdit={() => setEditingPhone(true)}
+                                    />
+                                )}
+                            </SettingsRow>
                             <Separator />
 
                             {/* Password */}
-                            <div className="flex items-center justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Password</p>
-                                </div>
-                                <button
-                                    className="group flex flex-1 items-center justify-start text-left rounded-md px-2 py-1 -mx-2 hover:bg-muted transition-colors"
-                                    onClick={() => {
-                                        setShowPasswordDialog(true)
-                                    }}
-                                >
-                                    <p className="pr-2 text-sm text-muted-foreground">••••••••••</p>
-                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
-                            </div>
+                            <SettingsRow label="Password">
+                                <EditableValue
+                                    display="••••••••••"
+                                    onEdit={() => setShowPasswordDialog(true)}
+                                />
+                            </SettingsRow>
                             <Separator />
 
                             {/* Transcript */}
-                            <div className="flex items-start justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Transcript</p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">PDF only</p>
-                                </div>
-                                <div className="flex flex-1 items-center justify-between">
+                            <SettingsRow
+                                label="Transcript"
+                                description="PDF only"
+                            >
+                                <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                         {selectedFile ? (
-                                          <>
-                                            <FileText className="h-4 w-4" />
-                                            <span className="truncate max-w-48">{selectedFile.name}</span>
-                                            <span className="text-xs">({(selectedFile.size / 1024).toFixed(1)} KB)</span>
-                                          </>
+                                            <>
+                                                <FileText className="h-4 w-4" />
+                                                <span className="truncate max-w-48">
+                                                    {selectedFile.name}
+                                                </span>
+                                                <span className="text-xs">
+                                                    (
+                                                    {(
+                                                        selectedFile.size / 1024
+                                                    ).toFixed(1)}{' '}
+                                                    KB)
+                                                </span>
+                                            </>
                                         ) : transcriptUrl ? (
                                             <a
                                                 href={transcriptUrl}
@@ -376,266 +649,419 @@ export function StudentSettings() {
                                         ) : (
                                             <span>No file uploaded</span>
                                         )}
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                          {selectedFile && (
-                                              <Button 
-                                                  size="sm" 
-                                                  onClick={handleUpload} 
-                                                  disabled={isUploading}
-                                              >
-                                                  {isUploading ? "Uploading..." : "Upload"}
-                                              </Button>
-                                          )}
-                                          <label>
-                                              <input 
-                                                  type="file" 
-                                                  accept=".pdf" 
-                                                  className="hidden" 
-                                                  onChange={handleFileChange} 
-                                              />
-                                              <Button 
-                                                  size="sm" 
-                                                  variant="outline" 
-                                                  asChild
-                                              >
-                                                  <span className="flex items-center gap-1.5">
-                                                      <Upload className="h-3.5 w-3.5" />
-                                                      {transcriptUrl ? "Replace" : "Browse"}
-                                                  </span>
-                                              </Button>
-                                          </label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {selectedFile && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={handleUpload}
+                                                disabled={isUploading}
+                                            >
+                                                {isUploading
+                                                    ? 'Uploading...'
+                                                    : 'Upload'}
+                                            </Button>
+                                        )}
+                                        <label>
+                                            <input
+                                                type="file"
+                                                accept=".pdf"
+                                                className="hidden"
+                                                onChange={handleFileChange}
+                                            />
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                asChild
+                                            >
+                                                <span className="flex items-center gap-1.5">
+                                                    <Upload className="h-3.5 w-3.5" />
+                                                    {transcriptUrl
+                                                        ? 'Replace'
+                                                        : 'Browse'}
+                                                </span>
+                                            </Button>
+                                        </label>
                                     </div>
                                 </div>
-                            </div>
+                            </SettingsRow>
                         </div>
                     </CardContent>
                 </Card>
             )}
 
-            {activeTab === "availability" && (
+            {/* Transcript details — only on profile tab if data exists */}
+            {activeTab === 'profile' &&
+                transcript &&
+                transcript.courses.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Transcript</CardTitle>
+                            <CardDescription>
+                                Academic information from your uploaded
+                                transcript.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-0">
+                                <SettingsRow label="GPA">
+                                    <div className="flex gap-4 text-sm">
+                                        <span>
+                                            Overall:{' '}
+                                            <span className="font-medium">
+                                                {transcript.overall_gpa?.toFixed(
+                                                    2,
+                                                ) ?? '-'}
+                                            </span>
+                                        </span>
+                                        <span>
+                                            Degree:{' '}
+                                            <span className="font-medium">
+                                                {transcript.degree_gpa?.toFixed(
+                                                    2,
+                                                ) ?? '-'}
+                                            </span>
+                                        </span>
+                                    </div>
+                                </SettingsRow>
+                                <Separator />
+                                <SettingsRow label="Year / Term">
+                                    <p className="text-sm text-muted-foreground">
+                                        Year {transcript.current_year}
+                                        {transcript.current_term &&
+                                            `, ${transcript.current_term}`}
+                                    </p>
+                                </SettingsRow>
+                                <Separator />
+                                <SettingsRow label="Courses">
+                                    <div className="flex-1 space-y-1">
+                                        {transcript.courses.map((c) => (
+                                            <div
+                                                key={c.code}
+                                                className="flex items-center justify-between text-sm"
+                                            >
+                                                <span className="text-muted-foreground">
+                                                    <span className="font-mono text-xs">
+                                                        {c.code}
+                                                    </span>{' '}
+                                                    {c.title}
+                                                </span>
+                                                <span className="shrink-0 font-medium">
+                                                    {c.grade || '-'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </SettingsRow>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+            {/* ============================================================= */}
+            {/* Availability Tab                                               */}
+            {/* ============================================================= */}
+            {activeTab === 'availability' && (
                 <Card>
-                    <CardContent>
-                        <div className="space-y-0">
-                            <p className="pb-4 text-sm text-muted-foreground flex justify-between">
-                                Set the hours you are available to work each week.
-                                <div className="flex gap-2 pt-4">
+                    <CardHeader>
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <CardTitle>Availability</CardTitle>
+                                <CardDescription className="mt-2">
+                                    Set the hours you are available to work each
+                                    week.
+                                </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {availabilitySaveStatus && (
+                                    <span
+                                        className={cn(
+                                            'flex items-center gap-1 text-xs font-medium animate-in fade-in duration-150',
+                                            availabilitySaveStatus ===
+                                                'success' &&
+                                                'text-emerald-600 dark:text-emerald-400',
+                                            availabilitySaveStatus ===
+                                                'error' &&
+                                                'text-red-600 dark:text-red-400',
+                                        )}
+                                    >
+                                        {availabilitySaveStatus ===
+                                        'success' ? (
+                                            <>
+                                                <Check className="h-3.5 w-3.5" />{' '}
+                                                Saved
+                                            </>
+                                        ) : (
+                                            <>
+                                                <X className="h-3.5 w-3.5" />{' '}
+                                                Failed
+                                            </>
+                                        )}
+                                    </span>
+                                )}
+                                {availabilityDirty && (
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => {
-                                            availabilityFormRef.current
-                                            ?.querySelector<HTMLButtonElement>("button[type='submit']")
-                                            ?.click()
-                                        }}
+                                        disabled={availabilitySaving}
+                                        className="h-8 gap-2 pl-3 pr-2.5"
+                                        onClick={handleSaveAvailability}
                                     >
-                                        Save Changes <Save />
+                                        {availabilitySaving ? (
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        ) : (
+                                            <Check className="h-3.5 w-3.5" />
+                                        )}
+                                        Save
+                                        <kbd className="pointer-events-none select-none rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground/60">
+                                            ⌘S
+                                        </kbd>
                                     </Button>
-                                </div>
-                            </p>
-                            <div
-                                ref={availabilityFormRef}
-                                className="[&_form>button[type='button']]:hidden [&_form>button[type='submit']]:hidden"
-                            >
-                                <StepAvailability
-                                    defaultValues={availability}
-                                    onNext={(updated) => {
-                                        setAvailability(updated)
-                                        toast.success("Availability saved.")
-                                        // call API
-                                    }}
-                                    onBack={() => {}}
-                                />
+                                )}
                             </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div
+                            ref={availabilityFormRef}
+                            className="[&_form>button[type='button']]:hidden [&_form>button[type='submit']]:hidden"
+                        >
+                            <StepAvailability
+                                defaultValues={availability}
+                                onNext={(updated) => {
+                                    setAvailabilitySaving(true)
+                                    // TODO: call API here
+                                    setTimeout(() => {
+                                        setAvailability(updated)
+                                        setAvailabilitySaving(false)
+                                        setAvailabilityDirty(false)
+                                        setAvailabilitySaveStatus('success')
+                                    }, 0)
+                                }}
+                                onBack={() => {}}
+                            />
                         </div>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Payment Tab */}
-            {activeTab === "payment" && (
+            {/* ============================================================= */}
+            {/* Payment Tab                                                    */}
+            {/* ============================================================= */}
+            {activeTab === 'payment' && (
                 <Card>
+                    <CardHeader>
+                        <CardTitle>Payment</CardTitle>
+                        <CardDescription>
+                            Your bank account details for receiving payment.
+                        </CardDescription>
+                    </CardHeader>
                     <CardContent>
                         <div className="space-y-0">
-                            <p className="pb-4 text-sm text-muted-foreground">
-                                Your bank account details for receiving payment.
-                            </p>
-
-                            {/* Bank name */}
-                            <div className="flex items-start justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Bank</p>
-                                </div>
+                            {/* Bank */}
+                            <SettingsRow label="Bank">
                                 {editingBankName ? (
-                                    <div className="flex flex-1 items-end gap-3">
+                                    <InlineForm
+                                        onSubmit={handleSaveBankName}
+                                        onCancel={() =>
+                                            setEditingBankName(false)
+                                        }
+                                    >
                                         <div className="flex-1 space-y-1.5">
-                                            <Select value={draftBankName} onValueChange={setDraftBankName}>
-                                              <SelectTrigger>
-                                                <SelectValue placeholder="Select bank..." />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {TT_BANKS.map((b) => (
-                                                  <SelectItem key={b} value={b}>{b}</SelectItem>
-                                                ))}
-                                              </SelectContent>
+                                            <Select
+                                                value={draftBankName}
+                                                onValueChange={setDraftBankName}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select bank..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {TT_BANKS.map((b) => (
+                                                        <SelectItem
+                                                            key={b}
+                                                            value={b}
+                                                        >
+                                                            {b}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
                                             </Select>
                                         </div>
-                                        <div className="flex gap-2 pb-0.5">
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                onClick={() => setEditingBankName(false)}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button 
-                                                size="sm" 
-                                                onClick={handleSaveBankName}
-                                            >
-                                                Save
-                                            </Button>
-                                        </div>
-                                    </div>
+                                    </InlineForm>
                                 ) : (
-                                    <button
-                                        className="group flex flex-1 items-center justify-start text-left rounded-md px-2 py-1 -mx-2 hover:bg-muted transition-colors"
-                                        onClick={() => {
+                                    <EditableValue
+                                        display={bankName}
+                                        onEdit={() => {
                                             setDraftBankName(bankName)
                                             setEditingBankName(true)
                                         }}
-                                    >
-                                        <p className="pr-2 text-sm text-muted-foreground">{bankName || "-"}</p>
-                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </button>
+                                    />
                                 )}
-                            </div>
+                            </SettingsRow>
                             <Separator />
 
-                            {/* Account type */}
-                            <div className="flex items-start justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Account type</p>
-                                </div>
-                                {editingAccountType ? (
-                                    <div className="flex flex-1 items-end gap-3">
-                                        <div className="flex-1 space-y-1.5">
-                                          <Select value={draftAccountType} onValueChange={setDraftAccountType}>
-                                              <SelectTrigger>
-                                                  <SelectValue placeholder="Select type..." />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                  <SelectItem value="Chequing">
-                                                      Chequing
-                                                  </SelectItem>
-                                                  <SelectItem value="Savings">
-                                                      Savings
-                                                  </SelectItem>
-                                              </SelectContent>
-                                          </Select>
-                                        </div>
-                                        <div className="flex gap-2 pb-0.5">
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                onClick={() => setEditingAccountType(false)}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button 
-                                                size="sm" 
-                                                onClick={handleSaveAccountType}
-                                            >
-                                                Save
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <button
-                                        className="group flex flex-1 items-center gap-2 text-left rounded-md px-2 py-1 -mx-2 text-sm text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                                        onClick={() => {
-                                            setDraftAccountType(accountType)
-                                            setEditingAccountType(true)
-                                        }}
+                            {/* Branch */}
+                            <SettingsRow label="Branch">
+                                {editingBranch ? (
+                                    <InlineForm
+                                        onSubmit={handleSaveBranch}
+                                        onCancel={() => setEditingBranch(false)}
                                     >
-                                        <p className="text-sm text-muted-foreground">{accountType || "-"}</p>
-                                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </button>
-                                )}
-                            </div>
-                            <Separator />
-
-                            {/* Account number */}
-                            <div className="flex items-start justify-between py-5">
-                                <div className="w-40 shrink-0">
-                                    <p className="text-sm font-medium">Account number</p>
-                                </div>
-                                {editingAccountNumber ? (
-                                    <div className="flex flex-1 items-end gap-3">
                                         <div className="flex-1 space-y-1.5">
                                             <Input
-                                                value={draftAccountNumber}
-                                                onChange={(e) => setDraftAccountNumber(e.target.value)}
+                                                placeholder="e.g. St. Augustine"
+                                                value={draftBranch}
+                                                onChange={(e) =>
+                                                    setDraftBranch(
+                                                        e.target.value,
+                                                    )
+                                                }
                                                 autoFocus
                                             />
                                         </div>
-                                        <div className="flex gap-2 pb-0.5">
-                                            <Button 
-                                                size="sm" 
-                                                variant="outline" 
-                                                onClick={() => setEditingAccountNumber(false)}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            <Button 
-                                                size="sm" 
-                                                onClick={handleSaveAccountNumber}
-                                            >
-                                                Save
-                                            </Button>
-                                        </div>
-                                    </div>
+                                    </InlineForm>
                                 ) : (
-                                    <button
-                                        className="group flex flex-1 items-center gap-2 text-left rounded-md px-2 py-1 -mx-2 text-sm text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                                        onClick={() => {
+                                    <EditableValue
+                                        display={branchName}
+                                        onEdit={() => {
+                                            setDraftBranch(branchName)
+                                            setEditingBranch(true)
+                                        }}
+                                    />
+                                )}
+                            </SettingsRow>
+                            <Separator />
+
+                            {/* Account type */}
+                            <SettingsRow label="Account type">
+                                {editingAccountType ? (
+                                    <InlineForm
+                                        onSubmit={handleSaveAccountType}
+                                        onCancel={() =>
+                                            setEditingAccountType(false)
+                                        }
+                                    >
+                                        <div className="flex-1 space-y-1.5">
+                                            <Select
+                                                value={draftAccountType}
+                                                onValueChange={
+                                                    setDraftAccountType
+                                                }
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select type..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Chequing">
+                                                        Chequing
+                                                    </SelectItem>
+                                                    <SelectItem value="Savings">
+                                                        Savings
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </InlineForm>
+                                ) : (
+                                    <EditableValue
+                                        display={accountType}
+                                        onEdit={() => {
+                                            setDraftAccountType(accountType)
+                                            setEditingAccountType(true)
+                                        }}
+                                    />
+                                )}
+                            </SettingsRow>
+                            <Separator />
+
+                            {/* Account number */}
+                            <SettingsRow label="Account number">
+                                {editingAccountNumber ? (
+                                    <InlineForm
+                                        onSubmit={handleSaveAccountNumber}
+                                        onCancel={() =>
+                                            setEditingAccountNumber(false)
+                                        }
+                                    >
+                                        <div className="flex-1 space-y-1.5">
+                                            <Input
+                                                value={draftAccountNumber}
+                                                onChange={(e) =>
+                                                    setDraftAccountNumber(
+                                                        e.target.value.replace(
+                                                            /\D/g,
+                                                            '',
+                                                        ),
+                                                    )
+                                                }
+                                                placeholder="7–16 digit account number"
+                                                inputMode="numeric"
+                                                maxLength={16}
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </InlineForm>
+                                ) : (
+                                    <EditableValue
+                                        display={
+                                            accountNumber
+                                                ? `${'•'.repeat(Math.max(0, accountNumber.length - 4))}${accountNumber.slice(-4)}`
+                                                : ''
+                                        }
+                                        onEdit={() => {
                                             setDraftAccountNumber(accountNumber)
                                             setEditingAccountNumber(true)
                                         }}
-                                    >
-                                        <p className="text-sm text-muted-foreground">
-                                            {accountNumber
-                                                ? `${"•".repeat(Math.max(0, accountNumber.length - 4))}${accountNumber.slice(-4)}`
-                                                : "-"}
-                                        </p>
-                                        <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </button>
+                                    />
                                 )}
-                            </div>
+                            </SettingsRow>
                         </div>
                     </CardContent>
                 </Card>
             )}
 
-            {/* Password Dialog */}
-            <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+            {/* ============================================================= */}
+            {/* Password Reset Dialog                                          */}
+            {/* ============================================================= */}
+            <Dialog
+                open={showPasswordDialog}
+                onOpenChange={setShowPasswordDialog}
+            >
                 <DialogContent className="sm:max-w-sm">
-                    <DialogHeader>
-                        <div className="flex justify-start">
-                            <DialogTitle>Reset Password</DialogTitle>
-                            <LockOpen className="mb-1 pb-2" />
-                        </div>
+                    <DialogHeader className="space-y-2">
+                        <DialogTitle className="flex items-center gap-2">
+                            <LockOpen className="h-4 w-4" />
+                            Reset Password
+                        </DialogTitle>
                         <DialogDescription>
-                            We'll send a password reset link to{" "}
-                            <span className="font-medium text-foreground">{email}</span>.
+                            We'll send a password reset link to{' '}
+                            <span className="font-medium text-foreground">
+                                {userEmail}
+                            </span>
+                            .
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
+                    <DialogFooter className="mt-4 gap-2 sm:gap-2">
                         <Button
                             size="sm"
-                            onClick={() => { sendResetEmail(email) }}
+                            variant="outline"
+                            onClick={() => setShowPasswordDialog(false)}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => sendResetEmail(userEmail ?? '')}
                             disabled={resetLoading || resendTimer > 0}
                         >
-                            {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Send reset link"}
+                            {resetLoading && (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            )}
+                            {resendTimer > 0
+                                ? `Resend in ${resendTimer}s`
+                                : 'Send reset link'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
