@@ -16,7 +16,7 @@ graph TB
 
         subgraph "Docker Compose Stack"
             FE["Frontend<br/>React 19 + Vite<br/>TanStack Router · shadcn/ui<br/>Nginx :5173"]
-            BE["Backend<br/>Go + Chi Router<br/>Go-Jet v2 ORM<br/>:8080"]
+            BE["Backend<br/>Go + Chi Router<br/>Go-Jet v2 ORM · River Job Queue<br/>:8080"]
             SCH["Scheduler<br/>Python + FastAPI<br/>PuLP LP Solver<br/>:8000"]
             TR["Transcripts<br/>Python + FastAPI<br/>pdfplumber<br/>:8001"]
             PG[("PostgreSQL 16<br/>Schemas: auth, schedule<br/>Row-Level Security<br/>:5432")]
@@ -37,6 +37,7 @@ graph TB
     BE -->|"Schedule optimization"| SCH
     BE -->|"PDF transcript extraction"| TR
     BE -->|"SQL (RLS: authenticated / internal)"| PG
+    BE -->|"River jobs (schedule gen, emails)"| PG
     BE -->|"Onboarding & verification emails"| MP
 
     GH -->|"push to main"| CI
