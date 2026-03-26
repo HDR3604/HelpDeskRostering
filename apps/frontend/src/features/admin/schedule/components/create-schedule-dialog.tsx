@@ -76,7 +76,7 @@ interface CreateScheduleDialogProps {
     onOpenChange: (open: boolean) => void
     students: Student[]
     configs: SchedulerConfig[]
-    onCreated: (schedule: ScheduleResponse) => void
+    onCreated: (scheduleId: string) => void
 }
 
 export function CreateScheduleDialog({
@@ -116,7 +116,7 @@ export function CreateScheduleDialog({
 
     const selectedConfig = configs.find((c) => c.id === configId)
 
-    const { status, schedule } = useGenerationStatus(generationId, formValues)
+    const { status } = useGenerationStatus(generationId, formValues)
 
     const isLocked =
         status !== null &&
@@ -162,8 +162,8 @@ export function CreateScheduleDialog({
     }
 
     function handleOpenSchedule() {
-        if (!schedule) return
-        onCreated(schedule)
+        if (!status?.schedule_id) return
+        onCreated(status.schedule_id)
         resetDialog()
     }
 

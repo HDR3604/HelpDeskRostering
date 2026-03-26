@@ -24,7 +24,7 @@ type MockScheduleService struct {
 	ActivateFn         func(ctx context.Context, id uuid.UUID) error
 	DeactivateFn       func(ctx context.Context, id uuid.UUID) error
 	UpdateScheduleFn   func(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error)
-	GenerateScheduleFn func(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error)
+	GenerateScheduleFn func(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error)
 }
 
 func (m *MockScheduleService) Create(ctx context.Context, schedule *aggregate.Schedule) (*aggregate.Schedule, error) {
@@ -67,6 +67,6 @@ func (m *MockScheduleService) UpdateSchedule(ctx context.Context, id uuid.UUID, 
 	return m.UpdateScheduleFn(ctx, id, title, assignments)
 }
 
-func (m *MockScheduleService) GenerateSchedule(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.Schedule, error) {
+func (m *MockScheduleService) GenerateSchedule(ctx context.Context, params service.GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
 	return m.GenerateScheduleFn(ctx, params)
 }

@@ -3,7 +3,6 @@ package schedule_test
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -12,7 +11,6 @@ import (
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/service"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
-	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 	"github.com/HDR3604/HelpDeskApp/internal/tests/mocks"
 	"github.com/google/uuid"
@@ -24,7 +22,7 @@ type ScheduleServiceTestSuite struct {
 	suite.Suite
 	repo               *mocks.MockScheduleRepository
 	generationSvc      *mocks.MockScheduleGenerationService
-	schedulerSvc       *mocks.MockSchedulerService
+	jobEnqueuer        *mocks.MockJobEnqueuer
 	shiftTemplateSvc   *mocks.MockShiftTemplateService
 	schedulerConfigSvc *mocks.MockSchedulerConfigService
 	service            service.ScheduleServiceInterface
@@ -39,11 +37,11 @@ func TestScheduleServiceTestSuite(t *testing.T) {
 func (s *ScheduleServiceTestSuite) SetupTest() {
 	s.repo = &mocks.MockScheduleRepository{}
 	s.generationSvc = &mocks.MockScheduleGenerationService{}
-	s.schedulerSvc = &mocks.MockSchedulerService{}
+	s.jobEnqueuer = &mocks.MockJobEnqueuer{}
 	s.shiftTemplateSvc = &mocks.MockShiftTemplateService{}
 	s.schedulerConfigSvc = &mocks.MockSchedulerConfigService{}
 	s.userID = uuid.New()
-	svc := service.NewScheduleService(zap.NewNop(), s.repo, &mocks.StubTxManager{}, s.generationSvc, s.schedulerSvc, s.shiftTemplateSvc, s.schedulerConfigSvc)
+	svc := service.NewScheduleService(zap.NewNop(), s.repo, &mocks.StubTxManager{}, s.generationSvc, s.jobEnqueuer, s.shiftTemplateSvc, s.schedulerConfigSvc)
 	s.service = svc
 	s.authCtx = database.WithAuthContext(context.Background(), database.AuthContext{
 		UserID: s.userID.String(),
@@ -318,36 +316,26 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Success() {
 
 	s.setupShiftTemplateAndConfigMocks()
 	s.setupGenerationMocks(generationID)
-	s.schedulerSvc.GenerateScheduleFn = func(req types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
-		// Verify shifts were built from templates
-		s.Len(req.Shifts, 1)
-		s.Equal("55555555-5555-5555-5555-555555555555", req.Shifts[0].ID)
-		s.Equal("08:00:00", req.Shifts[0].Start)
-		// Verify config was fetched
-		s.Require().NotNil(req.SchedulerConfig)
-		s.Equal(float32(100.0), req.SchedulerConfig.UnderstaffedPenalty)
-		return s.newSchedulerResponse(), nil
-	}
-	s.repo.CreateFn = func(_ context.Context, _ *sql.Tx, schedule *aggregate.Schedule) (*aggregate.Schedule, error) {
-		schedule.CreatedAt = time.Now()
-		return schedule, nil
+
+	var enqueuedArgs service.ScheduleGenerationJobArgs
+	s.jobEnqueuer.EnqueueScheduleGenerationFn = func(_ context.Context, args service.ScheduleGenerationJobArgs) error {
+		enqueuedArgs = args
+		return nil
 	}
 
 	result, err := s.service.GenerateSchedule(s.authCtx, params)
 
 	s.Require().NoError(err)
 	s.Require().NotNil(result)
-	s.Equal(params.Title, result.Title)
-	s.Equal(s.userID, result.CreatedBy)
-	s.Require().NotNil(result.GenerationID)
-	s.Equal(generationID, *result.GenerationID)
-	s.NotNil(result.SchedulerMetadata)
+	s.Equal(generationID, result.ID)
+	s.Equal(aggregate.GenerationStatus_Pending, result.Status)
 
-	// Verify assignments were persisted
-	var assignments []types.Assignment
-	s.Require().NoError(json.Unmarshal(result.Assignments, &assignments))
-	s.Len(assignments, 1)
-	s.Equal("a1", assignments[0].AssistantID)
+	// Verify the job was enqueued with correct args
+	s.Equal(generationID, enqueuedArgs.GenerationID)
+	s.Equal(params.Title, enqueuedArgs.Title)
+	s.Equal(s.userID, enqueuedArgs.CreatedBy)
+	s.Len(enqueuedArgs.RequestPayload.Shifts, 1)
+	s.Equal(float32(100.0), enqueuedArgs.RequestPayload.SchedulerConfig.UnderstaffedPenalty)
 }
 
 func (s *ScheduleServiceTestSuite) TestGenerateSchedule_MissingAuthContext() {
@@ -357,61 +345,29 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_MissingAuthContext() {
 	s.Nil(result)
 }
 
-func (s *ScheduleServiceTestSuite) TestGenerateSchedule_SchedulerFailure() {
+func (s *ScheduleServiceTestSuite) TestGenerateSchedule_EnqueueFails() {
 	generationID := uuid.New()
 	params := s.newGenerateParams()
 
 	s.setupShiftTemplateAndConfigMocks()
 	s.setupGenerationMocks(generationID)
+
+	s.jobEnqueuer.EnqueueScheduleGenerationFn = func(_ context.Context, _ service.ScheduleGenerationJobArgs) error {
+		return fmt.Errorf("queue unavailable")
+	}
 
 	var failedGenID uuid.UUID
-	var failedMsg string
-	s.generationSvc.MarkFailedFn = func(_ context.Context, id uuid.UUID, msg string) error {
+	s.generationSvc.MarkFailedFn = func(_ context.Context, id uuid.UUID, _ string) error {
 		failedGenID = id
-		failedMsg = msg
 		return nil
-	}
-
-	s.schedulerSvc.GenerateScheduleFn = func(_ types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
-		return nil, schedulerErrors.ErrSchedulerUnavailable
 	}
 
 	result, err := s.service.GenerateSchedule(s.authCtx, params)
 
-	s.ErrorIs(err, schedulerErrors.ErrSchedulerUnavailable)
+	s.Require().Error(err)
 	s.Nil(result)
+	s.Contains(err.Error(), "queue unavailable")
 	s.Equal(generationID, failedGenID)
-	s.Contains(failedMsg, "scheduler service is not available")
-}
-
-func (s *ScheduleServiceTestSuite) TestGenerateSchedule_Infeasible() {
-	generationID := uuid.New()
-	params := s.newGenerateParams()
-
-	s.setupShiftTemplateAndConfigMocks()
-	s.setupGenerationMocks(generationID)
-
-	var infeasibleGenID uuid.UUID
-	var infeasiblePayload string
-	s.generationSvc.MarkInfeasibleFn = func(_ context.Context, id uuid.UUID, payload string, _ string) error {
-		infeasibleGenID = id
-		infeasiblePayload = payload
-		return nil
-	}
-
-	s.schedulerSvc.GenerateScheduleFn = func(_ types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
-		return &types.GenerateScheduleResponse{
-			Status:   types.ScheduleStatus_Infeasible,
-			Metadata: types.GenerateScheduleMetadata{SolverStatusCode: 3},
-		}, nil
-	}
-
-	result, err := s.service.GenerateSchedule(s.authCtx, params)
-
-	s.ErrorIs(err, schedulerErrors.ErrInfeasible)
-	s.Nil(result)
-	s.Equal(generationID, infeasibleGenID)
-	s.NotEmpty(infeasiblePayload, "response payload should be captured for audit")
 }
 
 func (s *ScheduleServiceTestSuite) TestGenerateSchedule_InvalidTitle() {
@@ -444,33 +400,6 @@ func (s *ScheduleServiceTestSuite) TestGenerateSchedule_CreateGenerationFails() 
 	s.Require().Error(err)
 	s.Nil(result)
 	s.Contains(err.Error(), "db error")
-}
-
-func (s *ScheduleServiceTestSuite) TestGenerateSchedule_PersistScheduleFails() {
-	generationID := uuid.New()
-	params := s.newGenerateParams()
-
-	s.setupShiftTemplateAndConfigMocks()
-	s.setupGenerationMocks(generationID)
-	s.schedulerSvc.GenerateScheduleFn = func(_ types.GenerateScheduleRequest) (*types.GenerateScheduleResponse, error) {
-		return s.newSchedulerResponse(), nil
-	}
-
-	var failedGenID uuid.UUID
-	s.generationSvc.MarkFailedFn = func(_ context.Context, id uuid.UUID, _ string) error {
-		failedGenID = id
-		return nil
-	}
-
-	s.repo.CreateFn = func(_ context.Context, _ *sql.Tx, _ *aggregate.Schedule) (*aggregate.Schedule, error) {
-		return nil, fmt.Errorf("db write error")
-	}
-
-	result, err := s.service.GenerateSchedule(s.authCtx, params)
-
-	s.Require().Error(err)
-	s.Nil(result)
-	s.Equal(generationID, failedGenID)
 }
 
 func (s *ScheduleServiceTestSuite) TestGenerateSchedule_NoActiveShiftTemplates() {

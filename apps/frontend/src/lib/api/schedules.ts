@@ -1,6 +1,10 @@
 import { isAxiosError } from 'axios'
 import { apiClient } from '@/lib/api-client'
-import type { Assignment, ScheduleResponse } from '@/types/schedule'
+import type {
+    Assignment,
+    GenerationResponse,
+    ScheduleResponse,
+} from '@/types/schedule'
 
 /** Ensure assignments is always an array (backend may return null or {} for empty schedules). */
 function normalize(s: ScheduleResponse): ScheduleResponse {
@@ -53,12 +57,21 @@ export async function generateSchedule(req: {
     effective_from: string
     effective_to?: string | null
     student_ids: string[]
-}): Promise<ScheduleResponse> {
-    const { data } = await apiClient.post<ScheduleResponse>(
+}): Promise<GenerationResponse> {
+    const { data } = await apiClient.post<GenerationResponse>(
         '/schedules/generate',
         req,
     )
-    return normalize(data)
+    return data
+}
+
+export async function getGenerationStatus(
+    id: string,
+): Promise<GenerationResponse> {
+    const { data } = await apiClient.get<GenerationResponse>(
+        `/schedule-generations/${id}/status`,
+    )
+    return data
 }
 
 export async function archiveSchedule(id: string): Promise<void> {

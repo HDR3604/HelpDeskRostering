@@ -5,19 +5,32 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/aggregate"
 	scheduleErrors "github.com/HDR3604/HelpDeskApp/internal/domain/schedule/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/schedule/repository"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
-	schedulerErrors "github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/errors"
-	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/interfaces"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/scheduler/types"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+// ScheduleJobEnqueuer abstracts job enqueue operations so the service
+// does not depend on the jobqueue infrastructure package directly.
+type ScheduleJobEnqueuer interface {
+	EnqueueScheduleGeneration(ctx context.Context, args ScheduleGenerationJobArgs) error
+}
+
+// ScheduleGenerationJobArgs are the parameters passed to the background job.
+type ScheduleGenerationJobArgs struct {
+	GenerationID   uuid.UUID
+	Title          string
+	EffectiveFrom  string
+	EffectiveTo    *string
+	CreatedBy      uuid.UUID
+	RequestPayload types.GenerateScheduleRequest
+}
 
 // GenerateScheduleParams holds the parameters for schedule generation.
 type GenerateScheduleParams struct {
@@ -39,7 +52,7 @@ type ScheduleServiceInterface interface {
 	Activate(ctx context.Context, id uuid.UUID) error
 	Deactivate(ctx context.Context, id uuid.UUID) error
 	UpdateSchedule(ctx context.Context, id uuid.UUID, title *string, assignments *json.RawMessage) (*aggregate.Schedule, error)
-	GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.Schedule, error)
+	GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.ScheduleGeneration, error)
 }
 
 type ScheduleService struct {
@@ -47,7 +60,7 @@ type ScheduleService struct {
 	repository         repository.ScheduleRepositoryInterface
 	txManager          database.TxManagerInterface
 	generationSvc      ScheduleGenerationServiceInterface
-	schedulerSvc       interfaces.SchedulerServiceInterface
+	jobEnqueuer        ScheduleJobEnqueuer
 	shiftTemplateSvc   ShiftTemplateServiceInterface
 	schedulerConfigSvc SchedulerConfigServiceInterface
 }
@@ -57,7 +70,7 @@ func NewScheduleService(
 	repository repository.ScheduleRepositoryInterface,
 	txManager database.TxManagerInterface,
 	generationSvc ScheduleGenerationServiceInterface,
-	schedulerSvc interfaces.SchedulerServiceInterface,
+	jobEnqueuer ScheduleJobEnqueuer,
 	shiftTemplateSvc ShiftTemplateServiceInterface,
 	schedulerConfigSvc SchedulerConfigServiceInterface,
 ) *ScheduleService {
@@ -66,7 +79,7 @@ func NewScheduleService(
 		repository:         repository,
 		txManager:          txManager,
 		generationSvc:      generationSvc,
-		schedulerSvc:       schedulerSvc,
+		jobEnqueuer:        jobEnqueuer,
 		shiftTemplateSvc:   shiftTemplateSvc,
 		schedulerConfigSvc: schedulerConfigSvc,
 	}
@@ -363,8 +376,8 @@ func (s *ScheduleService) UpdateSchedule(ctx context.Context, id uuid.UUID, titl
 	return result, nil
 }
 
-func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.Schedule, error) {
-	s.logger.Info("generating schedule",
+func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateScheduleParams) (*aggregate.ScheduleGeneration, error) {
+	s.logger.Info("enqueuing schedule generation",
 		zap.String("title", params.Title),
 		zap.String("config_id", params.ConfigID.String()),
 	)
@@ -382,11 +395,9 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 	}
 
 	// Validate schedule params before creating generation record
-	schedule, err := aggregate.NewSchedule(params.Title, params.EffectiveFrom, params.EffectiveTo)
-	if err != nil {
+	if _, err := aggregate.NewSchedule(params.Title, params.EffectiveFrom, params.EffectiveTo); err != nil {
 		return nil, err
 	}
-	schedule.CreatedBy = userID
 
 	// Fetch active shift templates from DB
 	shiftTemplates, err := s.shiftTemplateSvc.List(ctx)
@@ -419,115 +430,42 @@ func (s *ScheduleService) GenerateSchedule(ctx context.Context, params GenerateS
 		return nil, err
 	}
 
-	// Create generation record and mark started
+	// Create generation record in pending status
 	generation, err := s.generationSvc.Create(ctx, params.ConfigID, userID, string(requestPayload))
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.generationSvc.MarkStarted(ctx, generation.ID); err != nil {
-		s.logger.Error("failed to mark generation as started, generation left in pending state",
+	// Enqueue the background job
+	effectiveFrom := params.EffectiveFrom.Format("2006-01-02")
+	var effectiveTo *string
+	if params.EffectiveTo != nil {
+		v := params.EffectiveTo.Format("2006-01-02")
+		effectiveTo = &v
+	}
+
+	if err := s.jobEnqueuer.EnqueueScheduleGeneration(ctx, ScheduleGenerationJobArgs{
+		GenerationID:   generation.ID,
+		Title:          params.Title,
+		EffectiveFrom:  effectiveFrom,
+		EffectiveTo:    effectiveTo,
+		CreatedBy:      userID,
+		RequestPayload: schedulerRequest,
+	}); err != nil {
+		s.logger.Error("failed to enqueue schedule generation job",
 			zap.String("generation_id", generation.ID.String()),
 			zap.Error(err),
 		)
+		// Mark the generation as failed since the job won't run
+		_ = s.generationSvc.MarkFailed(ctx, generation.ID, "failed to enqueue job: "+err.Error())
 		return nil, err
 	}
 
-	// Ensure generation is resolved on any failure after MarkStarted.
-	// On success path, genErr stays nil and the defer is a no-op.
-	var genErr error
-	var infeasiblePayload string
-	defer func() {
-		if genErr == nil {
-			return
-		}
-		if errors.Is(genErr, schedulerErrors.ErrInfeasible) {
-			if markErr := s.generationSvc.MarkInfeasible(ctx, generation.ID, infeasiblePayload, genErr.Error()); markErr != nil {
-				s.logger.Error("failed to mark generation as infeasible",
-					zap.String("generation_id", generation.ID.String()),
-					zap.Error(markErr),
-				)
-			}
-		} else {
-			if markErr := s.generationSvc.MarkFailed(ctx, generation.ID, genErr.Error()); markErr != nil {
-				s.logger.Error("failed to mark generation as failed",
-					zap.String("generation_id", generation.ID.String()),
-					zap.Error(markErr),
-				)
-			}
-		}
-	}()
-
-	// Call Python scheduler
-	response, err := s.schedulerSvc.GenerateSchedule(schedulerRequest)
-	if err != nil {
-		genErr = err
-		s.logger.Error("scheduler failed", zap.String("generation_id", generation.ID.String()), zap.Error(err))
-		return nil, err
-	}
-
-	// Marshal response for audit trail
-	responsePayload, err := json.Marshal(response)
-	if err != nil {
-		genErr = err
-		s.logger.Error("failed to marshal response payload", zap.Error(err))
-		return nil, err
-	}
-
-	// Check for infeasible result
-	if response.Status == types.ScheduleStatus_Infeasible {
-		infeasiblePayload = string(responsePayload)
-		genErr = fmt.Errorf("%w: solver returned status %s", schedulerErrors.ErrInfeasible, response.Status)
-		return nil, genErr
-	}
-
-	assignmentsBytes, err := json.Marshal(response.Assignments)
-	if err != nil {
-		genErr = err
-		s.logger.Error("failed to marshal assignments", zap.Error(err))
-		return nil, err
-	}
-
-	metadataBytes, err := json.Marshal(response.Metadata)
-	if err != nil {
-		genErr = err
-		s.logger.Error("failed to marshal scheduler metadata", zap.Error(err))
-		return nil, err
-	}
-	schedulerMetadata := string(metadataBytes)
-
-	// Populate schedule with generation results
-	schedule.Assignments = assignmentsBytes
-	schedule.GenerationID = &generation.ID
-	schedule.SchedulerMetadata = &schedulerMetadata
-
-	var result *aggregate.Schedule
-	err = s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
-		var txErr error
-		result, txErr = s.repository.Create(ctx, tx, schedule)
-		return txErr
-	})
-	if err != nil {
-		genErr = err
-		s.logger.Error("failed to create schedule from generation", zap.Error(err))
-		return nil, err
-	}
-
-	// Mark generation completed — genErr stays nil so defer won't fire
-	if err := s.generationSvc.MarkCompleted(ctx, generation.ID, result.ScheduleID, string(responsePayload)); err != nil {
-		s.logger.Error("failed to mark generation as completed",
-			zap.String("generation_id", generation.ID.String()),
-			zap.String("schedule_id", result.ScheduleID.String()),
-			zap.Error(err),
-		)
-	}
-
-	s.logger.Info("schedule generated",
-		zap.String("schedule_id", result.ScheduleID.String()),
+	s.logger.Info("schedule generation enqueued",
 		zap.String("generation_id", generation.ID.String()),
 	)
 
-	return result, nil
+	return generation, nil
 }
 
 func shiftTemplatesToSchedulerShifts(templates []*aggregate.ShiftTemplate) []types.Shift {

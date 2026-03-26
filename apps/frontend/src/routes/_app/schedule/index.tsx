@@ -162,16 +162,14 @@ function ScheduleListPage() {
                         onOpenChange={setCreateDialogOpen}
                         students={students}
                         configs={configs}
-                        onCreated={(created) => {
+                        onCreated={(scheduleId) => {
                             queryClient.invalidateQueries({
                                 queryKey: scheduleKeys.lists(),
                             })
                             setCreateDialogOpen(false)
                             navigate({
                                 to: '/schedule/$scheduleId',
-                                params: {
-                                    scheduleId: created.schedule_id,
-                                },
+                                params: { scheduleId },
                             })
                         }}
                     />
