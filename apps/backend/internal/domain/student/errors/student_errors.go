@@ -23,4 +23,5 @@ var (
 	ErrInvalidEmail           = errors.New("invalid email: must end with @my.uwi.edu")
 	ErrInvalidPhone           = errors.New("invalid phone number")
 	ErrInvalidStudentID       = errors.New("invalid student ID")
+	ErrTranscriptMismatch     = errors.New("transcript does not belong to this student")
 )

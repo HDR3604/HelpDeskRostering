@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, ArrowRight, RotateCcw } from 'lucide-react'
@@ -33,6 +33,21 @@ export function StepAvailability({
         }
         return init
     })
+
+    // Sync when defaultValues arrives asynchronously (e.g. after profile load)
+    useEffect(() => {
+        if (!defaultValues) return
+        const hasData = Object.values(defaultValues).some((v) => v.length > 0)
+        if (!hasData) return
+        setSelected((prev) => {
+            const next: Availability = {}
+            for (let d = 0; d < 5; d++) {
+                next[String(d)] =
+                    defaultValues[String(d)] ?? prev[String(d)] ?? []
+            }
+            return next
+        })
+    }, [defaultValues])
 
     const [isDragging, setIsDragging] = useState(false)
     const [dragMode, setDragMode] = useState<'add' | 'remove'>('add')

@@ -46,6 +46,11 @@ func (t *TimeLog) ClockOut(now time.Time) error {
 	if t.ExitAt != nil {
 		return errors.ErrAlreadyClockedOut
 	}
+	// Ensure exit_at is never before entry_at (can happen if clocks drift
+	// or with sub-microsecond timing).
+	if now.Before(t.EntryAt) {
+		now = t.EntryAt.Add(time.Microsecond)
+	}
 	t.ExitAt = &now
 	return nil
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +34,96 @@ import {
 import { Trash2, Pencil, LockOpen, Loader2 } from 'lucide-react'
 import { useLocation } from '@tanstack/react-router'
 
+// ---------------------------------------------------------------------------
+// Sub-components (matching student-settings patterns)
+// ---------------------------------------------------------------------------
+
+function SettingsRow({
+    label,
+    children,
+}: {
+    label: string
+    children: React.ReactNode
+}) {
+    return (
+        <div className="flex flex-col gap-1.5 py-5 sm:flex-row sm:items-start sm:justify-between">
+            <div className="shrink-0 sm:w-40">
+                <p className="text-sm font-medium">{label}</p>
+            </div>
+            <div className="flex flex-1 items-start">{children}</div>
+        </div>
+    )
+}
+
+function EditableValue({
+    display,
+    onEdit,
+}: {
+    display: string
+    onEdit: () => void
+}) {
+    return (
+        <button
+            type="button"
+            className="group flex flex-1 items-center justify-start text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-muted/60 transition-colors"
+            onClick={onEdit}
+        >
+            <span className="pr-2 text-sm text-foreground">
+                {display || (
+                    <span className="text-muted-foreground">{'\u2014'}</span>
+                )}
+            </span>
+            <Pencil className="h-3 w-3 shrink-0 text-muted-foreground/50 opacity-0 transition-opacity group-hover:opacity-100" />
+        </button>
+    )
+}
+
+function InlineForm({
+    onSubmit,
+    onCancel,
+    isPending,
+    children,
+}: {
+    onSubmit: () => void
+    onCancel: () => void
+    isPending?: boolean
+    children: React.ReactNode
+}) {
+    return (
+        <form
+            className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-end"
+            onSubmit={(e) => {
+                e.preventDefault()
+                onSubmit()
+            }}
+        >
+            <div className="flex-1">{children}</div>
+            <div className="flex gap-2 shrink-0 pb-0.5">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={onCancel}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    type="submit"
+                    size="sm"
+                    variant="outline"
+                    disabled={isPending}
+                >
+                    {isPending ? 'Saving…' : 'Save'}
+                </Button>
+            </div>
+        </form>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export function AdminSettings() {
     const {
         firstName: userFirstName,
@@ -50,6 +140,11 @@ export function AdminSettings() {
     const { pathname } = useLocation()
     const activeTab = pathname.includes('scheduler') ? 'scheduler' : 'profile'
 
+    // Display values from JWT (updated via forceRefreshToken after mutation)
+    const firstName = userFirstName ?? ''
+    const lastName = userLastName ?? ''
+    const email = userEmail ?? ''
+
     // Profile editing state
     const [editingName, setEditingName] = useState(false)
     const [editingEmail, setEditingEmail] = useState(false)
@@ -59,6 +154,18 @@ export function AdminSettings() {
 
     // Password dialog
     const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+
+    // Escape key to close any open editor
+    useEffect(() => {
+        function onKeyDown(e: KeyboardEvent) {
+            if (e.key === 'Escape') {
+                setEditingName(false)
+                setEditingEmail(false)
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [])
 
     // Scheduler configuration
     const { data: configs = [], isLoading: configsLoading } =
@@ -78,11 +185,6 @@ export function AdminSettings() {
         solver_time_limit: null as number | null,
         allow_minimum_violation: false,
     })
-
-    // Display values from JWT (updated via forceRefreshToken after mutation)
-    const firstName = userFirstName ?? ''
-    const lastName = userLastName ?? ''
-    const email = userEmail ?? ''
 
     // Handlers
     function handleSaveName() {
@@ -159,16 +261,17 @@ export function AdminSettings() {
                 <Card>
                     <CardContent>
                         {/* Name */}
-                        <div className="flex items-start py-4">
-                            <div className="w-40 shrink-0 pt-1">
-                                <p className="text-sm font-medium">Name</p>
-                            </div>
+                        <SettingsRow label="Name">
                             {editingName ? (
-                                <div className="flex flex-1 items-end gap-3">
+                                <InlineForm
+                                    onSubmit={handleSaveName}
+                                    onCancel={() => setEditingName(false)}
+                                    isPending={updateProfile.isPending}
+                                >
                                     <div className="flex flex-1 gap-3">
                                         <div className="flex-1 space-y-1.5">
                                             <Label className="text-xs text-muted-foreground">
-                                                First Name
+                                                First name
                                             </Label>
                                             <Input
                                                 value={draftFirstName}
@@ -182,7 +285,7 @@ export function AdminSettings() {
                                         </div>
                                         <div className="flex-1 space-y-1.5">
                                             <Label className="text-xs text-muted-foreground">
-                                                Last Name
+                                                Last name
                                             </Label>
                                             <Input
                                                 value={draftLastName}
@@ -194,111 +297,56 @@ export function AdminSettings() {
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 pb-0.5">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() =>
-                                                setEditingName(false)
-                                            }
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={handleSaveName}
-                                            disabled={updateProfile.isPending}
-                                        >
-                                            {updateProfile.isPending
-                                                ? 'Saving…'
-                                                : 'Save'}
-                                        </Button>
-                                    </div>
-                                </div>
+                                </InlineForm>
                             ) : (
-                                <button
-                                    className="group flex flex-1 items-center gap-2 text-left rounded-md px-2 py-1 -mx-2 text-sm text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                                    onClick={() => {
+                                <EditableValue
+                                    display={`${firstName} ${lastName}`.trim()}
+                                    onEdit={() => {
                                         setDraftFirstName(firstName)
                                         setDraftLastName(lastName)
                                         setEditingName(true)
                                     }}
-                                >
-                                    {`${firstName} ${lastName}`.trim() || '-'}
-                                    <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
+                                />
                             )}
-                        </div>
+                        </SettingsRow>
                         <Separator />
 
                         {/* Email */}
-                        <div className="flex items-start py-4">
-                            <div className="w-40 shrink-0 pt-1">
-                                <p className="text-sm font-medium">
-                                    Email address
-                                </p>
-                            </div>
+                        <SettingsRow label="Email address">
                             {editingEmail ? (
-                                <div className="flex flex-1 items-end gap-3">
-                                    <div className="flex-1 space-y-1.5">
-                                        <Input
-                                            type="email"
-                                            value={draftEmail}
-                                            onChange={(e) =>
-                                                setDraftEmail(e.target.value)
-                                            }
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div className="flex gap-2 pb-0.5">
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() =>
-                                                setEditingEmail(false)
-                                            }
-                                        >
-                                            Cancel
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={handleSaveEmail}
-                                            disabled={updateProfile.isPending}
-                                        >
-                                            {updateProfile.isPending
-                                                ? 'Saving…'
-                                                : 'Save'}
-                                        </Button>
-                                    </div>
-                                </div>
+                                <InlineForm
+                                    onSubmit={handleSaveEmail}
+                                    onCancel={() => setEditingEmail(false)}
+                                    isPending={updateProfile.isPending}
+                                >
+                                    <Input
+                                        type="email"
+                                        value={draftEmail}
+                                        onChange={(e) =>
+                                            setDraftEmail(e.target.value)
+                                        }
+                                        autoFocus
+                                    />
+                                </InlineForm>
                             ) : (
-                                <button
-                                    className="group flex flex-1 items-center gap-2 text-left rounded-md px-2 py-1 -mx-2 text-sm text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                                    onClick={() => {
+                                <EditableValue
+                                    display={email}
+                                    onEdit={() => {
                                         setDraftEmail(email)
                                         setEditingEmail(true)
                                     }}
-                                >
-                                    {email || '-'}
-                                    <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
+                                />
                             )}
-                        </div>
+                        </SettingsRow>
                         <Separator />
 
                         {/* Password */}
-                        <div className="flex items-start py-4">
-                            <div className="w-40 shrink-0 pt-1">
-                                <p className="text-sm font-medium">Password</p>
-                            </div>
-                            <button
-                                className="group flex flex-1 items-center gap-2 text-left rounded-md px-2 py-1 -mx-2 text-sm text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                                onClick={() => setShowPasswordDialog(true)}
-                            >
-                                ••••••••••
-                                <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </button>
-                        </div>
+                        <SettingsRow label="Password">
+                            <EditableValue
+                                display="••••••••••"
+                                onEdit={() => setShowPasswordDialog(true)}
+                            />
+                        </SettingsRow>
                     </CardContent>
                 </Card>
             )}

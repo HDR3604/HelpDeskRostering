@@ -312,6 +312,23 @@ func (h *StudentHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		input.Courses = courses
 		input.OverallGPA = req.OverallGPA
 		input.DegreeGPA = req.DegreeGPA
+		input.CurrentYear = req.CurrentYear
+		input.CurrentProgramme = req.CurrentProgramme
+		input.Major = req.Major
+
+		if req.TranscriptFirstName != nil || req.TranscriptLastName != nil || req.TranscriptStudentID != nil {
+			identity := &aggregate.TranscriptIdentity{}
+			if req.TranscriptFirstName != nil {
+				identity.FirstName = *req.TranscriptFirstName
+			}
+			if req.TranscriptLastName != nil {
+				identity.LastName = *req.TranscriptLastName
+			}
+			if req.TranscriptStudentID != nil {
+				identity.StudentID = *req.TranscriptStudentID
+			}
+			input.TranscriptIdentity = identity
+		}
 	}
 
 	updated, err := h.studentService.Update(r.Context(), studentID, input)
@@ -543,6 +560,8 @@ func (h *StudentHandler) handleStudentError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "invalid phone number")
 	case errors.Is(err, studentErrors.ErrInvalidStudentID):
 		writeError(w, http.StatusBadRequest, "invalid student ID")
+	case errors.Is(err, studentErrors.ErrTranscriptMismatch):
+		writeError(w, http.StatusBadRequest, "transcript does not belong to this student")
 	case errors.Is(err, studentErrors.ErrMissingAuthContext):
 		writeError(w, http.StatusUnauthorized, "authentication required")
 	default:

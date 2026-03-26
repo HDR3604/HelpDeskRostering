@@ -45,7 +45,6 @@ import {
     useMyBankingDetails,
     useUpsertMyBankingDetails,
 } from '@/lib/queries/students'
-import { useUpdateMyProfile } from '@/lib/queries/users'
 import { usePasswordReset } from '@/lib/auth/use-password-reset'
 import { StepAvailability } from '@/features/sign-up/components/step-availability'
 import { PhoneNumberInput } from '@/features/sign-up/components/phone-input'
@@ -276,18 +275,12 @@ export function StudentSettings() {
     const student = profileQuery.data
     const transcript = student?.transcript_metadata
 
-    const updateProfile = useUpdateMyProfile({ silent: true })
     const updateStudentProfile = useUpdateMyStudentProfile()
 
-    const [firstName, setFirstName] = useState(userFirstName ?? '')
-    const [lastName, setLastName] = useState(userLastName ?? '')
+    const firstName = userFirstName ?? ''
+    const lastName = userLastName ?? ''
     const [phone, setPhone] = useState('')
     const [savedIndicator, setSavedIndicator] = useState(false)
-
-    useEffect(() => {
-        if (userFirstName) setFirstName(userFirstName)
-        if (userLastName) setLastName(userLastName)
-    }, [userFirstName, userLastName])
 
     // Load phone from student profile
     useEffect(() => {
@@ -300,28 +293,6 @@ export function StudentSettings() {
     }
 
     // Profile auto-save handlers (debounced)
-    const handleAutoSaveFirstName = useCallback(
-        (val: string) => {
-            setFirstName(val)
-            updateProfile.mutate(
-                { first_name: val },
-                { onSuccess: () => flashSaved() },
-            )
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [],
-    )
-    const handleAutoSaveLastName = useCallback(
-        (val: string) => {
-            setLastName(val)
-            updateProfile.mutate(
-                { last_name: val },
-                { onSuccess: () => flashSaved() },
-            )
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [],
-    )
     const handleAutoSavePhone = useCallback(
         (val: string) => {
             setPhone(val)
@@ -335,14 +306,12 @@ export function StudentSettings() {
     )
 
     // Click-to-edit states for profile fields
-    const [editingName, setEditingName] = useState(false)
     const [editingPhone, setEditingPhone] = useState(false)
 
     // Escape key to close any open editor
     useEffect(() => {
         function onKeyDown(e: KeyboardEvent) {
             if (e.key === 'Escape') {
-                setEditingName(false)
                 setEditingPhone(false)
                 setEditingBankName(false)
                 setEditingBranch(false)
@@ -413,20 +382,6 @@ export function StudentSettings() {
 
     // -- Handlers -----------------------------------------------------------
 
-    function saveBankingDetails(updates: {
-        bank_name?: string
-        branch_name?: string
-        account_type?: string
-        account_number?: string
-    }) {
-        upsertBanking.mutate({
-            bank_name: updates.bank_name ?? bankName,
-            branch_name: updates.branch_name ?? branchName,
-            account_type: updates.account_type ?? accountType,
-            account_number: updates.account_number ?? accountNumber,
-        })
-    }
-
     function handleSaveBankName() {
         if (!draftBankName) {
             toast.error('Please select a bank.')
@@ -434,7 +389,7 @@ export function StudentSettings() {
         }
         setBankName(draftBankName)
         setEditingBankName(false)
-        saveBankingDetails({ bank_name: draftBankName })
+        upsertBanking.mutate({ bank_name: draftBankName })
     }
 
     function handleSaveBranch() {
@@ -444,7 +399,7 @@ export function StudentSettings() {
         }
         setBranchName(draftBranch)
         setEditingBranch(false)
-        saveBankingDetails({ branch_name: draftBranch })
+        upsertBanking.mutate({ branch_name: draftBranch })
     }
 
     function handleSaveAccountType() {
@@ -454,7 +409,7 @@ export function StudentSettings() {
         }
         setAccountType(draftAccountType)
         setEditingAccountType(false)
-        saveBankingDetails({ account_type: draftAccountType })
+        upsertBanking.mutate({ account_type: draftAccountType })
     }
 
     function handleSaveAccountNumber() {
@@ -464,7 +419,7 @@ export function StudentSettings() {
         }
         setAccountNumber(draftAccountNumber)
         setEditingAccountNumber(false)
-        saveBankingDetails({ account_number: draftAccountNumber })
+        upsertBanking.mutate({ account_number: draftAccountNumber })
     }
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -487,12 +442,24 @@ export function StudentSettings() {
                 courses: { code: string; title: string; grade: string | null }[]
                 overall_gpa: number | null
                 degree_gpa: number | null
+                current_year: number
+                current_programme: string
+                major: string
+                first_name: string
+                last_name: string
+                student_id: string
             }>('/transcripts/extract', formData)
 
             await updateStudentProfile.mutateAsync({
                 courses: extracted.courses,
                 overall_gpa: extracted.overall_gpa,
                 degree_gpa: extracted.degree_gpa,
+                current_year: extracted.current_year || null,
+                current_programme: extracted.current_programme || null,
+                major: extracted.major || null,
+                transcript_first_name: extracted.first_name || null,
+                transcript_last_name: extracted.last_name || null,
+                transcript_student_id: extracted.student_id || null,
             })
 
             setSelectedFile(null)
@@ -602,46 +569,11 @@ export function StudentSettings() {
                             </SettingsRow>
                             <Separator />
 
-                            {/* Name — click to edit, auto-saves with debounce */}
+                            {/* Name — read-only for students */}
                             <SettingsRow label="Name">
-                                {editingName ? (
-                                    <div className="flex flex-1 gap-3">
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">
-                                                First name
-                                            </Label>
-                                            <AutoSaveInput
-                                                value={firstName}
-                                                onSave={handleAutoSaveFirstName}
-                                                validate={(v) =>
-                                                    v.length >= 2 &&
-                                                    /^[a-zA-Z\s'-]+$/.test(v)
-                                                }
-                                                placeholder="First name"
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">
-                                                Last name
-                                            </Label>
-                                            <AutoSaveInput
-                                                value={lastName}
-                                                onSave={handleAutoSaveLastName}
-                                                validate={(v) =>
-                                                    v.length >= 2 &&
-                                                    /^[a-zA-Z\s'-]+$/.test(v)
-                                                }
-                                                placeholder="Last name"
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <EditableValue
-                                        display={`${firstName} ${lastName}`.trim()}
-                                        onEdit={() => setEditingName(true)}
-                                    />
-                                )}
+                                <p className="text-sm text-muted-foreground">
+                                    {`${firstName} ${lastName}`.trim() || '—'}
+                                </p>
                             </SettingsRow>
                             <Separator />
 
@@ -1028,10 +960,10 @@ export function StudentSettings() {
                                                     <SelectValue placeholder="Select type..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="Chequing">
+                                                    <SelectItem value="chequeing">
                                                         Chequing
                                                     </SelectItem>
-                                                    <SelectItem value="Savings">
+                                                    <SelectItem value="savings">
                                                         Savings
                                                     </SelectItem>
                                                 </SelectContent>
@@ -1070,7 +1002,11 @@ export function StudentSettings() {
                                                         ),
                                                     )
                                                 }
-                                                placeholder="7–16 digit account number"
+                                                placeholder={
+                                                    accountNumber
+                                                        ? `Previous: ••••${accountNumber.slice(-4)}`
+                                                        : '7–16 digit account number'
+                                                }
                                                 inputMode="numeric"
                                                 maxLength={16}
                                                 autoFocus
@@ -1085,7 +1021,7 @@ export function StudentSettings() {
                                                 : ''
                                         }
                                         onEdit={() => {
-                                            setDraftAccountNumber(accountNumber)
+                                            setDraftAccountNumber('')
                                             setEditingAccountNumber(true)
                                         }}
                                     />

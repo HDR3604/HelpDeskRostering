@@ -40,6 +40,8 @@ const ERROR_MAP: Record<string, string> = {
 
     // Students
     'student not found': 'This student could not be found.',
+    'transcript does not belong to this student':
+        'The uploaded transcript does not match your student record. Please upload your own transcript.',
     'student application already exists':
         'An application has already been submitted for this student.',
     'student application already accepted':

@@ -87,6 +87,12 @@ export interface UpdateMyStudentProfileRequest {
     courses?: { code: string; title: string; grade: string | null }[]
     overall_gpa?: number | null
     degree_gpa?: number | null
+    current_year?: number | null
+    current_programme?: string | null
+    major?: string | null
+    transcript_first_name?: string | null
+    transcript_last_name?: string | null
+    transcript_student_id?: string | null
 }
 
 export async function updateMyStudentProfile(
@@ -99,10 +105,10 @@ export async function updateMyStudentProfile(
 // --- Banking details ---
 
 export interface BankingDetailsRequest {
-    bank_name: string
-    branch_name: string
-    account_type: string
-    account_number: string
+    bank_name?: string
+    branch_name?: string
+    account_type?: string
+    account_number?: string
 }
 
 export interface BankingDetailsResponse {

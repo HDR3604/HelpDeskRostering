@@ -137,6 +137,11 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.FirstName == nil && req.LastName == nil && req.Email == nil {
+		writeError(w, http.StatusBadRequest, "no fields to update")
+		return
+	}
+
 	input := service.UpdateUserInput{}
 	if req.FirstName != nil {
 		input.FirstName = req.FirstName

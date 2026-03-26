@@ -7,10 +7,10 @@ import (
 )
 
 type UpsertBankingDetailsRequest struct {
-	BankName      string `json:"bank_name"`
-	BranchName    string `json:"branch_name"`
-	AccountType   string `json:"account_type"`
-	AccountNumber string `json:"account_number"`
+	BankName      *string `json:"bank_name"`
+	BranchName    *string `json:"branch_name"`
+	AccountType   *string `json:"account_type"`
+	AccountNumber *string `json:"account_number"`
 }
 
 type BankingDetailsResponse struct {

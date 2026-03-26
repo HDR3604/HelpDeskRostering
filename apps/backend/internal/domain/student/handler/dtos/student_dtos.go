@@ -28,13 +28,19 @@ type BulkStudentRequest struct {
 }
 
 type UpdateStudentRequest struct {
-	PhoneNumber    *string          `json:"phone_number,omitempty"`
-	Availability   *json.RawMessage `json:"availability,omitempty"`
-	MinWeeklyHours *float64         `json:"min_weekly_hours,omitempty"`
-	MaxWeeklyHours *float64         `json:"max_weekly_hours,omitempty"`
-	Courses        []CourseDTO      `json:"courses,omitempty"`
-	OverallGPA     *float64         `json:"overall_gpa,omitempty"`
-	DegreeGPA      *float64         `json:"degree_gpa,omitempty"`
+	PhoneNumber         *string          `json:"phone_number,omitempty"`
+	Availability        *json.RawMessage `json:"availability,omitempty"`
+	MinWeeklyHours      *float64         `json:"min_weekly_hours,omitempty"`
+	MaxWeeklyHours      *float64         `json:"max_weekly_hours,omitempty"`
+	Courses             []CourseDTO      `json:"courses,omitempty"`
+	OverallGPA          *float64         `json:"overall_gpa,omitempty"`
+	DegreeGPA           *float64         `json:"degree_gpa,omitempty"`
+	CurrentYear         *int             `json:"current_year,omitempty"`
+	CurrentProgramme    *string          `json:"current_programme,omitempty"`
+	Major               *string          `json:"major,omitempty"`
+	TranscriptFirstName *string          `json:"transcript_first_name,omitempty"`
+	TranscriptLastName  *string          `json:"transcript_last_name,omitempty"`
+	TranscriptStudentID *string          `json:"transcript_student_id,omitempty"`
 }
 
 type CourseDTO struct {

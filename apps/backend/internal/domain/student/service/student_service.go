@@ -36,13 +36,17 @@ type ApplyInput struct {
 }
 
 type UpdateStudentInput struct {
-	PhoneNumber    *string
-	Availability   *json.RawMessage
-	MinWeeklyHours *float64
-	MaxWeeklyHours *float64
-	Courses        []types.CourseResult
-	OverallGPA     *float64
-	DegreeGPA      *float64
+	PhoneNumber        *string
+	Availability       *json.RawMessage
+	MinWeeklyHours     *float64
+	MaxWeeklyHours     *float64
+	Courses            []types.CourseResult
+	OverallGPA         *float64
+	DegreeGPA          *float64
+	CurrentYear        *int
+	CurrentProgramme   *string
+	Major              *string
+	TranscriptIdentity *aggregate.TranscriptIdentity
 }
 
 type StudentService struct {
@@ -386,7 +390,13 @@ func (s *StudentService) Update(ctx context.Context, studentID int32, input Upda
 		}
 
 		if input.Courses != nil {
-			student.UpdateTranscript(input.Courses, input.OverallGPA, input.DegreeGPA)
+			identity := aggregate.TranscriptIdentity{}
+			if input.TranscriptIdentity != nil {
+				identity = *input.TranscriptIdentity
+			}
+			if err := student.UpdateTranscript(identity, input.Courses, input.OverallGPA, input.DegreeGPA, input.CurrentYear, input.CurrentProgramme, input.Major); err != nil {
+				return err
+			}
 		}
 
 		if err := s.repository.Update(ctx, tx, student); err != nil {
