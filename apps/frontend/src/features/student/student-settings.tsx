@@ -39,8 +39,8 @@ import {
 import { useLocation } from '@tanstack/react-router'
 import { useUser } from '@/lib/auth/hooks/use-user'
 import { apiClient } from '@/lib/api-client'
-import { useMyStudentProfile } from '@/lib/queries/students'
 import {
+    useMyStudentProfile,
     useUpdateMyStudentProfile,
     useMyBankingDetails,
     useUpsertMyBankingDetails,
@@ -49,6 +49,7 @@ import { usePasswordReset } from '@/lib/auth/use-password-reset'
 import { StepAvailability } from '@/features/sign-up/components/step-availability'
 import { PhoneNumberInput } from '@/features/sign-up/components/phone-input'
 import { cn } from '@/lib/utils'
+import { getApiErrorMessage } from '@/lib/error-messages'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -344,7 +345,6 @@ export function StudentSettings() {
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isUploading, setIsUploading] = useState(false)
-    const [transcriptUrl, setTranscriptUrl] = useState<string | null>(null)
 
     // -- Payment state -------------------------------------------------------
 
@@ -464,8 +464,10 @@ export function StudentSettings() {
 
             setSelectedFile(null)
             toast.success('Transcript updated — courses and GPA refreshed.')
-        } catch {
-            toast.error('Failed to update transcript.')
+        } catch (error) {
+            toast.error('Failed to update transcript.', {
+                description: getApiErrorMessage(error),
+            })
         } finally {
             setIsUploading(false)
         }
@@ -631,16 +633,12 @@ export function StudentSettings() {
                                                     KB)
                                                 </span>
                                             </>
-                                        ) : transcriptUrl ? (
-                                            <a
-                                                href={transcriptUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-1.5 text-primary hover:underline underline-offset-4"
-                                            >
+                                        ) : transcript &&
+                                          transcript.courses.length > 0 ? (
+                                            <span className="flex items-center gap-1.5">
                                                 <FileText className="h-4 w-4" />
-                                                View uploaded transcript
-                                            </a>
+                                                Transcript uploaded
+                                            </span>
                                         ) : (
                                             <span>No file uploaded</span>
                                         )}
@@ -653,9 +651,14 @@ export function StudentSettings() {
                                                 onClick={handleUpload}
                                                 disabled={isUploading}
                                             >
-                                                {isUploading
-                                                    ? 'Uploading...'
-                                                    : 'Upload'}
+                                                {isUploading ? (
+                                                    <>
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        Uploading…
+                                                    </>
+                                                ) : (
+                                                    'Upload'
+                                                )}
                                             </Button>
                                         )}
                                         <label>
@@ -672,7 +675,9 @@ export function StudentSettings() {
                                             >
                                                 <span className="flex items-center gap-1.5">
                                                     <Upload className="h-3.5 w-3.5" />
-                                                    {transcriptUrl
+                                                    {transcript &&
+                                                    transcript.courses.length >
+                                                        0
                                                         ? 'Replace'
                                                         : 'Browse'}
                                                 </span>
