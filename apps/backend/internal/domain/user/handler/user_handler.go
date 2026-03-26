@@ -144,6 +144,9 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	if req.LastName != nil {
 		input.LastName = req.LastName
 	}
+	if req.Email != nil {
+		input.Email = req.Email
+	}
 
 	if err := h.service.Update(r.Context(), ac.UserID, input); err != nil {
 		h.handleUserError(w, err)

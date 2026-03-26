@@ -11,7 +11,6 @@ This guide walks through the backend architecture and patterns for implementing 
   - [Database Models (Go-Jet)](#database-models-go-jet)
   - [Middleware](#middleware)
   - [Email Service](#email-service)
-  - [Job Queue (River)](#job-queue-river)
 - [Example: Adding a "Courses" Domain](#example-adding-a-courses-domain)
   - [Step 1: Aggregate](#step-1-aggregate)
   - [Step 2: Domain Errors](#step-2-domain-errors)
@@ -75,7 +74,7 @@ Each domain follows **Domain-Driven Design** with this layered pattern:
 
 **Aggregate → Errors → Repository Interface → Infrastructure Repo → Service → Handler → DTOs**
 
-Current domains: `auth`, `consent`, `payroll`, `schedule`, `student`, `timelog`, `transcript`, `user`, `verification`.
+Current domains: `auth`, `consent`, `schedule`, `student`, `timelog`, `transcript`, `user`, `verification`.
 
 ---
 
@@ -102,8 +101,6 @@ err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
     return s.repo.Create(ctx, tx, entity)
 })
 ```
-
-Both methods use `SET LOCAL ROLE` to scope the role change to the current transaction only — pooled connections are returned clean.
 
 **Important:** `InAuthTx` sets session variables (`app.current_user_id`, `app.current_role`, `app.current_student_id`) that PostgreSQL RLS policies use. `InSystemTx` does not set these, so the `set_created_by` trigger won't fire — you must explicitly insert `created_by`.
 
@@ -196,55 +193,6 @@ Abstracted behind `EmailSenderInterface` with two implementations:
 | Production | `ResendEmailSenderService` | Resend.com API |
 
 Selection is automatic in `app.go` based on `ENVIRONMENT`.
-
-### Job Queue (River)
-
-Background job processing uses [River](https://github.com/riverqueue/river), a PostgreSQL-backed job queue. No Redis or external broker needed.
-
-**Architecture:**
-
-```
-Handler → Service → Enqueuer → river_job table → Worker
-```
-
-1. Handler validates request and calls service
-2. Service creates a record (e.g. generation in `pending` status) and enqueues a River job
-3. River polls `river_job` table and dispatches to registered workers
-4. Worker executes the long-running task and updates the record status
-
-**Key files:**
-
-| File | Purpose |
-|------|---------|
-| `infrastructure/jobqueue/client.go` | River client setup, start/stop lifecycle |
-| `infrastructure/jobqueue/enqueuer.go` | Domain-friendly job insertion (bridges service → River) |
-| `infrastructure/jobqueue/migrate.go` | River schema migrations + role grants (runs at startup) |
-| `infrastructure/jobqueue/logger.go` | Zap-to-slog adapter for River's logger |
-| `infrastructure/jobqueue/jobs/` | Worker implementations |
-
-**Current job types:**
-
-| Job | Queue | Workers | Retry |
-|-----|-------|---------|-------|
-| Schedule generation | `schedule_generation` | 2 | 3 attempts (only transient errors) |
-| Email notification | `email_notification` | 5 | 5 attempts |
-
-**Adding a new job type:**
-
-1. Define args struct implementing `river.JobArgs` (with `Kind()` and `InsertOpts()`)
-2. Define worker struct embedding `river.WorkerDefaults[Args]` with a `Work()` method
-3. Register the worker in `app.go` via `river.AddWorker(workers, myWorker)`
-4. Add an enqueue method to `enqueuer.go`
-5. If the service needs to enqueue, define an interface in the service package and inject the enqueuer
-
-**Design decisions:**
-- Workers use `InSystemTx` for all DB access (no auth context in background jobs)
-- Transient errors (e.g. scheduler unavailable) return `error` so River retries; permanent errors call `markFailed()` and return `nil`
-- `MarkStarted` is idempotent — on retry it logs a warning instead of failing
-- Email batches are split into 1 job per 100 emails at enqueue time to prevent duplicate sends on retry
-- Concurrent generation guard: `HasActive()` rejects new generations while one is pending
-
-**Database grants:** River's tables (`river_job`, `river_queue`, `river_leader`, `river_client`, `river_migration`) live in the `public` schema. All database roles (`helpdesk`, `internal`, `authenticated`) need grants because River uses raw pool connections outside the TxManager. Grants are applied programmatically in `migrate.go` with minimum required privileges.
 
 ---
 
@@ -787,13 +735,6 @@ internal/
 │   │   ├── handler/dtos/      # ApplyRequest, UpdateStudentRequest, StudentResponse
 │   │   ├── repository/        # StudentRepositoryInterface
 │   │   └── service/           # StudentService (Apply, Accept, Reject, List)
-│   ├── timelog/
-│   │   ├── aggregate/         # TimeLog, ClockInCode entities
-│   │   ├── errors/            # ErrNotClockedIn, ErrAlreadyClockedOut, etc.
-│   │   ├── handler/           # TimeLogHandler (clock-in/out, status, admin list/flag)
-│   │   ├── handler/dtos/      # ClockInRequest, TimeLogResponse
-│   │   ├── repository/        # TimeLog + ClockInCode repository interfaces
-│   │   └── service/           # TimeLogService (geo-validation, shift matching)
 │   └── user/
 │       ├── aggregate/         # User entity (role validation, email domain rules)
 │       ├── errors/            # ErrUserNotFound, ErrEmailAlreadyExists
@@ -812,14 +753,6 @@ internal/
 │   │   ├── service/           # MailpitEmailSenderService, ResendEmailSenderService
 │   │   ├── templates/         # Email template rendering
 │   │   └── types/             # Email DTOs and config types
-│   ├── jobqueue/
-│   │   ├── client.go          # River client wrapper (start/stop lifecycle)
-│   │   ├── enqueuer.go        # Domain-friendly job insertion
-│   │   ├── migrate.go         # River schema migrations + role grants
-│   │   ├── logger.go          # Zap-to-slog adapter
-│   │   └── jobs/              # Worker implementations
-│   │       ├── schedule_generation.go
-│   │       └── email_notification.go
 │   ├── scheduler/
 │   │   └── service/           # HTTP client to scheduler microservice
 │   ├── transcripts/
@@ -845,9 +778,8 @@ internal/
     │   ├── user/
     │   ├── database/
     │   └── email/
-    ├── e2e/                   # End-to-end flow tests
-    │   ├── auth/
-    │   └── timelog/
+    ├── e2e/                   # End-to-end auth flow tests
+    │   └── auth/
     └── utils/                 # TestDB helper (testcontainers setup, migrations)
 ```
 
@@ -947,7 +879,6 @@ func (h *Handler) handleServiceError(w http.ResponseWriter, err error) {
 | Read (admin list) | `InAuthTx` | RLS allows admin to see all rows |
 | Create / Update / Delete | `InSystemTx` | Bypasses RLS, needs explicit `created_by` |
 | Registration (no user yet) | `InSystemTx` | No authenticated user context available |
-| Background worker (all ops) | `InSystemTx` | No HTTP request context, no auth context |
 
 ### Testing
 

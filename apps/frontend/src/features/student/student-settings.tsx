@@ -38,6 +38,7 @@ import {
 } from 'lucide-react'
 import { useLocation } from '@tanstack/react-router'
 import { useUser } from '@/lib/auth/hooks/use-user'
+import { apiClient } from '@/lib/api-client'
 import { useMyStudentProfile } from '@/lib/queries/students'
 import {
     useUpdateMyStudentProfile,
@@ -479,13 +480,28 @@ export function StudentSettings() {
     async function handleUpload() {
         if (!selectedFile) return
         setIsUploading(true)
-        const url = URL.createObjectURL(selectedFile)
-        await new Promise((r) => setTimeout(r, 1000))
-        setIsUploading(false)
-        setTranscriptUrl(url)
-        setSelectedFile(null)
-        toast.success('Transcript uploaded successfully.')
-        // TODO: replace url with the URL returned from the API
+        try {
+            const formData = new FormData()
+            formData.append('file', selectedFile)
+            const { data: extracted } = await apiClient.post<{
+                courses: { code: string; title: string; grade: string | null }[]
+                overall_gpa: number | null
+                degree_gpa: number | null
+            }>('/transcripts/extract', formData)
+
+            await updateStudentProfile.mutateAsync({
+                courses: extracted.courses,
+                overall_gpa: extracted.overall_gpa,
+                degree_gpa: extracted.degree_gpa,
+            })
+
+            setSelectedFile(null)
+            toast.success('Transcript updated — courses and GPA refreshed.')
+        } catch {
+            toast.error('Failed to update transcript.')
+        } finally {
+            setIsUploading(false)
+        }
     }
 
     const handleSaveAvailability = useCallback(() => {

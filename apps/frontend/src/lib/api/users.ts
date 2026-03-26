@@ -3,6 +3,7 @@ import { apiClient } from '@/lib/api-client'
 export interface UpdateMeRequest {
     first_name?: string
     last_name?: string
+    email?: string
 }
 
 export interface UserResponse {
@@ -17,12 +18,7 @@ export interface UserResponse {
     email_verified_at?: string
 }
 
-export async function updateMe(
-    data: UpdateMeRequest,
-): Promise<UserResponse> {
-    const { data: resp } = await apiClient.put<UserResponse>(
-        '/users/me',
-        data,
-    )
+export async function updateMe(data: UpdateMeRequest): Promise<UserResponse> {
+    const { data: resp } = await apiClient.put<UserResponse>('/users/me', data)
     return resp
 }

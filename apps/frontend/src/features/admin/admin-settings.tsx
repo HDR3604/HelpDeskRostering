@@ -207,9 +207,7 @@ export function AdminSettings() {
                                         <Button
                                             size="sm"
                                             onClick={handleSaveName}
-                                            disabled={
-                                                updateProfile.isPending
-                                            }
+                                            disabled={updateProfile.isPending}
                                         >
                                             {updateProfile.isPending
                                                 ? 'Saving…'
@@ -265,9 +263,7 @@ export function AdminSettings() {
                                         <Button
                                             size="sm"
                                             onClick={handleSaveEmail}
-                                            disabled={
-                                                updateProfile.isPending
-                                            }
+                                            disabled={updateProfile.isPending}
                                         >
                                             {updateProfile.isPending
                                                 ? 'Saving…'
@@ -324,70 +320,82 @@ export function AdminSettings() {
                                 Loading configurations…
                             </div>
                         ) : (
-                        <>
-                        {configs.map((config, i) => (
-                            <div key={config.id}>
-                                <div className="flex items-center justify-between py-4">
-                                    <div className="w-40 shrink-0">
-                                        <p className="text-sm font-medium">
-                                            {config.name}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-1 items-center justify-between">
-                                        <p className="text-sm text-muted-foreground">
-                                            Baseline{' '}
-                                            {config.baseline_hours_target}h ·
-                                            Understaffed{' '}
-                                            {config.understaffed_penalty}
-                                            {config.solver_time_limit
-                                                ? ` · ${config.solver_time_limit}s limit`
-                                                : ''}
-                                        </p>
-                                        <div className="flex items-center gap-2">
-                                            {config.is_default ? (
-                                                <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
-                                                    Default
-                                                </Badge>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() =>
-                                                        handleSetDefault(config)
+                            <>
+                                {configs.map((config, i) => (
+                                    <div key={config.id}>
+                                        <div className="flex items-center justify-between py-4">
+                                            <div className="w-40 shrink-0">
+                                                <p className="text-sm font-medium">
+                                                    {config.name}
+                                                </p>
+                                            </div>
+                                            <div className="flex flex-1 items-center justify-between">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Baseline{' '}
+                                                    {
+                                                        config.baseline_hours_target
                                                     }
-                                                >
-                                                    Set Default
-                                                </Button>
-                                            )}
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                                onClick={() =>
-                                                    setDeleteTarget(config)
-                                                }
-                                                disabled={config.is_default}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                                    h · Understaffed{' '}
+                                                    {
+                                                        config.understaffed_penalty
+                                                    }
+                                                    {config.solver_time_limit
+                                                        ? ` · ${config.solver_time_limit}s limit`
+                                                        : ''}
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    {config.is_default ? (
+                                                        <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+                                                            Default
+                                                        </Badge>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() =>
+                                                                handleSetDefault(
+                                                                    config,
+                                                                )
+                                                            }
+                                                        >
+                                                            Set Default
+                                                        </Button>
+                                                    )}
+                                                    <Button
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                        onClick={() =>
+                                                            setDeleteTarget(
+                                                                config,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            config.is_default
+                                                        }
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         </div>
+                                        {i < configs.length - 1 && (
+                                            <Separator />
+                                        )}
                                     </div>
-                                </div>
-                                {i < configs.length - 1 && <Separator />}
-                            </div>
-                        ))}
-                        <Separator />
+                                ))}
+                                <Separator />
 
-                        <div className="flex justify-end pt-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setShowForm(true)}
-                            >
-                                New Configuration
-                            </Button>
-                        </div>
-                        </>
+                                <div className="flex justify-end pt-4">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setShowForm(true)}
+                                    >
+                                        New Configuration
+                                    </Button>
+                                </div>
+                            </>
                         )}
                     </CardContent>
                 </Card>
@@ -555,7 +563,11 @@ export function AdminSettings() {
                         >
                             Cancel
                         </Button>
-                        <Button variant="outline" onClick={handleCreate} disabled={createConfig.isPending}>
+                        <Button
+                            variant="outline"
+                            onClick={handleCreate}
+                            disabled={createConfig.isPending}
+                        >
                             {createConfig.isPending ? 'Creating…' : 'Create'}
                         </Button>
                     </DialogFooter>

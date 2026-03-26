@@ -32,6 +32,9 @@ type UpdateStudentRequest struct {
 	Availability   *json.RawMessage `json:"availability,omitempty"`
 	MinWeeklyHours *float64         `json:"min_weekly_hours,omitempty"`
 	MaxWeeklyHours *float64         `json:"max_weekly_hours,omitempty"`
+	Courses        []CourseDTO      `json:"courses,omitempty"`
+	OverallGPA     *float64         `json:"overall_gpa,omitempty"`
+	DegreeGPA      *float64         `json:"degree_gpa,omitempty"`
 }
 
 type CourseDTO struct {

@@ -40,6 +40,9 @@ type UpdateStudentInput struct {
 	Availability   *json.RawMessage
 	MinWeeklyHours *float64
 	MaxWeeklyHours *float64
+	Courses        []types.CourseResult
+	OverallGPA     *float64
+	DegreeGPA      *float64
 }
 
 type StudentService struct {
@@ -380,6 +383,10 @@ func (s *StudentService) Update(ctx context.Context, studentID int32, input Upda
 
 		if input.MaxWeeklyHours != nil {
 			student.MaxWeeklyHours = input.MaxWeeklyHours
+		}
+
+		if input.Courses != nil {
+			student.UpdateTranscript(input.Courses, input.OverallGPA, input.DegreeGPA)
 		}
 
 		if err := s.repository.Update(ctx, tx, student); err != nil {

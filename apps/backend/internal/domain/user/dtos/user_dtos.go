@@ -23,6 +23,7 @@ type UpdateUserRequest struct {
 type UpdateMeRequest struct {
 	FirstName *string `json:"first_name"`
 	LastName  *string `json:"last_name"`
+	Email     *string `json:"email"`
 }
 
 type UserResponse struct {

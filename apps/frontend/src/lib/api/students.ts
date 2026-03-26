@@ -84,6 +84,9 @@ export interface UpdateMyStudentProfileRequest {
     availability?: Record<string, number[]>
     min_weekly_hours?: number
     max_weekly_hours?: number
+    courses?: { code: string; title: string; grade: string | null }[]
+    overall_gpa?: number | null
+    degree_gpa?: number | null
 }
 
 export async function updateMyStudentProfile(

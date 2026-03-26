@@ -20,6 +20,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/templates"
 	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types"
 	emailDtos "github.com/HDR3604/HelpDeskApp/internal/infrastructure/email/types/dtos"
+	transcriptTypes "github.com/HDR3604/HelpDeskApp/internal/infrastructure/transcripts/types"
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
@@ -292,12 +293,28 @@ func (h *StudentHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updated, err := h.studentService.Update(r.Context(), studentID, service.UpdateStudentInput{
+	input := service.UpdateStudentInput{
 		PhoneNumber:    req.PhoneNumber,
 		Availability:   req.Availability,
 		MinWeeklyHours: req.MinWeeklyHours,
 		MaxWeeklyHours: req.MaxWeeklyHours,
-	})
+	}
+
+	if req.Courses != nil {
+		courses := make([]transcriptTypes.CourseResult, len(req.Courses))
+		for i, c := range req.Courses {
+			courses[i] = transcriptTypes.CourseResult{
+				Code:  c.Code,
+				Title: c.Title,
+				Grade: c.Grade,
+			}
+		}
+		input.Courses = courses
+		input.OverallGPA = req.OverallGPA
+		input.DegreeGPA = req.DegreeGPA
+	}
+
+	updated, err := h.studentService.Update(r.Context(), studentID, input)
 	if err != nil {
 		h.handleStudentError(w, err)
 		return

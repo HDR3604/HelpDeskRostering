@@ -134,6 +134,16 @@ func (s *Student) UpdatePhoneNumber(phoneNumber string) error {
 	return nil
 }
 
+// UpdateTranscript updates only the courses and GPA fields in transcript_metadata,
+// preserving all other fields (name, student_id, programme, major, year, term).
+func (s *Student) UpdateTranscript(courses []types.CourseResult, overallGPA *float64, degreeGPA *float64) {
+	s.TranscriptMetadata.Courses = courses
+	s.TranscriptMetadata.OverallGPA = overallGPA
+	s.TranscriptMetadata.DegreeGPA = degreeGPA
+	now := time.Now()
+	s.UpdatedAt = &now
+}
+
 func (s *Student) UpdateAvailability(availability json.RawMessage) error {
 	if err := validation.ValidateAvailability(availability); err != nil {
 		return err
