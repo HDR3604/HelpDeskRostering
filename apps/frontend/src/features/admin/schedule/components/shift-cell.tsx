@@ -11,6 +11,7 @@ interface ShiftCellProps {
     studentColorIndex: Record<string, number>
     dispatch: React.Dispatch<EditorAction>
     availability: 'available' | 'unavailable' | null
+    isLocked?: boolean
 }
 
 export function ShiftCell({
@@ -20,6 +21,7 @@ export function ShiftCell({
     studentColorIndex,
     dispatch,
     availability,
+    isLocked = false,
 }: ShiftCellProps) {
     const { setNodeRef, isOver } = useDroppable({ id: `shift::${shift.id}` })
 
@@ -59,6 +61,7 @@ export function ShiftCell({
                             context="cell"
                             shiftId={shift.id}
                             dispatch={dispatch}
+                            isLocked={isLocked}
                         />
                     ))}
                     <span

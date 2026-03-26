@@ -15,6 +15,7 @@ interface StudentChipProps {
     assigned?: boolean
     dispatch?: React.Dispatch<EditorAction>
     onHoverStudent?: (id: string | null) => void
+    isLocked?: boolean
 }
 
 export function StudentChip({
@@ -27,6 +28,7 @@ export function StudentChip({
     maxHours,
     dispatch,
     onHoverStudent,
+    isLocked = false,
 }: StudentChipProps) {
     const dragId = buildDragId(
         context === 'pool'
@@ -36,6 +38,7 @@ export function StudentChip({
 
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: dragId,
+        disabled: isLocked,
     })
     const color = STUDENT_COLORS[colorIndex % STUDENT_COLORS.length]
     const firstName = name.split(' ')[0]
@@ -48,8 +51,11 @@ export function StudentChip({
                 {...listeners}
                 {...attributes}
                 className={cn(
-                    'group flex items-center gap-1 lg:gap-1.5 rounded px-1.5 lg:px-2 py-1.5 lg:py-1 text-[11px] lg:text-xs leading-none cursor-grab select-none touch-manipulation',
-                    'hover:bg-accent/50 transition-colors',
+                    'group flex items-center gap-1 lg:gap-1.5 rounded px-1.5 lg:px-2 py-1.5 lg:py-1 text-[11px] lg:text-xs leading-none select-none touch-manipulation',
+                    isLocked
+                        ? 'cursor-default'
+                        : 'cursor-grab hover:bg-accent/50',
+                    'transition-colors',
                     isDragging && 'opacity-30',
                 )}
             >
@@ -61,7 +67,7 @@ export function StudentChip({
                 >
                     {firstName}
                 </span>
-                {dispatch && shiftId && (
+                {dispatch && shiftId && !isLocked && (
                     <button
                         type="button"
                         onPointerDown={(e) => e.stopPropagation()}

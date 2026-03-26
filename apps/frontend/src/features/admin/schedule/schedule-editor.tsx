@@ -53,8 +53,9 @@ export function ScheduleEditor({
         [students],
     )
 
-    // Schedule status
+    // Schedule status & lock
     const scheduleStatus = schedule.status
+    const isLocked = schedule.archived_at !== null
 
     // Rename
     const [scheduleTitle, setScheduleTitle] = useState(schedule.title)
@@ -89,12 +90,12 @@ export function ScheduleEditor({
         function onKeyDown(e: KeyboardEvent) {
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
                 e.preventDefault()
-                if (state.isDirty && !state.isSaving) wrappedSave()
+                if (!isLocked && state.isDirty && !state.isSaving) wrappedSave()
             }
         }
         window.addEventListener('keydown', onKeyDown)
         return () => window.removeEventListener('keydown', onKeyDown)
-    }, [state.isDirty, state.isSaving, wrappedSave])
+    }, [isLocked, state.isDirty, state.isSaving, wrappedSave])
 
     const dateRange =
         formatDateMedium(schedule.effective_from) +
@@ -284,10 +285,11 @@ export function ScheduleEditor({
                     totalAssignments={toolbarStats.totalAssignments}
                     totalStudents={toolbarStats.totalStudents}
                     totalHours={toolbarStats.totalHours}
+                    isLocked={isLocked}
                 />
 
                 <DndContext
-                    sensors={sensors}
+                    sensors={isLocked ? [] : sensors}
                     collisionDetection={closestCenter}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
@@ -302,17 +304,20 @@ export function ScheduleEditor({
                                 dispatch={dispatch}
                                 highlightedStudentId={highlightedStudentId}
                                 studentAvailabilityMap={studentAvailabilityMap}
+                                isLocked={isLocked}
                             />
                         </div>
 
-                        <StudentPool
-                            students={students}
-                            assignedStudentIds={assignedStudentIds}
-                            studentColorIndex={studentColorIndex}
-                            studentHours={studentHours}
-                            dispatch={dispatch}
-                            onHoverStudent={handleHoverStudent}
-                        />
+                        {!isLocked && (
+                            <StudentPool
+                                students={students}
+                                assignedStudentIds={assignedStudentIds}
+                                studentColorIndex={studentColorIndex}
+                                studentHours={studentHours}
+                                dispatch={dispatch}
+                                onHoverStudent={handleHoverStudent}
+                            />
+                        )}
                     </div>
 
                     <DragOverlay

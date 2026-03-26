@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Search, Settings, LogOut } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -101,9 +101,23 @@ export function SiteHeader() {
             ? `${firstName[0]}${lastName[0]}`.toUpperCase()
             : (email ?? '').slice(0, 2).toUpperCase()
 
+    // Subscribe to the schedule detail cache so breadcrumbs update when the
+    // title becomes available (e.g. after navigating to a freshly generated schedule).
+    const scheduleIdMatch = currentPath.match(/^\/schedule\/([^/]+)$/)
+    const scheduleId = scheduleIdMatch?.[1] ?? null
+    const { data: scheduleDetail } = useQuery<ScheduleResponse>({
+        queryKey: scheduleKeys.detail(scheduleId ?? ''),
+        enabled: false, // Don't fetch — just subscribe to cache updates
+    })
+
     const crumbs = useMemo(() => {
         const resolveScheduleTitle = (id: string): string | undefined => {
-            // Check detail cache first
+            // Use subscribed cache data for the current schedule
+            if (id === scheduleId && scheduleDetail?.title) {
+                return scheduleDetail.title
+            }
+
+            // Check detail cache
             const detail = queryClient.getQueryData<ScheduleResponse>(
                 scheduleKeys.detail(id),
             )
@@ -117,7 +131,7 @@ export function SiteHeader() {
         }
 
         return buildBreadcrumbs(currentPath, resolveScheduleTitle)
-    }, [currentPath, queryClient])
+    }, [currentPath, queryClient, scheduleId, scheduleDetail?.title])
 
     return (
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
