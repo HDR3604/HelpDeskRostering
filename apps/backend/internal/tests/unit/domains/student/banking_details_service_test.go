@@ -15,6 +15,8 @@ import (
 	"go.uber.org/zap"
 )
 
+func strPtr(s string) *string { return &s }
+
 func TestGetMyBankingDetails_Success(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	defer logger.Sync()
@@ -110,6 +112,9 @@ func TestUpsertMyBankingDetails_Success(t *testing.T) {
 	ctx := database.WithAuthContext(context.Background(), authCtx)
 
 	mockRepo := &mocks.MockBankingDetailsRepository{
+		GetByStudentIDFn: func(ctx context.Context, tx *sql.Tx, sid int32) (*aggregate.BankingDetails, error) {
+			return nil, errors.ErrBankingDetailsNotFound
+		},
 		UpsertFn: func(ctx context.Context, tx *sql.Tx, bd *aggregate.BankingDetails) (*aggregate.BankingDetails, error) {
 			if bd.StudentID != 123 {
 				t.Errorf("Expected student ID 123, got %d", bd.StudentID)
@@ -125,10 +130,10 @@ func TestUpsertMyBankingDetails_Success(t *testing.T) {
 
 	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
-		BankName:      "Bank A",
-		BranchName:    "Branch 1",
-		AccountType:   "savings",
-		AccountNumber: "12345678",
+		BankName:      strPtr("Bank A"),
+		BranchName:    strPtr("Branch 1"),
+		AccountType:   strPtr("savings"),
+		AccountNumber: strPtr("12345678"),
 	}
 	result, err := svc.UpsertMyBankingDetails(ctx, input)
 
@@ -152,15 +157,19 @@ func TestUpsertMyBankingDetails_InvalidBankName(t *testing.T) {
 	}
 	ctx := database.WithAuthContext(context.Background(), authCtx)
 
-	mockRepo := &mocks.MockBankingDetailsRepository{}
+	mockRepo := &mocks.MockBankingDetailsRepository{
+		GetByStudentIDFn: func(ctx context.Context, tx *sql.Tx, sid int32) (*aggregate.BankingDetails, error) {
+			return nil, errors.ErrBankingDetailsNotFound
+		},
+	}
 	mockTxManager := &mocks.StubTxManager{}
 
 	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
-		BankName:      "",
-		BranchName:    "Branch 1",
-		AccountType:   "savings",
-		AccountNumber: "12345678",
+		BankName:      strPtr(""),
+		BranchName:    strPtr("Branch 1"),
+		AccountType:   strPtr("savings"),
+		AccountNumber: strPtr("12345678"),
 	}
 	_, err := svc.UpsertMyBankingDetails(ctx, input)
 
@@ -181,15 +190,19 @@ func TestUpsertMyBankingDetails_InvalidAccountNumber(t *testing.T) {
 	}
 	ctx := database.WithAuthContext(context.Background(), authCtx)
 
-	mockRepo := &mocks.MockBankingDetailsRepository{}
+	mockRepo := &mocks.MockBankingDetailsRepository{
+		GetByStudentIDFn: func(ctx context.Context, tx *sql.Tx, sid int32) (*aggregate.BankingDetails, error) {
+			return nil, errors.ErrBankingDetailsNotFound
+		},
+	}
 	mockTxManager := &mocks.StubTxManager{}
 
 	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
-		BankName:      "Bank A",
-		BranchName:    "Branch 1",
-		AccountType:   "savings",
-		AccountNumber: "123", // too short
+		BankName:      strPtr("Bank A"),
+		BranchName:    strPtr("Branch 1"),
+		AccountType:   strPtr("savings"),
+		AccountNumber: strPtr("123"), // too short
 	}
 	_, err := svc.UpsertMyBankingDetails(ctx, input)
 
@@ -327,6 +340,9 @@ func TestUpsertBankingDetailsByStudentID_Success(t *testing.T) {
 	ctx := database.WithAuthContext(context.Background(), authCtx)
 
 	mockRepo := &mocks.MockBankingDetailsRepository{
+		GetByStudentIDFn: func(ctx context.Context, tx *sql.Tx, sid int32) (*aggregate.BankingDetails, error) {
+			return nil, errors.ErrBankingDetailsNotFound
+		},
 		UpsertFn: func(ctx context.Context, tx *sql.Tx, bd *aggregate.BankingDetails) (*aggregate.BankingDetails, error) {
 			if bd.StudentID != 456 {
 				t.Errorf("Expected student ID 456, got %d", bd.StudentID)
@@ -342,10 +358,10 @@ func TestUpsertBankingDetailsByStudentID_Success(t *testing.T) {
 
 	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
-		BankName:      "Admin Bank",
-		BranchName:    "Admin Branch",
-		AccountType:   "chequeing",
-		AccountNumber: "9876543210",
+		BankName:      strPtr("Admin Bank"),
+		BranchName:    strPtr("Admin Branch"),
+		AccountType:   strPtr("chequeing"),
+		AccountNumber: strPtr("9876543210"),
 	}
 	result, err := svc.UpsertBankingDetailsByStudentID(ctx, 456, input)
 
@@ -373,10 +389,10 @@ func TestUpsertBankingDetailsByStudentID_NotAdmin(t *testing.T) {
 
 	svc := service.NewBankingDetailsService(logger, mockTxManager, mockRepo, &mocks.MockConsentRepository{})
 	input := service.UpsertBankingDetailsInput{
-		BankName:      "Bank A",
-		BranchName:    "Branch 1",
-		AccountType:   "savings",
-		AccountNumber: "12345678",
+		BankName:      strPtr("Bank A"),
+		BranchName:    strPtr("Branch 1"),
+		AccountType:   strPtr("savings"),
+		AccountNumber: strPtr("12345678"),
 	}
 	_, err := svc.UpsertBankingDetailsByStudentID(ctx, 456, input)
 

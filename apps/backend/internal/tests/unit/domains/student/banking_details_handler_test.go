@@ -124,7 +124,8 @@ func (s *StudentHandlerTestSuite) TestGetMyBankingDetails_MissingAuth() {
 
 func (s *StudentHandlerTestSuite) TestUpsertMyBankingDetails_Success() {
 	s.mockSvc.UpsertMyBankingDetailsFn = func(ctx context.Context, input service.UpsertBankingDetailsInput) (*aggregate.BankingDetails, error) {
-		s.Equal("Bank A", input.BankName)
+		s.Require().NotNil(input.BankName)
+		s.Equal("Bank A", *input.BankName)
 		return sampleBankingDetails(), nil
 	}
 
