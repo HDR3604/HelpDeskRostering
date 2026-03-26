@@ -87,8 +87,7 @@ const ERROR_MAP: Record<string, string> = {
 
     // Users
     'user not found': 'This user could not be found.',
-    'first name and last name are required':
-        'First name and last name cannot be empty.',
+    'first name and last name are required': 'Name cannot be empty.',
     'new email must be different from current email':
         'The new email must be different from your current email.',
     'new role must be different from current role':
