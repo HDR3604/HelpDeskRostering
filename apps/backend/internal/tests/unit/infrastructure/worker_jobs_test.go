@@ -15,6 +15,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/tests/mocks"
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivertype"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 )
@@ -67,7 +68,13 @@ func (s *ScheduleGenerationWorkerSuite) newResponse() *types.GenerateScheduleRes
 }
 
 func (s *ScheduleGenerationWorkerSuite) newJob(args jobs.ScheduleGenerationArgs) *river.Job[jobs.ScheduleGenerationArgs] {
-	return &river.Job[jobs.ScheduleGenerationArgs]{Args: args}
+	return &river.Job[jobs.ScheduleGenerationArgs]{
+		JobRow: &rivertype.JobRow{
+			Attempt:     1,
+			MaxAttempts: 3,
+		},
+		Args: args,
+	}
 }
 
 func (s *ScheduleGenerationWorkerSuite) setupHappyPath(args jobs.ScheduleGenerationArgs) (completedScheduleID *uuid.UUID) {

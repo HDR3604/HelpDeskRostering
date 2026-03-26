@@ -66,8 +66,9 @@ func (g *ScheduleGeneration) MarkCompleted(scheduleID uuid.UUID, responsePayload
 }
 
 // MarkFailed transitions to failed status with an error message.
+// Can be called from pending (enqueue failure) or started (runtime failure).
 func (g *ScheduleGeneration) MarkFailed(errorMessage string) error {
-	if g.StartedAt == nil {
+	if g.Status != GenerationStatus_Pending && g.StartedAt == nil {
 		return errors.ErrGenerationNotStarted
 	}
 	g.Status = GenerationStatus_Failed

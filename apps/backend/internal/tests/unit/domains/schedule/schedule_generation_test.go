@@ -115,12 +115,15 @@ func (s *ScheduleGenerationAggregateTestSuite) TestMarkFailed_Success() {
 	s.Nil(gen.ResponsePayload)
 }
 
-func (s *ScheduleGenerationAggregateTestSuite) TestMarkFailed_NotStarted() {
+func (s *ScheduleGenerationAggregateTestSuite) TestMarkFailed_FromPending() {
 	gen := aggregate.NewScheduleGeneration(uuid.New(), uuid.New(), "{}")
 
-	err := gen.MarkFailed("error")
+	err := gen.MarkFailed("enqueue failed")
 
-	s.ErrorIs(err, scheduleErrors.ErrGenerationNotStarted)
+	s.NoError(err, "MarkFailed should succeed from pending (e.g. enqueue failure)")
+	s.Equal(aggregate.GenerationStatus_Failed, gen.Status)
+	s.Require().NotNil(gen.ErrorMessage)
+	s.Equal("enqueue failed", *gen.ErrorMessage)
 }
 
 // --- MarkInfeasible ---

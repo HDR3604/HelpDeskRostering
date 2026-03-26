@@ -22,7 +22,7 @@ export function useGenerationStatus(
     status: GenerationStatusUpdate | null
 } {
     const [status, setStatus] = useState<GenerationStatusUpdate | null>(null)
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => {
         if (!generationId || !formValues) {
@@ -103,7 +103,7 @@ export function useGenerationStatus(
 
         function stopPolling() {
             if (pollRef.current) {
-                clearInterval(pollRef.current)
+                clearTimeout(pollRef.current)
                 pollRef.current = null
             }
         }
@@ -144,12 +144,9 @@ export function useGenerationStatus(
             .then((generation) => {
                 if (abort.signal.aborted) return
 
-                // Step 2: Poll for completion
-                pollRef.current = setInterval(async () => {
-                    if (abort.signal.aborted) {
-                        stopPolling()
-                        return
-                    }
+                // Step 2: Poll for completion (recursive setTimeout to avoid overlapping requests)
+                async function poll() {
+                    if (abort.signal.aborted) return
 
                     // Timeout guard
                     if (Date.now() - startTime > POLL_TIMEOUT_MS) {
@@ -175,6 +172,7 @@ export function useGenerationStatus(
                                 null,
                                 result.completed_at,
                             )
+                            return
                         } else if (result.status === 'failed') {
                             applyTerminal(
                                 'failed',
@@ -183,6 +181,7 @@ export function useGenerationStatus(
                                     'Schedule generation failed.',
                                 result.completed_at,
                             )
+                            return
                         } else if (result.status === 'infeasible') {
                             applyTerminal(
                                 'infeasible',
@@ -191,11 +190,18 @@ export function useGenerationStatus(
                                     'No feasible schedule found.',
                                 result.completed_at,
                             )
+                            return
                         }
                     } catch {
                         // Polling error — keep trying until timeout
                     }
-                }, POLL_INTERVAL_MS)
+
+                    // Schedule next poll after current completes
+                    pollRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+                }
+
+                // Start first poll
+                pollRef.current = setTimeout(poll, POLL_INTERVAL_MS)
             })
             .catch((err) => {
                 if (abort.signal.aborted) return

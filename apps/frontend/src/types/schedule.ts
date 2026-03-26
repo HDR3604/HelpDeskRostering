@@ -35,7 +35,7 @@ export type GenerationStatus =
 
 export interface GenerationResponse {
     id: string
-    status: string
+    status: GenerationStatus
     schedule_id: string | null
     config_id: string
     error_message: string | null

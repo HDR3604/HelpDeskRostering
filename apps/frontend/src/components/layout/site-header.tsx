@@ -106,7 +106,9 @@ export function SiteHeader() {
     const scheduleIdMatch = currentPath.match(/^\/schedule\/([^/]+)$/)
     const scheduleId = scheduleIdMatch?.[1] ?? null
     const { data: scheduleDetail } = useQuery<ScheduleResponse>({
-        queryKey: scheduleKeys.detail(scheduleId ?? ''),
+        queryKey: scheduleId
+            ? scheduleKeys.detail(scheduleId)
+            : ['schedules', 'detail', '__none__'],
         enabled: false, // Don't fetch — just subscribe to cache updates
     })
 

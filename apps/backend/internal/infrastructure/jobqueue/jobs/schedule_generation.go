@@ -82,7 +82,11 @@ func (w *ScheduleGenerationWorker) Work(ctx context.Context, job *river.Job[Sche
 		log.Error("scheduler failed", zap.Error(err))
 
 		if errors.Is(err, schedulerErrors.ErrSchedulerUnavailable) {
-			// Transient error — let River retry
+			// Transient error — let River retry, unless this is the last attempt
+			if job.Attempt >= job.MaxAttempts {
+				w.markFailed(ctx, args.GenerationID, fmt.Sprintf("scheduler unavailable after %d attempts: %v", job.Attempt, err))
+				return nil
+			}
 			return err
 		}
 
