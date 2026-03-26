@@ -38,11 +38,18 @@ import {
 } from 'lucide-react'
 import { useLocation } from '@tanstack/react-router'
 import { useUser } from '@/lib/auth/hooks/use-user'
-import { useMyStudentProfile } from '@/lib/queries/students'
+import { apiClient } from '@/lib/api-client'
+import {
+    useMyStudentProfile,
+    useUpdateMyStudentProfile,
+    useMyBankingDetails,
+    useUpsertMyBankingDetails,
+} from '@/lib/queries/students'
 import { usePasswordReset } from '@/lib/auth/use-password-reset'
 import { StepAvailability } from '@/features/sign-up/components/step-availability'
 import { PhoneNumberInput } from '@/features/sign-up/components/phone-input'
 import { cn } from '@/lib/utils'
+import { getApiErrorMessage } from '@/lib/error-messages'
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -269,15 +276,12 @@ export function StudentSettings() {
     const student = profileQuery.data
     const transcript = student?.transcript_metadata
 
-    const [firstName, setFirstName] = useState(userFirstName ?? '')
-    const [lastName, setLastName] = useState(userLastName ?? '')
+    const updateStudentProfile = useUpdateMyStudentProfile()
+
+    const firstName = userFirstName ?? ''
+    const lastName = userLastName ?? ''
     const [phone, setPhone] = useState('')
     const [savedIndicator, setSavedIndicator] = useState(false)
-
-    useEffect(() => {
-        if (userFirstName) setFirstName(userFirstName)
-        if (userLastName) setLastName(userLastName)
-    }, [userFirstName, userLastName])
 
     // Load phone from student profile
     useEffect(() => {
@@ -290,43 +294,25 @@ export function StudentSettings() {
     }
 
     // Profile auto-save handlers (debounced)
-    const handleAutoSaveFirstName = useCallback(
-        (val: string) => {
-            setFirstName(val)
-            flashSaved()
-            // TODO: API call
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [],
-    )
-    const handleAutoSaveLastName = useCallback(
-        (val: string) => {
-            setLastName(val)
-            flashSaved()
-            // TODO: API call
-        },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [],
-    )
     const handleAutoSavePhone = useCallback(
         (val: string) => {
             setPhone(val)
-            flashSaved()
-            // TODO: API call
+            updateStudentProfile.mutate(
+                { phone_number: val },
+                { onSuccess: () => flashSaved() },
+            )
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [],
     )
 
     // Click-to-edit states for profile fields
-    const [editingName, setEditingName] = useState(false)
     const [editingPhone, setEditingPhone] = useState(false)
 
     // Escape key to close any open editor
     useEffect(() => {
         function onKeyDown(e: KeyboardEvent) {
             if (e.key === 'Escape') {
-                setEditingName(false)
                 setEditingPhone(false)
                 setEditingBankName(false)
                 setEditingBranch(false)
@@ -350,18 +336,35 @@ export function StudentSettings() {
         'success' | 'error' | null
     >(null)
 
+    // Load availability from student profile
+    useEffect(() => {
+        if (student?.availability) setAvailability(student.availability)
+    }, [student?.availability])
+
     // -- Transcript upload --------------------------------------------------
 
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isUploading, setIsUploading] = useState(false)
-    const [transcriptUrl, setTranscriptUrl] = useState<string | null>(null)
 
-    // -- Payment state (TODO: replace with API calls) -----------------------
+    // -- Payment state -------------------------------------------------------
+
+    const bankingQuery = useMyBankingDetails()
+    const upsertBanking = useUpsertMyBankingDetails()
 
     const [bankName, setBankName] = useState('')
     const [branchName, setBranchName] = useState('')
     const [accountType, setAccountType] = useState('')
     const [accountNumber, setAccountNumber] = useState('')
+
+    // Sync banking details from API
+    useEffect(() => {
+        if (bankingQuery.data) {
+            setBankName(bankingQuery.data.bank_name ?? '')
+            setBranchName(bankingQuery.data.branch_name ?? '')
+            setAccountType(bankingQuery.data.account_type ?? '')
+            setAccountNumber(bankingQuery.data.account_number ?? '')
+        }
+    }, [bankingQuery.data])
 
     const [editingBankName, setEditingBankName] = useState(false)
     const [editingBranch, setEditingBranch] = useState(false)
@@ -386,7 +389,7 @@ export function StudentSettings() {
         }
         setBankName(draftBankName)
         setEditingBankName(false)
-        toast.success('Bank updated.')
+        upsertBanking.mutate({ bank_name: draftBankName })
     }
 
     function handleSaveBranch() {
@@ -396,7 +399,7 @@ export function StudentSettings() {
         }
         setBranchName(draftBranch)
         setEditingBranch(false)
-        toast.success('Branch updated.')
+        upsertBanking.mutate({ branch_name: draftBranch })
     }
 
     function handleSaveAccountType() {
@@ -406,7 +409,7 @@ export function StudentSettings() {
         }
         setAccountType(draftAccountType)
         setEditingAccountType(false)
-        toast.success('Account type updated.')
+        upsertBanking.mutate({ account_type: draftAccountType })
     }
 
     function handleSaveAccountNumber() {
@@ -416,7 +419,7 @@ export function StudentSettings() {
         }
         setAccountNumber(draftAccountNumber)
         setEditingAccountNumber(false)
-        toast.success('Account number updated.')
+        upsertBanking.mutate({ account_number: draftAccountNumber })
     }
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -432,13 +435,42 @@ export function StudentSettings() {
     async function handleUpload() {
         if (!selectedFile) return
         setIsUploading(true)
-        const url = URL.createObjectURL(selectedFile)
-        await new Promise((r) => setTimeout(r, 1000))
-        setIsUploading(false)
-        setTranscriptUrl(url)
-        setSelectedFile(null)
-        toast.success('Transcript uploaded successfully.')
-        // TODO: replace url with the URL returned from the API
+        try {
+            const formData = new FormData()
+            formData.append('file', selectedFile)
+            const { data: extracted } = await apiClient.post<{
+                courses: { code: string; title: string; grade: string | null }[]
+                overall_gpa: number | null
+                degree_gpa: number | null
+                current_year: number
+                current_programme: string
+                major: string
+                first_name: string
+                last_name: string
+                student_id: string
+            }>('/transcripts/extract', formData)
+
+            await updateStudentProfile.mutateAsync({
+                courses: extracted.courses,
+                overall_gpa: extracted.overall_gpa,
+                degree_gpa: extracted.degree_gpa,
+                current_year: extracted.current_year || null,
+                current_programme: extracted.current_programme || null,
+                major: extracted.major || null,
+                transcript_first_name: extracted.first_name || null,
+                transcript_last_name: extracted.last_name || null,
+                transcript_student_id: extracted.student_id || null,
+            })
+
+            setSelectedFile(null)
+            toast.success('Transcript updated — courses and GPA refreshed.')
+        } catch (error) {
+            toast.error('Failed to update transcript.', {
+                description: getApiErrorMessage(error),
+            })
+        } finally {
+            setIsUploading(false)
+        }
     }
 
     const handleSaveAvailability = useCallback(() => {
@@ -539,46 +571,11 @@ export function StudentSettings() {
                             </SettingsRow>
                             <Separator />
 
-                            {/* Name — click to edit, auto-saves with debounce */}
+                            {/* Name — read-only for students */}
                             <SettingsRow label="Name">
-                                {editingName ? (
-                                    <div className="flex flex-1 gap-3">
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">
-                                                First name
-                                            </Label>
-                                            <AutoSaveInput
-                                                value={firstName}
-                                                onSave={handleAutoSaveFirstName}
-                                                validate={(v) =>
-                                                    v.length >= 2 &&
-                                                    /^[a-zA-Z\s'-]+$/.test(v)
-                                                }
-                                                placeholder="First name"
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <div className="flex-1 space-y-1.5">
-                                            <Label className="text-xs text-muted-foreground">
-                                                Last name
-                                            </Label>
-                                            <AutoSaveInput
-                                                value={lastName}
-                                                onSave={handleAutoSaveLastName}
-                                                validate={(v) =>
-                                                    v.length >= 2 &&
-                                                    /^[a-zA-Z\s'-]+$/.test(v)
-                                                }
-                                                placeholder="Last name"
-                                            />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <EditableValue
-                                        display={`${firstName} ${lastName}`.trim()}
-                                        onEdit={() => setEditingName(true)}
-                                    />
-                                )}
+                                <p className="text-sm text-muted-foreground">
+                                    {`${firstName} ${lastName}`.trim() || '—'}
+                                </p>
                             </SettingsRow>
                             <Separator />
 
@@ -636,16 +633,12 @@ export function StudentSettings() {
                                                     KB)
                                                 </span>
                                             </>
-                                        ) : transcriptUrl ? (
-                                            <a
-                                                href={transcriptUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="flex items-center gap-1.5 text-primary hover:underline underline-offset-4"
-                                            >
+                                        ) : transcript &&
+                                          transcript.courses.length > 0 ? (
+                                            <span className="flex items-center gap-1.5">
                                                 <FileText className="h-4 w-4" />
-                                                View uploaded transcript
-                                            </a>
+                                                Transcript uploaded
+                                            </span>
                                         ) : (
                                             <span>No file uploaded</span>
                                         )}
@@ -658,9 +651,14 @@ export function StudentSettings() {
                                                 onClick={handleUpload}
                                                 disabled={isUploading}
                                             >
-                                                {isUploading
-                                                    ? 'Uploading...'
-                                                    : 'Upload'}
+                                                {isUploading ? (
+                                                    <>
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        Uploading…
+                                                    </>
+                                                ) : (
+                                                    'Upload'
+                                                )}
                                             </Button>
                                         )}
                                         <label>
@@ -677,7 +675,9 @@ export function StudentSettings() {
                                             >
                                                 <span className="flex items-center gap-1.5">
                                                     <Upload className="h-3.5 w-3.5" />
-                                                    {transcriptUrl
+                                                    {transcript &&
+                                                    transcript.courses.length >
+                                                        0
                                                         ? 'Replace'
                                                         : 'Browse'}
                                                 </span>
@@ -831,13 +831,25 @@ export function StudentSettings() {
                                 defaultValues={availability}
                                 onNext={(updated) => {
                                     setAvailabilitySaving(true)
-                                    // TODO: call API here
-                                    setTimeout(() => {
-                                        setAvailability(updated)
-                                        setAvailabilitySaving(false)
-                                        setAvailabilityDirty(false)
-                                        setAvailabilitySaveStatus('success')
-                                    }, 0)
+                                    updateStudentProfile.mutate(
+                                        { availability: updated },
+                                        {
+                                            onSuccess: () => {
+                                                setAvailability(updated)
+                                                setAvailabilitySaving(false)
+                                                setAvailabilityDirty(false)
+                                                setAvailabilitySaveStatus(
+                                                    'success',
+                                                )
+                                            },
+                                            onError: () => {
+                                                setAvailabilitySaving(false)
+                                                setAvailabilitySaveStatus(
+                                                    'error',
+                                                )
+                                            },
+                                        },
+                                    )
                                 }}
                                 onBack={() => {}}
                             />
@@ -953,10 +965,10 @@ export function StudentSettings() {
                                                     <SelectValue placeholder="Select type..." />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="Chequing">
+                                                    <SelectItem value="chequeing">
                                                         Chequing
                                                     </SelectItem>
-                                                    <SelectItem value="Savings">
+                                                    <SelectItem value="savings">
                                                         Savings
                                                     </SelectItem>
                                                 </SelectContent>
@@ -995,7 +1007,11 @@ export function StudentSettings() {
                                                         ),
                                                     )
                                                 }
-                                                placeholder="7–16 digit account number"
+                                                placeholder={
+                                                    accountNumber
+                                                        ? `Previous: ••••${accountNumber.slice(-4)}`
+                                                        : '7–16 digit account number'
+                                                }
                                                 inputMode="numeric"
                                                 maxLength={16}
                                                 autoFocus
@@ -1010,7 +1026,7 @@ export function StudentSettings() {
                                                 : ''
                                         }
                                         onEdit={() => {
-                                            setDraftAccountNumber(accountNumber)
+                                            setDraftAccountNumber('')
                                             setEditingAccountNumber(true)
                                         }}
                                     />

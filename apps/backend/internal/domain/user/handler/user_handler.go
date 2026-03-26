@@ -10,6 +10,7 @@ import (
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/dtos"
 	userErrors "github.com/HDR3604/HelpDeskApp/internal/domain/user/errors"
 	"github.com/HDR3604/HelpDeskApp/internal/domain/user/service"
+	"github.com/HDR3604/HelpDeskApp/internal/infrastructure/database"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -30,6 +31,10 @@ func NewUserHandler(logger *zap.Logger, service service.UserServiceInterface) *U
 func (h *UserHandler) RegisterRoutes(r chi.Router) {
 	r.Get("/users/{id}", h.GetByID)
 	r.Put("/users/{id}", h.Update)
+}
+
+func (h *UserHandler) RegisterAuthenticatedRoutes(r chi.Router) {
+	r.Put("/users/me", h.UpdateMe)
 }
 
 func (h *UserHandler) RegisterAdminRoutes(r chi.Router) {
@@ -87,6 +92,12 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input := service.UpdateUserInput{}
+	if req.FirstName != nil {
+		input.FirstName = req.FirstName
+	}
+	if req.LastName != nil {
+		input.LastName = req.LastName
+	}
 	if req.Email != nil {
 		input.Email = req.Email
 	}
@@ -104,6 +115,50 @@ func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := h.service.GetByID(r.Context(), id.String())
+	if err != nil {
+		h.handleUserError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, dtos.UserToResponse(user))
+}
+
+func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
+	ac, ok := database.GetAuthContextFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	var req dtos.UpdateMeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Warn("invalid request body", zap.Error(err))
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if req.FirstName == nil && req.LastName == nil && req.Email == nil {
+		writeError(w, http.StatusBadRequest, "no fields to update")
+		return
+	}
+
+	input := service.UpdateUserInput{}
+	if req.FirstName != nil {
+		input.FirstName = req.FirstName
+	}
+	if req.LastName != nil {
+		input.LastName = req.LastName
+	}
+	if req.Email != nil {
+		input.Email = req.Email
+	}
+
+	if err := h.service.Update(r.Context(), ac.UserID, input); err != nil {
+		h.handleUserError(w, err)
+		return
+	}
+
+	user, err := h.service.GetByID(r.Context(), ac.UserID)
 	if err != nil {
 		h.handleUserError(w, err)
 		return

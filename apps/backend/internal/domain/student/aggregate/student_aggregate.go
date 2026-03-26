@@ -134,6 +134,67 @@ func (s *Student) UpdatePhoneNumber(phoneNumber string) error {
 	return nil
 }
 
+// TranscriptIdentity holds the identity fields extracted from a transcript,
+// used to verify the transcript belongs to this student.
+type TranscriptIdentity struct {
+	FirstName string
+	LastName  string
+	StudentID string
+}
+
+// UpdateTranscript validates that the transcript belongs to this student,
+// then updates courses, GPA, year, programme, and major in transcript_metadata.
+// All other fields (name, student_id, term) are preserved.
+func (s *Student) UpdateTranscript(identity TranscriptIdentity, courses []types.CourseResult, overallGPA *float64, degreeGPA *float64, currentYear *int, currentProgramme *string, major *string) error {
+	if !s.transcriptMatchesStudent(identity) {
+		return studentErrors.ErrTranscriptMismatch
+	}
+
+	s.TranscriptMetadata.Courses = courses
+	s.TranscriptMetadata.OverallGPA = overallGPA
+	s.TranscriptMetadata.DegreeGPA = degreeGPA
+	if currentYear != nil {
+		s.TranscriptMetadata.CurrentYear = *currentYear
+	}
+	if currentProgramme != nil {
+		s.TranscriptMetadata.CurrentProgramme = *currentProgramme
+	}
+	if major != nil {
+		s.TranscriptMetadata.Major = *major
+	}
+	now := time.Now()
+	s.UpdatedAt = &now
+	return nil
+}
+
+// transcriptMatchesStudent checks extracted identity against the student's
+// existing transcript metadata. If the student has no prior transcript data
+// (first upload), the check is skipped.
+func (s *Student) transcriptMatchesStudent(identity TranscriptIdentity) bool {
+	existing := s.TranscriptMetadata
+
+	// If no prior identity on record, allow the upload
+	if existing.StudentID == "" && existing.FirstName == "" && existing.LastName == "" {
+		return true
+	}
+
+	// Compare student ID if both are present
+	if existing.StudentID != "" && identity.StudentID != "" {
+		if !strings.EqualFold(strings.TrimSpace(existing.StudentID), strings.TrimSpace(identity.StudentID)) {
+			return false
+		}
+	}
+
+	// Compare last name (most reliable name field on transcripts)
+	if existing.LastName != "" && identity.LastName != "" {
+		if !strings.EqualFold(strings.TrimSpace(existing.LastName), strings.TrimSpace(identity.LastName)) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (s *Student) UpdateAvailability(availability json.RawMessage) error {
 	if err := validation.ValidateAvailability(availability); err != nil {
 		return err

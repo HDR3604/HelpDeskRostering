@@ -120,6 +120,7 @@ func (r *StudentRepository) Update(ctx context.Context, tx *sql.Tx, student *agg
 	stmt := table.Students.UPDATE(
 		table.Students.EmailAddress,
 		table.Students.PhoneNumber,
+		table.Students.TranscriptMetadata,
 		table.Students.Availability,
 		table.Students.UpdatedAt,
 		table.Students.DeletedAt,
@@ -130,6 +131,7 @@ func (r *StudentRepository) Update(ctx context.Context, tx *sql.Tx, student *agg
 	).SET(
 		m.EmailAddress,
 		m.PhoneNumber,
+		m.TranscriptMetadata,
 		m.Availability,
 		m.UpdatedAt,
 		m.DeletedAt,

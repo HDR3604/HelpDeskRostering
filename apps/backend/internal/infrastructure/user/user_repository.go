@@ -127,12 +127,16 @@ func (r *UserRepository) Update(ctx context.Context, tx *sql.Tx, user *aggregate
 	userModel := user.ToModel()
 
 	stmt := table.Users.UPDATE(
+		table.Users.FirstName,
+		table.Users.LastName,
 		table.Users.EmailAddress,
 		table.Users.Password,
 		table.Users.Role,
 		table.Users.IsActive,
 		table.Users.EmailVerifiedAt,
 	).SET(
+		userModel.FirstName,
+		userModel.LastName,
 		userModel.EmailAddress,
 		userModel.Password,
 		userModel.Role,

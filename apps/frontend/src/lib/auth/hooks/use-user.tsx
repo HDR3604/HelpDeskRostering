@@ -8,6 +8,7 @@ import {
 import type { JwtPayload } from '../types'
 
 type UserContextValue = {
+    id: string | null
     role: JwtPayload['role']
     firstName: string | null
     lastName: string | null
@@ -18,6 +19,7 @@ const UserContext = React.createContext<UserContextValue | null>(null)
 
 function buildUserValue(payload: JwtPayload | null): UserContextValue {
     return {
+        id: payload?.sub ?? null,
         role: payload?.role ?? 'admin',
         firstName: payload?.first_name ?? null,
         lastName: payload?.last_name ?? null,

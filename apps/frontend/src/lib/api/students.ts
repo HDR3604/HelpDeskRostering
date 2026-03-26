@@ -79,13 +79,36 @@ export async function getMyStudentProfile(): Promise<Student> {
     return data
 }
 
+export interface UpdateMyStudentProfileRequest {
+    phone_number?: string
+    availability?: Record<string, number[]>
+    min_weekly_hours?: number
+    max_weekly_hours?: number
+    courses?: { code: string; title: string; grade: string | null }[]
+    overall_gpa?: number | null
+    degree_gpa?: number | null
+    current_year?: number | null
+    current_programme?: string | null
+    major?: string | null
+    transcript_first_name?: string | null
+    transcript_last_name?: string | null
+    transcript_student_id?: string | null
+}
+
+export async function updateMyStudentProfile(
+    req: UpdateMyStudentProfileRequest,
+): Promise<Student> {
+    const { data } = await apiClient.put<Student>('/students/me', req)
+    return data
+}
+
 // --- Banking details ---
 
 export interface BankingDetailsRequest {
-    bank_name: string
-    branch_name: string
-    account_type: string
-    account_number: string
+    bank_name?: string
+    branch_name?: string
+    account_type?: string
+    account_number?: string
 }
 
 export interface BankingDetailsResponse {

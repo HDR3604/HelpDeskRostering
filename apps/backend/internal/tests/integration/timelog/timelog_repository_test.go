@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/HDR3604/HelpDeskApp/internal/domain/timelog/aggregate"
 	timelogErrors "github.com/HDR3604/HelpDeskApp/internal/domain/timelog/errors"
@@ -168,7 +169,7 @@ func (s *TimeLogRepositoryTestSuite) TestGetOpenByStudentID_IgnoresClosed() {
 	created := s.createTimeLog(s.studentID, -61.277, 10.642, 10.0)
 
 	// Clock out
-	err := created.ClockOut()
+	err := created.ClockOut(time.Now().UTC())
 	s.Require().NoError(err)
 	err = s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		_, txErr := s.repo.Update(s.ctx, tx, created)
@@ -194,7 +195,7 @@ func (s *TimeLogRepositoryTestSuite) TestGetOpenByStudentID_IgnoresClosed() {
 func (s *TimeLogRepositoryTestSuite) TestUpdate_ClockOut() {
 	created := s.createTimeLog(s.studentID, -61.277, 10.642, 10.0)
 
-	err := created.ClockOut()
+	err := created.ClockOut(time.Now().UTC())
 	s.Require().NoError(err)
 
 	var result *aggregate.TimeLog
@@ -232,7 +233,7 @@ func (s *TimeLogRepositoryTestSuite) TestUpdate_Flag() {
 func (s *TimeLogRepositoryTestSuite) TestList_Success() {
 	first := s.createTimeLog(s.studentID, -61.277, 10.642, 10.0)
 	// Close the first log so we can create a second (unique index)
-	_ = first.ClockOut()
+	_ = first.ClockOut(time.Now().UTC())
 	err := s.txManager.InSystemTx(s.ctx, func(tx *sql.Tx) error {
 		_, txErr := s.repo.Update(s.ctx, tx, first)
 		return txErr
@@ -330,7 +331,7 @@ func (s *TimeLogRepositoryTestSuite) TestRLS_StudentCanInsertOwnLog() {
 
 func (s *TimeLogRepositoryTestSuite) TestRLS_StudentCanUpdateOwnLog() {
 	created := s.createTimeLog(s.studentID, -61.277, 10.642, 10.0)
-	err := created.ClockOut()
+	err := created.ClockOut(time.Now().UTC())
 	s.Require().NoError(err)
 
 	authCtx := s.studentAuthCtx()

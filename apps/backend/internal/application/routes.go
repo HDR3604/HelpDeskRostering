@@ -65,6 +65,7 @@ func registerRoutes(
 			scheduleHdl.RegisterRoutes(r)
 			shiftTemplateHdl.RegisterReadRoutes(r)
 			studentHdl.RegisterRoutes(r)
+			userHdl.RegisterAuthenticatedRoutes(r)
 
 			// Time log routes — rate limited to prevent clock-in code brute-forcing
 			r.Group(func(r chi.Router) {

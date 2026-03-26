@@ -335,6 +335,102 @@ func TestUpdateRole_SameRole(t *testing.T) {
 	}
 }
 
+// TestUpdateFirstName_Success tests updating first name with valid input
+func TestUpdateFirstName_Success(t *testing.T) {
+	u, err := aggregate.NewUser("Test", "User", "test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
+	if err != nil {
+		t.Fatalf("NewUser() error = %v", err)
+	}
+
+	err = u.UpdateFirstName("  NewName  ")
+	if err != nil {
+		t.Errorf("UpdateFirstName() error = %v, want nil", err)
+	}
+	if u.FirstName != "NewName" {
+		t.Errorf("FirstName = %q, want %q", u.FirstName, "NewName")
+	}
+	if u.UpdatedAt == nil {
+		t.Error("UpdatedAt should be set after UpdateFirstName")
+	}
+}
+
+// TestUpdateFirstName_Blank tests updating first name with blank input
+func TestUpdateFirstName_Blank(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty string", ""},
+		{"whitespace only", "   "},
+		{"tab only", "\t"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := aggregate.NewUser("Test", "User", "test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
+			if err != nil {
+				t.Fatalf("NewUser() error = %v", err)
+			}
+
+			err = u.UpdateFirstName(tt.input)
+			if err != errors.ErrNameRequired {
+				t.Errorf("UpdateFirstName(%q) error = %v, want %v", tt.input, err, errors.ErrNameRequired)
+			}
+			if u.FirstName != "Test" {
+				t.Errorf("FirstName was changed despite invalid input: got %q", u.FirstName)
+			}
+		})
+	}
+}
+
+// TestUpdateLastName_Success tests updating last name with valid input
+func TestUpdateLastName_Success(t *testing.T) {
+	u, err := aggregate.NewUser("Test", "User", "test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
+	if err != nil {
+		t.Fatalf("NewUser() error = %v", err)
+	}
+
+	err = u.UpdateLastName("  NewLast  ")
+	if err != nil {
+		t.Errorf("UpdateLastName() error = %v, want nil", err)
+	}
+	if u.LastName != "NewLast" {
+		t.Errorf("LastName = %q, want %q", u.LastName, "NewLast")
+	}
+	if u.UpdatedAt == nil {
+		t.Error("UpdatedAt should be set after UpdateLastName")
+	}
+}
+
+// TestUpdateLastName_Blank tests updating last name with blank input
+func TestUpdateLastName_Blank(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty string", ""},
+		{"whitespace only", "   "},
+		{"tab only", "\t"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			u, err := aggregate.NewUser("Test", "User", "test@my.uwi.edu", "ValidP@ss123!", aggregate.Role_Student)
+			if err != nil {
+				t.Fatalf("NewUser() error = %v", err)
+			}
+
+			err = u.UpdateLastName(tt.input)
+			if err != errors.ErrNameRequired {
+				t.Errorf("UpdateLastName(%q) error = %v, want %v", tt.input, err, errors.ErrNameRequired)
+			}
+			if u.LastName != "User" {
+				t.Errorf("LastName was changed despite invalid input: got %q", u.LastName)
+			}
+		})
+	}
+}
+
 // TestValidRoles tests the ValidRoles function
 func TestValidRoles(t *testing.T) {
 	roles := aggregate.ValidRoles()

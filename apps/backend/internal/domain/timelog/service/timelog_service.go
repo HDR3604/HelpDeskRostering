@@ -214,7 +214,7 @@ func (s *TimeLogService) ClockOut(ctx context.Context) (*aggregate.TimeLog, erro
 		}
 
 		// b. Clock out
-		if err := openLog.ClockOut(); err != nil {
+		if err := openLog.ClockOut(s.nowFn()); err != nil {
 			return err
 		}
 

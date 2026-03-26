@@ -1,0 +1,3 @@
+# Force LF line endings for shell scripts (required for husky hooks)
+.husky/* text eol=lf
+*.sh text eol=lf

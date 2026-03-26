@@ -115,6 +115,28 @@ func (u *User) Deactivate() error {
 	return nil
 }
 
+// UpdateFirstName updates the user's first name with validation
+func (u *User) UpdateFirstName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return errors.ErrNameRequired
+	}
+	u.FirstName = strings.TrimSpace(name)
+	newTime := time.Now()
+	u.UpdatedAt = &newTime
+	return nil
+}
+
+// UpdateLastName updates the user's last name with validation
+func (u *User) UpdateLastName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return errors.ErrNameRequired
+	}
+	u.LastName = strings.TrimSpace(name)
+	newTime := time.Now()
+	u.UpdatedAt = &newTime
+	return nil
+}
+
 // UpdateEmail updates the user's email with validation
 func (u *User) UpdateEmail(newEmail string) error {
 	if isValidEmail(newEmail) != nil {

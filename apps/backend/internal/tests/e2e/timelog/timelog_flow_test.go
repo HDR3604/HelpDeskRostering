@@ -244,7 +244,16 @@ func (s *TimeLogE2ETestSuite) seedActiveSchedule(studentID int32, adminUserID st
 	localTZ := time.FixedZone("AST", -4*60*60)
 	nowLocal := time.Now().In(localTZ)
 	midday := time.Date(nowLocal.Year(), nowLocal.Month(), nowLocal.Day(), 12, 0, 0, 0, localTZ)
-	s.timeLogSvc.WithNowFn(func() time.Time { return midday.UTC() })
+
+	// Each call to nowFn advances by 1 second so that entry_at and exit_at are
+	// distinct, satisfying the DB CHECK constraint (exit_at > entry_at).
+	// All returned times remain within the 11:30–12:30 shift window.
+	var callN int
+	clockBase := midday.UTC()
+	s.timeLogSvc.WithNowFn(func() time.Time {
+		callN++
+		return clockBase.Add(time.Duration(callN) * time.Second)
+	})
 
 	scheduleDay := (int(midday.Weekday()) + 6) % 7
 	start := midday.Add(-30 * time.Minute).Format("15:04:05")

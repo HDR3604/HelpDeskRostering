@@ -68,6 +68,19 @@ export async function ensureValidToken(): Promise<void> {
 }
 
 /**
+ * Force a token refresh regardless of current token state.
+ * Used after profile updates to pick up changed JWT claims.
+ */
+export async function forceRefreshToken(): Promise<void> {
+    if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+            refreshPromise = null
+        })
+    }
+    await refreshPromise
+}
+
+/**
  * Proactively refresh if the access token is near expiry.
  * Returns the (possibly refreshed) token, or null if no token exists.
  * Calls forceLogout() on unrecoverable failure.

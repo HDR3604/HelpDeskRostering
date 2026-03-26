@@ -40,6 +40,8 @@ const ERROR_MAP: Record<string, string> = {
 
     // Students
     'student not found': 'This student could not be found.',
+    'transcript does not belong to this student':
+        'The uploaded transcript does not match your student record. Please upload your own transcript.',
     'student application already exists':
         'An application has already been submitted for this student.',
     'student application already accepted':
@@ -68,6 +70,8 @@ const ERROR_MAP: Record<string, string> = {
     'schedule not found': 'This schedule could not be found.',
     'scheduler config not found':
         'The scheduler configuration could not be found.',
+    'cannot delete the default configuration':
+        'The default configuration cannot be deleted. Set a different default first.',
     'schedule generation not found':
         'The schedule generation request could not be found.',
     'shift template not found': 'This shift template could not be found.',
@@ -83,6 +87,7 @@ const ERROR_MAP: Record<string, string> = {
 
     // Users
     'user not found': 'This user could not be found.',
+    'first name and last name are required': 'Name cannot be empty.',
     'new email must be different from current email':
         'The new email must be different from your current email.',
     'new role must be different from current role':

@@ -324,3 +324,121 @@ stateDiagram-v2
         Read-only historical record
     end note
 ```
+
+## 5. Student Clock-In/Out Flow
+
+```mermaid
+sequenceDiagram
+    actor A as Admin
+    actor S as Student
+    participant FE as Frontend
+    participant BE as Backend API
+    participant DB as PostgreSQL
+
+    Note over A,DB: Admin Generates Code
+    A->>FE: Open Clock-In Station
+    FE->>BE: POST /api/v1/clock-in-codes/
+    BE->>DB: INSERT clock_in_code (expires in 5 min)
+    BE-->>FE: { code, qr_data }
+    FE->>A: Display QR code + alphanumeric code
+
+    Note over S,DB: Student Clocks In
+    S->>FE: Open Clock page
+    FE->>BE: GET /api/v1/time-logs/me/status
+    BE-->>FE: { clocked_in: false, current_shift: {...} }
+    S->>FE: Enter clock-in code
+    FE->>FE: Capture GPS coordinates
+    FE->>BE: POST /api/v1/time-logs/clock-in { code, lat, lng }
+    BE->>DB: Validate code (active, not expired)
+    BE->>DB: Validate student has shift now
+    BE->>DB: Calculate distance from help desk
+    BE->>DB: INSERT time_log (entry_at = NOW())
+    BE-->>FE: TimeLog created
+
+    Note over S,DB: Student Clocks Out
+    S->>FE: Click "Clock Out"
+    FE->>BE: POST /api/v1/time-logs/clock-out
+    BE->>DB: UPDATE time_log SET exit_at = NOW()
+    BE-->>FE: TimeLog updated
+    FE->>S: Show duration worked
+```
+
+## 6. Student Settings Flow
+
+```mermaid
+sequenceDiagram
+    actor S as Student
+    participant FE as Frontend
+    participant BE as Backend API
+    participant TR as Transcripts Service
+    participant DB as PostgreSQL
+
+    Note over S,DB: Profile Tab
+    S->>FE: Navigate to /settings
+    FE->>BE: GET /api/v1/students/me
+    BE->>DB: SELECT student profile
+    BE-->>FE: Student data (profile, transcript, availability)
+    FE->>S: Display settings (name read-only, phone editable)
+
+    Note over S,DB: Update Phone (auto-save)
+    S->>FE: Edit phone number
+    FE->>BE: PUT /api/v1/students/me { phone_number }
+    BE->>DB: UPDATE student phone
+    BE-->>FE: Updated student
+    FE->>S: "Saved" indicator
+
+    Note over S,DB: Upload Transcript
+    S->>FE: Select PDF file
+    FE->>BE: POST /api/v1/transcripts/extract (multipart)
+    BE->>TR: Forward PDF
+    TR-->>BE: Extracted data (courses, GPA, year, programme, major, identity)
+    BE-->>FE: Extraction result
+    FE->>BE: PUT /api/v1/students/me { courses, gpa, year, programme, major, identity }
+    BE->>DB: Validate transcript identity matches student
+    BE->>DB: UPDATE transcript_metadata
+    BE-->>FE: Updated student
+    FE->>S: "Transcript updated"
+
+    Note over S,DB: Banking Details (partial upsert)
+    S->>FE: Navigate to Payment tab
+    FE->>BE: GET /api/v1/students/me/banking-details
+    BE->>DB: SELECT + decrypt account number
+    BE-->>FE: Banking details (account number masked)
+    S->>FE: Edit bank name only
+    FE->>BE: PUT /api/v1/students/me/banking-details { bank_name }
+    BE->>DB: Merge with existing, validate, encrypt, upsert
+    BE-->>FE: Updated banking details
+```
+
+## 7. Admin Payroll Flow
+
+```mermaid
+sequenceDiagram
+    actor A as Admin
+    participant FE as Frontend
+    participant BE as Backend API
+    participant DB as PostgreSQL
+
+    Note over A,DB: Generate Payments
+    A->>FE: Navigate to Payments
+    A->>FE: Click "Generate Payments"
+    FE->>BE: POST /api/v1/payroll/generate
+    BE->>DB: Calculate hours from unflagged time logs
+    BE->>DB: INSERT payment records
+    BE-->>FE: Payment records created
+
+    Note over A,DB: Review & Process
+    FE->>BE: GET /api/v1/payroll/
+    BE-->>FE: List of payments
+    A->>FE: Review payments
+    A->>FE: Click "Process" or "Bulk Process"
+    FE->>BE: POST /api/v1/payroll/bulk-process
+    BE->>DB: UPDATE payments SET status = processed
+    BE-->>FE: Payments processed
+
+    Note over A,DB: Export
+    A->>FE: Click "Export CSV"
+    FE->>BE: GET /api/v1/payroll/export
+    BE->>DB: SELECT processed payments
+    BE-->>FE: CSV file download
+```

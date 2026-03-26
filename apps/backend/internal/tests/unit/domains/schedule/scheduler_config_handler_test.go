@@ -329,6 +329,45 @@ func (s *SchedulerConfigHandlerTestSuite) TestSetDefault_InvalidID() {
 	s.Equal(http.StatusBadRequest, rr.Code)
 }
 
+// --- Delete ---
+
+func (s *SchedulerConfigHandlerTestSuite) TestDelete_Success() {
+	s.mockSvc.DeleteFn = func(_ context.Context, id uuid.UUID) error {
+		s.Equal(uuid.MustParse("11111111-1111-1111-1111-111111111111"), id)
+		return nil
+	}
+
+	rr := s.doRequest("DELETE", "/api/v1/scheduler-configs/11111111-1111-1111-1111-111111111111", "")
+
+	s.Equal(http.StatusNoContent, rr.Code)
+}
+
+func (s *SchedulerConfigHandlerTestSuite) TestDelete_InvalidID() {
+	rr := s.doRequest("DELETE", "/api/v1/scheduler-configs/not-a-uuid", "")
+
+	s.Equal(http.StatusBadRequest, rr.Code)
+}
+
+func (s *SchedulerConfigHandlerTestSuite) TestDelete_NotFound() {
+	s.mockSvc.DeleteFn = func(_ context.Context, _ uuid.UUID) error {
+		return scheduleErrors.ErrSchedulerConfigNotFound
+	}
+
+	rr := s.doRequest("DELETE", "/api/v1/scheduler-configs/11111111-1111-1111-1111-111111111111", "")
+
+	s.Equal(http.StatusNotFound, rr.Code)
+}
+
+func (s *SchedulerConfigHandlerTestSuite) TestDelete_CannotDeleteDefault() {
+	s.mockSvc.DeleteFn = func(_ context.Context, _ uuid.UUID) error {
+		return scheduleErrors.ErrCannotDeleteDefault
+	}
+
+	rr := s.doRequest("DELETE", "/api/v1/scheduler-configs/11111111-1111-1111-1111-111111111111", "")
+
+	s.Equal(http.StatusConflict, rr.Code)
+}
+
 func (s *SchedulerConfigHandlerTestSuite) TestSetDefault_NotFound() {
 	s.mockSvc.SetDefaultFn = func(_ context.Context, _ uuid.UUID) error {
 		return scheduleErrors.ErrSchedulerConfigNotFound

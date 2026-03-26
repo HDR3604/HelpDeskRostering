@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -17,10 +18,10 @@ import (
 )
 
 type UpsertBankingDetailsInput struct {
-	BankName      string
-	BranchName    string
-	AccountType   string
-	AccountNumber string
+	BankName      *string
+	BranchName    *string
+	AccountType   *string
+	AccountNumber *string
 	IPAddress     net.IP
 }
 
@@ -103,22 +104,16 @@ func (s *BankingDetailsService) UpsertMyBankingDetails(ctx context.Context, inpu
 		return nil, err
 	}
 
-	// Validate input
-	bankingDetails, err := aggregate.NewBankingDetails(
-		studentID,
-		input.BankName,
-		input.BranchName,
-		input.AccountType,
-		input.AccountNumber,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	var result *aggregate.BankingDetails
 	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+		// Merge partial input with existing details
+		merged, mergeErr := s.mergeWithExisting(ctx, tx, studentID, input)
+		if mergeErr != nil {
+			return mergeErr
+		}
+
 		var txErr error
-		result, txErr = s.repo.Upsert(ctx, tx, bankingDetails)
+		result, txErr = s.repo.Upsert(ctx, tx, merged)
 		if txErr != nil {
 			return txErr
 		}
@@ -129,6 +124,41 @@ func (s *BankingDetailsService) UpsertMyBankingDetails(ctx context.Context, inpu
 	})
 
 	return result, err
+}
+
+// mergeWithExisting fetches existing banking details and applies partial updates.
+// For a first-time upsert (no existing record), all fields must be provided.
+func (s *BankingDetailsService) mergeWithExisting(ctx context.Context, tx *sql.Tx, studentID int32, input UpsertBankingDetailsInput) (*aggregate.BankingDetails, error) {
+	bankName := ""
+	branchName := ""
+	accountType := ""
+	accountNumber := ""
+
+	existing, err := s.repo.GetByStudentID(ctx, tx, studentID)
+	if err != nil && !errors.Is(err, studentErrors.ErrBankingDetailsNotFound) {
+		return nil, err
+	}
+	if existing != nil {
+		bankName = existing.BankName
+		branchName = existing.BranchName
+		accountType = string(existing.AccountType)
+		accountNumber = existing.AccountNumber
+	}
+
+	if input.BankName != nil {
+		bankName = *input.BankName
+	}
+	if input.BranchName != nil {
+		branchName = *input.BranchName
+	}
+	if input.AccountType != nil {
+		accountType = *input.AccountType
+	}
+	if input.AccountNumber != nil {
+		accountNumber = *input.AccountNumber
+	}
+
+	return aggregate.NewBankingDetails(studentID, bankName, branchName, accountType, accountNumber)
 }
 
 func (s *BankingDetailsService) GetBankingDetailsByStudentID(ctx context.Context, studentID int32) (*aggregate.BankingDetails, error) {
@@ -165,22 +195,15 @@ func (s *BankingDetailsService) UpsertBankingDetailsByStudentID(ctx context.Cont
 		return nil, studentErrors.ErrNotAuthorized
 	}
 
-	// Validate input
-	bankingDetails, err := aggregate.NewBankingDetails(
-		studentID,
-		input.BankName,
-		input.BranchName,
-		input.AccountType,
-		input.AccountNumber,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	var result *aggregate.BankingDetails
 	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+		merged, mergeErr := s.mergeWithExisting(ctx, tx, studentID, input)
+		if mergeErr != nil {
+			return mergeErr
+		}
+
 		var txErr error
-		result, txErr = s.repo.Upsert(ctx, tx, bankingDetails)
+		result, txErr = s.repo.Upsert(ctx, tx, merged)
 		if txErr != nil {
 			return txErr
 		}

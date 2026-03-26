@@ -43,11 +43,40 @@ graph TB
         UC23["Archive Schedule"]
     end
 
+    subgraph "Clock-In / Clock-Out"
+        UC33["Generate Clock-In Code"]
+        UC34["Clock In (Code + GPS)"]
+        UC35["Clock Out"]
+        UC36["View Clock Status"]
+    end
+
+    subgraph "Time Log Management"
+        UC37["View All Time Logs"]
+        UC38["Flag Time Log"]
+        UC39["Unflag Time Log"]
+    end
+
+    subgraph "Payroll"
+        UC40["Generate Payments"]
+        UC41["Process Payment"]
+        UC42["Bulk Process Payments"]
+        UC43["Export Payments CSV"]
+    end
+
     subgraph "Student Self-Service"
         UC24["View Dashboard"]
         UC25["View My Profile"]
         UC26["Update Availability"]
         UC27["View Active Schedule"]
+        UC44["Update Banking Details"]
+        UC45["Upload Transcript"]
+        UC46["View Time Logs"]
+    end
+
+    subgraph "Admin Settings"
+        UC47["Update Profile (Name/Email)"]
+        UC48["Manage Scheduler Configs"]
+        UC49["Delete Scheduler Config"]
     end
 
     subgraph "Authentication"
@@ -96,11 +125,36 @@ graph TB
     UC21 --> UC22
     ADMIN --> UC23
 
+    %% Clock-In / Clock-Out
+    ADMIN --> UC33
+    STUDENT --> UC34
+    STUDENT --> UC35
+    STUDENT --> UC36
+
+    %% Time Log Management
+    ADMIN --> UC37
+    ADMIN --> UC38
+    ADMIN --> UC39
+
+    %% Payroll
+    ADMIN --> UC40
+    ADMIN --> UC41
+    ADMIN --> UC42
+    ADMIN --> UC43
+
     %% Student Self-Service
     STUDENT --> UC24
     STUDENT --> UC25
     STUDENT --> UC26
     STUDENT --> UC27
+    STUDENT --> UC44
+    STUDENT --> UC45
+    STUDENT --> UC46
+
+    %% Admin Settings
+    ADMIN --> UC47
+    ADMIN --> UC48
+    ADMIN --> UC49
 
     %% Authentication
     STUDENT --> UC28
@@ -159,6 +213,29 @@ graph TB
 | UC22 | Notify Students | Admin | Send schedule notification emails to assigned students |
 | UC23 | Archive Schedule | Admin | Archive old schedules |
 
+### Clock-In / Clock-Out
+| # | Use Case | Actor | Description |
+|---|----------|-------|-------------|
+| UC33 | Generate Clock-In Code | Admin | Generate QR/code for the clock-in station |
+| UC34 | Clock In | Student | Enter code + GPS location to start shift |
+| UC35 | Clock Out | Student | End current shift (auto-records exit time) |
+| UC36 | View Clock Status | Student | See current clock-in status and shift info |
+
+### Time Log Management (Admin)
+| # | Use Case | Actor | Description |
+|---|----------|-------|-------------|
+| UC37 | View All Time Logs | Admin | List all time logs (paginated, searchable) |
+| UC38 | Flag Time Log | Admin | Flag a suspicious time log with reason |
+| UC39 | Unflag Time Log | Admin | Remove flag from a time log |
+
+### Payroll (Admin)
+| # | Use Case | Actor | Description |
+|---|----------|-------|-------------|
+| UC40 | Generate Payments | Admin | Generate payment records for a pay period |
+| UC41 | Process Payment | Admin | Mark a payment as processed |
+| UC42 | Bulk Process Payments | Admin | Process multiple payments at once |
+| UC43 | Export Payments CSV | Admin | Export payment data for payroll processing |
+
 ### Student Self-Service (Authenticated)
 | # | Use Case | Actor | Description |
 |---|----------|-------|-------------|
@@ -166,6 +243,16 @@ graph TB
 | UC25 | View My Profile | Student | View own student profile and details |
 | UC26 | Update Availability | Student | Modify available hours and weekly hour preferences |
 | UC27 | View Active Schedule | Student | View assigned shifts in active schedule |
+| UC44 | Update Banking Details | Student | Edit bank name, branch, account type, or account number (partial updates) |
+| UC45 | Upload Transcript | Student | Re-upload transcript to update courses, GPA, year, programme, major |
+| UC46 | View Time Logs | Student | View own clock-in/out history |
+
+### Admin Settings
+| # | Use Case | Actor | Description |
+|---|----------|-------|-------------|
+| UC47 | Update Profile | Admin | Edit name and email (JWT refreshed after update) |
+| UC48 | Manage Scheduler Configs | Admin | Create, edit, set default scheduler configurations |
+| UC49 | Delete Scheduler Config | Admin | Delete a non-default config (default cannot be deleted) |
 
 ### Authentication
 | # | Use Case | Actor | Description |

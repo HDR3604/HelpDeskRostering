@@ -17,6 +17,7 @@ type MockSchedulerConfigService struct {
 	ListFn       func(ctx context.Context) ([]*aggregate.SchedulerConfig, error)
 	UpdateFn     func(ctx context.Context, id uuid.UUID, params service.UpdateSchedulerConfigParams) (*aggregate.SchedulerConfig, error)
 	SetDefaultFn func(ctx context.Context, id uuid.UUID) error
+	DeleteFn     func(ctx context.Context, id uuid.UUID) error
 }
 
 func (m *MockSchedulerConfigService) Create(ctx context.Context, c *aggregate.SchedulerConfig) (*aggregate.SchedulerConfig, error) {
@@ -41,4 +42,8 @@ func (m *MockSchedulerConfigService) Update(ctx context.Context, id uuid.UUID, p
 
 func (m *MockSchedulerConfigService) SetDefault(ctx context.Context, id uuid.UUID) error {
 	return m.SetDefaultFn(ctx, id)
+}
+
+func (m *MockSchedulerConfigService) Delete(ctx context.Context, id uuid.UUID) error {
+	return m.DeleteFn(ctx, id)
 }

@@ -33,6 +33,7 @@ type SchedulerConfigServiceInterface interface {
 	List(ctx context.Context) ([]*aggregate.SchedulerConfig, error)
 	Update(ctx context.Context, id uuid.UUID, params UpdateSchedulerConfigParams) (*aggregate.SchedulerConfig, error)
 	SetDefault(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type SchedulerConfigService struct {
@@ -224,5 +225,24 @@ func (s *SchedulerConfigService) SetDefault(ctx context.Context, id uuid.UUID) e
 	}
 
 	s.logger.Info("scheduler config set as default", zap.String("id", id.String()))
+	return nil
+}
+
+func (s *SchedulerConfigService) Delete(ctx context.Context, id uuid.UUID) error {
+	s.logger.Info("deleting scheduler config", zap.String("id", id.String()))
+
+	if _, err := s.authCtx(ctx); err != nil {
+		return err
+	}
+
+	err := s.txManager.InSystemTx(ctx, func(tx *sql.Tx) error {
+		return s.repository.Delete(ctx, tx, id)
+	})
+	if err != nil {
+		s.logger.Error("failed to delete scheduler config", zap.String("id", id.String()), zap.Error(err))
+		return err
+	}
+
+	s.logger.Info("scheduler config deleted", zap.String("id", id.String()))
 	return nil
 }
