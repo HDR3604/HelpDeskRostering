@@ -19,10 +19,11 @@ http://localhost:8080
 
 | | |
 |---|---|
-| **Language** | Go 1.24 |
+| **Language** | Go 1.25 |
 | **Router** | Chi v5 |
 | **ORM** | Go-Jet v2 (type-safe SQL) |
 | **Database** | PostgreSQL 16 (RLS) |
+| **Job Queue** | River (PostgreSQL-backed, no Redis) |
 | **Auth** | JWT (access + refresh tokens) |
 | **Email** | Mailpit (dev) / Resend (prod) |
 | **Logging** | Zap |
@@ -56,7 +57,7 @@ Base URL: `http://localhost:8080/api/v1`
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/schedules/` | Create a schedule |
-| `POST` | `/schedules/generate` | Generate schedule via solver |
+| `POST` | `/schedules/generate` | Generate schedule via solver (async — returns `202` with generation ID) |
 | `GET` | `/schedules/` | List active schedules |
 | `GET` | `/schedules/archived` | List archived schedules |
 | `GET` | `/schedules/{id}` | Get schedule by ID |
@@ -64,6 +65,8 @@ Base URL: `http://localhost:8080/api/v1`
 | `PATCH` | `/schedules/{id}/unarchive` | Unarchive a schedule |
 | `PATCH` | `/schedules/{id}/activate` | Activate a schedule |
 | `PATCH` | `/schedules/{id}/deactivate` | Deactivate a schedule |
+| `POST` | `/schedules/{id}/notify` | Notify students of their schedule (async — returns `202`) |
+| `PUT` | `/schedules/{id}` | Update schedule (title, assignments) |
 
 ### Schedule Generations
 
@@ -166,6 +169,8 @@ Base URL: `http://localhost:8080/api/v1`
     │   └── user/             # User accounts, roles
     ├── infrastructure/       # External dependencies
     │   ├── database/         # Transaction manager (InAuthTx / InSystemTx)
+    │   ├── jobqueue/         # River job queue (client, enqueuer, migrations)
+    │   │   └── jobs/         # Worker implementations (schedule generation, email)
     │   ├── auth/             # Token repository implementations
     │   ├── user/             # User repository implementation
     │   ├── student/          # Student repository implementation

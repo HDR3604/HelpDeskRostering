@@ -6,7 +6,7 @@ A help desk rostering application for managing student tutors, shift scheduling,
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Go 1.24, Chi router, Go-Jet v2, PostgreSQL 16 (RLS) |
+| Backend | Go 1.25, Chi router, Go-Jet v2, PostgreSQL 16 (RLS), River (job queue) |
 | Frontend | React 19, TypeScript, TanStack Router, Tailwind CSS 4, shadcn/ui |
 | Scheduler | Python, FastAPI, PuLP (LP solver) |
 | Transcripts | Python, FastAPI, pdfplumber |
@@ -261,7 +261,7 @@ yourdomain.com {
 ```
 HelpDeskRostering/
 ├── apps/
-│   ├── backend/           # Go REST API (DDD)
+│   ├── backend/           # Go REST API (DDD) with River job queue
 │   ├── frontend/          # React SPA
 │   ├── scheduler/         # Python — LP schedule optimizer
 │   └── transcripts/       # Python — PDF transcript parser
