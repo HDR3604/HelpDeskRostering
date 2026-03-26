@@ -212,6 +212,7 @@ function EntryRow({ entry }: { entry: ActivityEntry }) {
         return (
             <Link
                 to="/assistants/time-logs"
+                search={{ log_id: entry.id }}
                 className="group flex items-center gap-3 rounded-lg bg-red-500/10 ring-1 ring-red-500/20 px-3 py-2.5 cursor-pointer transition-colors hover:bg-red-500/15 no-underline"
             >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/20">

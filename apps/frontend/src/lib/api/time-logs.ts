@@ -53,6 +53,7 @@ export interface TimeLogFilters {
     from?: string
     to?: string
     flagged?: boolean
+    search?: string
 }
 
 export async function listTimeLogs(
@@ -66,11 +67,17 @@ export async function listTimeLogs(
     if (filters.to) params.set('to', filters.to)
     if (filters.flagged !== undefined)
         params.set('flagged', String(filters.flagged))
+    if (filters.search) params.set('search', filters.search)
 
     const qs = params.toString()
     const { data } = await apiClient.get<AdminTimeLogList>(
         `/time-logs${qs ? '?' + qs : ''}`,
     )
+    return data
+}
+
+export async function getTimeLog(id: string): Promise<AdminTimeLog> {
+    const { data } = await apiClient.get<AdminTimeLog>(`/time-logs/${id}`)
     return data
 }
 

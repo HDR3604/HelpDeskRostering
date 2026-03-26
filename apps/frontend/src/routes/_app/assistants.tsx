@@ -25,7 +25,11 @@ import {
 } from '@/components/ui/tooltip'
 import { useStudents } from '@/features/admin/student-management/student-context'
 import { HOURLY_RATE } from '@/features/admin/columns/payment-columns'
-import { useTodayTimeLogs } from '@/lib/queries/time-logs'
+import { usePayments } from '@/lib/queries/payments'
+import {
+    generateFortnightlyPeriods,
+    findCurrentPeriodIdx,
+} from '@/features/admin/student-management/payment-centre'
 
 export const Route = createFileRoute('/_app/assistants')({
     component: AssistantsLayout,
@@ -124,7 +128,20 @@ function AssistantsLayout() {
     }, [navigate])
 
     const { activeStudents, deactivatedStudents, isLoading } = useStudents()
-    const todayLogsQuery = useTodayTimeLogs()
+    // Fetch current period payments for summary cards
+    const currentPeriods = useMemo(
+        () => generateFortnightlyPeriods(new Date().getFullYear()),
+        [],
+    )
+    const currentPeriodIdx = useMemo(
+        () => findCurrentPeriodIdx(currentPeriods),
+        [currentPeriods],
+    )
+    const currentPeriod = currentPeriods[currentPeriodIdx]
+    const { data: periodPayments = [] } = usePayments(
+        currentPeriod.start,
+        currentPeriod.end,
+    )
 
     const newToday = useMemo(() => {
         const today = new Date().toDateString()
@@ -146,21 +163,18 @@ function AssistantsLayout() {
                   ) / activeCount
                 : 0
 
-        // Calculate hours from today's time logs
-        const logs = todayLogsQuery.data?.data ?? []
-        const now = Date.now()
-        let totalHours = 0
-        for (const log of logs) {
-            const end = log.exit_at ? new Date(log.exit_at).getTime() : now
-            const hours = (end - new Date(log.entry_at).getTime()) / 3_600_000
-            if (hours > 0) totalHours += hours
+        // Sum hours and payroll from synced payment records
+        let periodHours = 0
+        let periodPayroll = 0
+        for (const p of periodPayments) {
+            periodHours += p.hours_worked
+            periodPayroll += p.gross_amount
         }
-        totalHours = Math.round(totalHours * 100) / 100
+        periodHours = Math.round(periodHours * 100) / 100
+        periodPayroll = Math.round(periodPayroll * 100) / 100
 
-        const totalPayroll = totalHours * HOURLY_RATE
-        return { activeCount, avgGpa, totalHours, totalPayroll }
-    }, [activeStudents, todayLogsQuery.data])
-
+        return { activeCount, avgGpa, periodHours, periodPayroll }
+    }, [activeStudents, periodPayments])
     const cardValues = useMemo(
         () => [
             {
@@ -172,12 +186,12 @@ function AssistantsLayout() {
                 subtitle: 'Across active roster',
             },
             {
-                value: stats.totalHours.toFixed(1),
-                subtitle: 'Hours logged today',
+                value: stats.periodHours.toFixed(2),
+                subtitle: `${currentPeriod.label}`,
             },
             {
-                value: `$${stats.totalPayroll.toFixed(2)}`,
-                subtitle: `$${HOURLY_RATE.toFixed(2)}/hr \u00b7 today`,
+                value: `$${stats.periodPayroll.toFixed(2)}`,
+                subtitle: `$${HOURLY_RATE.toFixed(2)}/hr \u00b7 this period`,
             },
         ],
         [stats, deactivatedStudents.length],

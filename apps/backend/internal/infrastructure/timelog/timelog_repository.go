@@ -207,8 +207,20 @@ func (r *TimeLogRepository) ListWithStudentDetails(ctx context.Context, tx *sql.
 		condition = condition.AND(table.TimeLogs.StudentID.EQ(postgres.Int32(*filter.StudentID)))
 	}
 
-	// Count total
-	countStmt := table.TimeLogs.
+	// Search by student name or email (requires JOIN)
+	if filter.Search != "" {
+		pattern := postgres.String("%" + filter.Search + "%")
+		condition = condition.AND(
+			postgres.CONCAT(authTable.Students.FirstName, postgres.String(" "), authTable.Students.LastName).LIKE(pattern).
+				OR(authTable.Students.EmailAddress.LIKE(pattern)),
+		)
+	}
+
+	join := table.TimeLogs.
+		INNER_JOIN(authTable.Students, authTable.Students.StudentID.EQ(table.TimeLogs.StudentID))
+
+	// Count total (with JOIN for search)
+	countStmt := join.
 		SELECT(postgres.COUNT(table.TimeLogs.ID).AS("count")).
 		WHERE(condition)
 
@@ -226,8 +238,7 @@ func (r *TimeLogRepository) ListWithStudentDetails(ctx context.Context, tx *sql.
 	}
 	offset := (page - 1) * perPage
 
-	stmt := table.TimeLogs.
-		INNER_JOIN(authTable.Students, authTable.Students.StudentID.EQ(table.TimeLogs.StudentID)).
+	stmt := join.
 		SELECT(
 			table.TimeLogs.AllColumns,
 			authTable.Students.FirstName,

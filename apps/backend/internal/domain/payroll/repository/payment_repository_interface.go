@@ -10,9 +10,10 @@ import (
 )
 
 type PaymentFilter struct {
-	PeriodStart *time.Time
-	PeriodEnd   *time.Time
-	StudentID   *int32
+	PeriodStart   *time.Time
+	PeriodEnd     *time.Time
+	StudentID     *int32
+	ProcessedOnly bool
 }
 
 type PaymentRepositoryInterface interface {

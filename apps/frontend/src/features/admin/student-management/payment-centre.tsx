@@ -29,7 +29,6 @@ import {
     useBulkProcessPayments,
     usePrefetchPayments,
 } from '@/lib/queries/payments'
-import { useTodayTimeLogs } from '@/lib/queries/time-logs'
 import { exportPaymentsCsv } from '@/lib/api/payments'
 import type { PaymentEntry } from '../columns/payment-columns'
 import type { Student } from '@/types/student'
@@ -59,7 +58,7 @@ const SHORT_FMT = new Intl.DateTimeFormat('en-US', {
     day: 'numeric',
 })
 
-function generateFortnightlyPeriods(year: number): Period[] {
+export function generateFortnightlyPeriods(year: number): Period[] {
     const periods: Period[] = []
 
     const jan1 = new Date(year, 0, 1)
@@ -89,7 +88,7 @@ function generateFortnightlyPeriods(year: number): Period[] {
     return periods
 }
 
-function findCurrentPeriodIdx(periods: Period[]): number {
+export function findCurrentPeriodIdx(periods: Period[]): number {
     const today = new Date().toISOString().slice(0, 10)
     const idx = periods.findIndex((p) => p.start <= today && today <= p.end)
     return idx >= 0 ? idx : periods.length - 1
@@ -144,27 +143,6 @@ export function PaymentsCentre() {
         isFetching,
     } = usePayments(currentPeriod.start, currentPeriod.end)
 
-    // Fetch live time logs to include currently clocked-in hours
-    const today = new Date().toISOString().slice(0, 10)
-    const isCurrentPeriod =
-        currentPeriod.start <= today && currentPeriod.end >= today
-    const todayLogsQuery = useTodayTimeLogs({ enabled: isCurrentPeriod })
-
-    // Build a map of live hours from today's time logs (completed + in-progress)
-    const liveHoursMap = useMemo(() => {
-        const map = new Map<number, number>()
-        if (!isCurrentPeriod || !todayLogsQuery.data?.data) return map
-        const now = Date.now()
-        for (const log of todayLogsQuery.data.data) {
-            const end = log.exit_at ? new Date(log.exit_at).getTime() : now
-            const hours = (end - new Date(log.entry_at).getTime()) / 3_600_000
-            if (hours > 0) {
-                map.set(log.student_id, (map.get(log.student_id) ?? 0) + hours)
-            }
-        }
-        return map
-    }, [isCurrentPeriod, todayLogsQuery.data])
-
     // Prefetch adjacent periods for instant navigation
     const prefetchPayments = usePrefetchPayments()
     useEffect(() => {
@@ -183,25 +161,24 @@ export function PaymentsCentre() {
         return map
     }, [students])
 
-    // Merge API payment data with student objects + live hours
+    // Merge API payment data with student objects
     const payments: PaymentEntry[] = useMemo(() => {
         return apiPayments
             .map((p) => {
                 const student = studentMap.get(p.student_id)
                 if (!student) return null
-                const liveExtra = liveHoursMap.get(p.student_id) ?? 0
                 return {
                     paymentId: p.payment_id,
                     student,
                     periodStart: p.period_start,
                     periodEnd: p.period_end,
-                    hoursWorked: p.hours_worked + liveExtra,
-                    grossAmount: p.gross_amount + liveExtra * HOURLY_RATE,
+                    hoursWorked: p.hours_worked,
+                    grossAmount: p.gross_amount,
                     processedAt: p.processed_at,
                 }
             })
             .filter((p): p is PaymentEntry => p !== null)
-    }, [apiPayments, studentMap, liveHoursMap])
+    }, [apiPayments, studentMap])
 
     // Mutations
     const generateMutation = useGeneratePayments()
@@ -284,6 +261,19 @@ export function PaymentsCentre() {
     }
 
     function handleExport() {
+        const pendingCount = payments.filter((p) => !p.processedAt).length
+        if (pendingCount > 0) {
+            toast.warning(
+                `${pendingCount} pending payment${pendingCount > 1 ? 's' : ''} will be excluded from the export. Only processed payments are included.`,
+            )
+        }
+
+        const processedCount = payments.length - pendingCount
+        if (processedCount === 0) {
+            toast.error('No processed payments to export.')
+            return
+        }
+
         setIsExporting(true)
         exportPaymentsCsv(currentPeriod.start, currentPeriod.end)
             .then(() => {
@@ -547,6 +537,19 @@ export function PaymentsCentre() {
                             <Button
                                 variant="ghost"
                                 size="sm"
+                                onClick={handleGeneratePayments}
+                                disabled={generateMutation.isPending}
+                            >
+                                {generateMutation.isPending ? (
+                                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                )}
+                                Sync
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={handleExport}
                                 disabled={payments.length === 0 || isExporting}
                             >
@@ -569,22 +572,21 @@ export function PaymentsCentre() {
                             </p>
                         </div>
                     ) : payments.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-                                <DollarSign className="size-7 text-primary" />
+                        <div className="flex items-center justify-between rounded-lg border border-dashed px-4 py-6">
+                            <div className="flex items-center gap-3">
+                                <DollarSign className="size-5 text-muted-foreground" />
+                                <div>
+                                    <p className="text-sm font-medium">
+                                        No payroll data for this period
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Click Sync to calculate from time logs.
+                                    </p>
+                                </div>
                             </div>
-                            <h2 className="mt-5 text-base font-semibold">
-                                No payroll data
-                            </h2>
-                            <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-                                No payment records for this period. Click{' '}
-                                <span className="font-medium text-foreground">
-                                    Sync
-                                </span>{' '}
-                                to generate records from time logs.
-                            </p>
                             <Button
-                                className="mt-4"
+                                variant="outline"
+                                size="sm"
                                 onClick={handleGeneratePayments}
                                 disabled={generateMutation.isPending}
                             >
@@ -593,7 +595,7 @@ export function PaymentsCentre() {
                                 ) : (
                                     <RefreshCw className="mr-1 h-3.5 w-3.5" />
                                 )}
-                                Generate Payments
+                                Sync
                             </Button>
                         </div>
                     ) : (
