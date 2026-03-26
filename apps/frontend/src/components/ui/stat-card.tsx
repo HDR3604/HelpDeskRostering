@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -8,6 +9,7 @@ export interface StatCardProps {
     subtitle: string
     icon: React.ElementType
     iconClassName?: string
+    href?: string
 }
 
 export function StatCard({
@@ -16,9 +18,15 @@ export function StatCard({
     subtitle,
     icon: Icon,
     iconClassName,
+    href,
 }: StatCardProps) {
-    return (
-        <Card className="gap-1.5 px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3">
+    const card = (
+        <Card
+            className={cn(
+                'gap-1.5 px-3 py-2.5 sm:gap-2 sm:px-4 sm:py-3',
+                href && 'transition-colors hover:bg-accent/50 cursor-pointer',
+            )}
+        >
             <CardHeader className="flex flex-row items-center justify-between px-0 pb-0">
                 <CardTitle className="truncate text-[11px] font-medium text-muted-foreground sm:text-xs">
                     {title}
@@ -42,6 +50,16 @@ export function StatCard({
             </CardContent>
         </Card>
     )
+
+    if (href) {
+        return (
+            <Link to={href} className="no-underline">
+                {card}
+            </Link>
+        )
+    }
+
+    return card
 }
 
 export function StatCardSkeleton({

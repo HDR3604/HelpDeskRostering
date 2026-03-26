@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { Link } from '@tanstack/react-router'
 import { QRCodeSVG } from 'qrcode.react'
 import {
     RefreshCw,
@@ -343,9 +344,10 @@ function ActivityRow({
     }, [entry.entry_at])
 
     return (
-        <div
+        <Link
+            to="/assistants/time-logs"
             className={cn(
-                'group flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50',
+                'group flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/50 no-underline',
                 !isLast && 'border-b',
                 entry.is_flagged && 'bg-red-500/5 hover:bg-red-500/10',
             )}
@@ -381,6 +383,6 @@ function ActivityRow({
                 {elapsed}
             </span>
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
-        </div>
+        </Link>
     )
 }

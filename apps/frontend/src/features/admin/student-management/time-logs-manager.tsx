@@ -27,12 +27,28 @@ import {
     useUnflagTimeLog,
 } from '@/lib/queries/time-logs'
 import type { AdminTimeLogResponse } from '@/lib/api/time-logs'
-import { Loader2, Clock } from 'lucide-react'
+import {
+    Loader2,
+    Clock,
+    MapPin,
+    Flag,
+    ChevronLeft,
+    ChevronRight,
+} from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
+import { LocationMap } from '@/components/ui/location-map'
+
+const PAGE_SIZE = 10
 
 export function TimeLogsManager() {
-    const { data, isLoading, isFetching } = useTimeLogs({ per_page: 100 })
+    const [page, setPage] = useState(1)
+    const { data, isLoading, isFetching } = useTimeLogs({
+        page,
+        per_page: PAGE_SIZE,
+    })
 
     const logs = data?.data ?? []
+    const total = data?.total ?? 0
     const flaggedCount = useMemo(
         () => logs.filter((l) => l.is_flagged).length,
         [logs],
@@ -47,6 +63,8 @@ export function TimeLogsManager() {
     const [flagReason, setFlagReason] = useState('')
     const [unflagTarget, setUnflagTarget] =
         useState<AdminTimeLogResponse | null>(null)
+    const [locationTarget, setLocationTarget] =
+        useState<AdminTimeLogResponse | null>(null)
 
     const handleFlag = useCallback((log: AdminTimeLogResponse) => {
         setFlagTarget(log)
@@ -55,6 +73,10 @@ export function TimeLogsManager() {
 
     const handleUnflag = useCallback((log: AdminTimeLogResponse) => {
         setUnflagTarget(log)
+    }, [])
+
+    const handleViewLocation = useCallback((log: AdminTimeLogResponse) => {
+        setLocationTarget(log)
     }, [])
 
     function submitFlag() {
@@ -87,8 +109,9 @@ export function TimeLogsManager() {
             getTimeLogColumns({
                 onFlag: handleFlag,
                 onUnflag: handleUnflag,
+                onViewLocation: handleViewLocation,
             }),
-        [handleFlag, handleUnflag],
+        [handleFlag, handleUnflag, handleViewLocation],
     )
 
     return (
@@ -144,14 +167,51 @@ export function TimeLogsManager() {
                             </p>
                         </div>
                     ) : (
-                        <DataTable
-                            columns={columns}
-                            data={logs}
-                            searchPlaceholder="Search by name or email"
-                            globalFilter
-                            emptyMessage="No time logs match your search."
-                            pageSize={10}
-                        />
+                        <>
+                            <DataTable
+                                columns={columns}
+                                data={logs}
+                                searchPlaceholder="Search by name or email"
+                                globalFilter
+                                emptyMessage="No time logs match your search."
+                                pageSize={PAGE_SIZE}
+                            />
+                            {total > PAGE_SIZE && (
+                                <div className="flex items-center justify-between pt-4">
+                                    <p className="text-xs text-muted-foreground">
+                                        {(page - 1) * PAGE_SIZE + 1}–
+                                        {Math.min(page * PAGE_SIZE, total)} of{' '}
+                                        {total}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            disabled={page <= 1}
+                                            onClick={() =>
+                                                setPage((p) =>
+                                                    Math.max(1, p - 1),
+                                                )
+                                            }
+                                        >
+                                            <ChevronLeft className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="icon"
+                                            className="h-7 w-7"
+                                            disabled={page * PAGE_SIZE >= total}
+                                            onClick={() =>
+                                                setPage((p) => p + 1)
+                                            }
+                                        >
+                                            <ChevronRight className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>
@@ -211,6 +271,124 @@ export function TimeLogsManager() {
                             Flag
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Location map dialog */}
+            <Dialog
+                open={locationTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open) setLocationTarget(null)
+                }}
+            >
+                <DialogContent className="sm:max-w-lg p-0 gap-0 overflow-hidden">
+                    {locationTarget && (
+                        <>
+                            <LocationMap
+                                latitude={locationTarget.latitude}
+                                longitude={locationTarget.longitude}
+                                radiusMeters={100}
+                                className="h-56 w-full"
+                            />
+                            <div className="px-5 py-4 space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <p className="font-semibold">
+                                            {locationTarget.student_name}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {locationTarget.student_email}
+                                        </p>
+                                    </div>
+                                    {locationTarget.is_flagged ? (
+                                        <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/15 shrink-0">
+                                            <Flag className="mr-1 h-3 w-3" />
+                                            Flagged
+                                        </Badge>
+                                    ) : (
+                                        <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 shrink-0">
+                                            Clear
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <Separator />
+
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Clock In
+                                        </p>
+                                        <p className="tabular-nums font-medium">
+                                            {new Date(
+                                                locationTarget.entry_at,
+                                            ).toLocaleString([], {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Clock Out
+                                        </p>
+                                        <p className="tabular-nums font-medium">
+                                            {locationTarget.exit_at
+                                                ? new Date(
+                                                      locationTarget.exit_at,
+                                                  ).toLocaleString([], {
+                                                      month: 'short',
+                                                      day: 'numeric',
+                                                      hour: '2-digit',
+                                                      minute: '2-digit',
+                                                  })
+                                                : 'Still on shift'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Distance
+                                        </p>
+                                        <p
+                                            className={`tabular-nums font-medium ${locationTarget.distance_meters <= 100 ? 'text-emerald-500' : 'text-amber-500'}`}
+                                        >
+                                            {locationTarget.distance_meters <
+                                            1000
+                                                ? `${Math.round(locationTarget.distance_meters)} m`
+                                                : `${(locationTarget.distance_meters / 1000).toFixed(1)} km`}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground">
+                                            Coordinates
+                                        </p>
+                                        <p className="tabular-nums font-medium text-xs">
+                                            <MapPin className="inline h-3 w-3 mr-0.5 text-muted-foreground" />
+                                            {locationTarget.latitude.toFixed(5)}
+                                            ,{' '}
+                                            {locationTarget.longitude.toFixed(
+                                                5,
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {locationTarget.is_flagged &&
+                                    locationTarget.flag_reason && (
+                                        <div className="rounded-md bg-red-500/10 px-3 py-2">
+                                            <p className="text-xs font-medium text-red-500">
+                                                Flag reason
+                                            </p>
+                                            <p className="text-sm text-red-500/80">
+                                                {locationTarget.flag_reason}
+                                            </p>
+                                        </div>
+                                    )}
+                            </div>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
 

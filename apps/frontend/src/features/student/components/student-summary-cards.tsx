@@ -107,6 +107,7 @@ export function StudentSummaryCards({
             iconClassName: isOnClock
                 ? 'bg-emerald-500/10 text-emerald-500'
                 : 'bg-muted text-muted-foreground',
+            href: '/clock',
         },
     ]
 

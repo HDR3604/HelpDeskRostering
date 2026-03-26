@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import {
     AlertTriangle,
     ChevronDown,
@@ -189,9 +190,13 @@ export function TimelogStatus() {
                         )}
 
                         {hasMore && (
-                            <p className="text-center text-[11px] text-muted-foreground">
-                                Showing latest entries. View all in time logs.
-                            </p>
+                            <Link
+                                to="/assistants/time-logs"
+                                className="block text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                Showing latest entries. View all in time logs
+                                &rarr;
+                            </Link>
                         )}
                     </div>
                 )}
@@ -205,7 +210,10 @@ function EntryRow({ entry }: { entry: ActivityEntry }) {
 
     if (entry.isFlagged) {
         return (
-            <div className="group flex items-center gap-3 rounded-lg bg-red-500/10 ring-1 ring-red-500/20 px-3 py-2.5 cursor-pointer transition-colors hover:bg-red-500/15">
+            <Link
+                to="/assistants/time-logs"
+                className="group flex items-center gap-3 rounded-lg bg-red-500/10 ring-1 ring-red-500/20 px-3 py-2.5 cursor-pointer transition-colors hover:bg-red-500/15 no-underline"
+            >
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/20">
                     <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
                 </div>
@@ -222,7 +230,7 @@ function EntryRow({ entry }: { entry: ActivityEntry }) {
                     {formatDuration(entry.entryAt, entry.exitAt)}
                 </span>
                 <ChevronRight className="h-3.5 w-3.5 shrink-0 text-red-500/50 transition-transform group-hover:translate-x-0.5" />
-            </div>
+            </Link>
         )
     }
 

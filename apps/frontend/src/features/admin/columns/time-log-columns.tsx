@@ -13,7 +13,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { MoreHorizontal, Flag, FlagOff } from 'lucide-react'
+import { MoreHorizontal, Flag, FlagOff, MapPin } from 'lucide-react'
 import { CopyMenuItem } from '../components/copy-menu-item'
 import type { AdminTimeLogResponse } from '@/lib/api/time-logs'
 
@@ -37,6 +37,7 @@ function formatDistance(meters: number): string {
 interface TimeLogColumnCallbacks {
     onFlag: (log: AdminTimeLogResponse) => void
     onUnflag: (log: AdminTimeLogResponse) => void
+    onViewLocation: (log: AdminTimeLogResponse) => void
 }
 
 export function getTimeLogColumns(
@@ -175,6 +176,12 @@ export function getTimeLogColumns(
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                                onClick={() => callbacks.onViewLocation(log)}
+                            >
+                                <MapPin className="mr-2 h-3.5 w-3.5" />
+                                View Location
+                            </DropdownMenuItem>
                             <CopyMenuItem value={String(log.student_id)} />
                             <DropdownMenuSeparator />
                             {log.is_flagged ? (

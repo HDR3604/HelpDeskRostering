@@ -152,7 +152,8 @@ func (r *PaymentRepository) CalculateHoursForPeriod(ctx context.Context, tx *sql
 			scheduleTable.TimeLogs.StudentID.EQ(postgres.Int32(studentID)).
 				AND(scheduleTable.TimeLogs.EntryAt.GT_EQ(postgres.TimestampzT(periodStart))).
 				AND(scheduleTable.TimeLogs.EntryAt.LT(postgres.TimestampzT(periodEnd.AddDate(0, 0, 1)))).
-				AND(scheduleTable.TimeLogs.ExitAt.IS_NOT_NULL()),
+				AND(scheduleTable.TimeLogs.ExitAt.IS_NOT_NULL()).
+				AND(scheduleTable.TimeLogs.IsFlagged.EQ(postgres.Bool(false))),
 		)
 
 	var result struct {
@@ -196,7 +197,8 @@ func (r *PaymentRepository) CalculateHoursBatch(ctx context.Context, tx *sql.Tx,
 			scheduleTable.TimeLogs.StudentID.IN(expressions...).
 				AND(scheduleTable.TimeLogs.EntryAt.GT_EQ(postgres.TimestampzT(periodStart))).
 				AND(scheduleTable.TimeLogs.EntryAt.LT(postgres.TimestampzT(periodEnd.AddDate(0, 0, 1)))).
-				AND(scheduleTable.TimeLogs.ExitAt.IS_NOT_NULL()),
+				AND(scheduleTable.TimeLogs.ExitAt.IS_NOT_NULL()).
+				AND(scheduleTable.TimeLogs.IsFlagged.EQ(postgres.Bool(false))),
 		).
 		GROUP_BY(scheduleTable.TimeLogs.StudentID)
 
