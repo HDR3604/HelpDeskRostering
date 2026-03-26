@@ -8,7 +8,6 @@ from app.linear_scheduler import (
     AvailabilityWindow,
     CourseDemand,
     ScheduleResult,
-    SchedulerConfig,
     Shift,
 )
 from app.models.generate_schedule_dtos import (
