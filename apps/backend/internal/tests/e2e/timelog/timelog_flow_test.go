@@ -608,8 +608,9 @@ func (s *TimeLogE2ETestSuite) TestE2E_AdminListAndFlagTimeLogs() {
 	rr = s.doRequest(http.MethodPost, "/api/v1/time-logs/clock-out", "", studentTokens.AccessToken)
 	s.Require().Equal(http.StatusOK, rr.Code)
 
-	// Admin lists time logs
-	today := time.Now().UTC().Format("2006-01-02")
+	// Admin lists time logs — use local time to match schedule timezone
+	localTZ := time.FixedZone("AST", -4*60*60)
+	today := time.Now().In(localTZ).Format("2006-01-02")
 	rr = s.doRequest(http.MethodGet, "/api/v1/time-logs?from="+today+"&to="+today, "", adminTokens.AccessToken)
 	s.Require().Equal(http.StatusOK, rr.Code)
 
