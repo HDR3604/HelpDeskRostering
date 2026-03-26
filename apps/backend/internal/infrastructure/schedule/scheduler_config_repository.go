@@ -160,22 +160,36 @@ func toSchedulerConfigAggregates(models []model.SchedulerConfigs) []*aggregate.S
 }
 
 func (r *SchedulerConfigRepository) Delete(ctx context.Context, tx *sql.Tx, id uuid.UUID) error {
-	// First check if the config exists and whether it's the default
-	existing, err := r.GetByID(ctx, tx, id)
-	if err != nil {
-		return err
-	}
-	if existing.IsDefault {
-		return scheduleErrors.ErrCannotDeleteDefault
-	}
-
+	// Delete only if the config is not the default (atomic check-and-delete)
 	stmt := table.SchedulerConfigs.DELETE().
-		WHERE(table.SchedulerConfigs.ID.EQ(postgres.UUID(id)))
+		WHERE(
+			table.SchedulerConfigs.ID.EQ(postgres.UUID(id)).
+				AND(table.SchedulerConfigs.IsDefault.EQ(postgres.Bool(false))),
+		)
 
-	_, err = stmt.ExecContext(ctx, tx)
+	result, err := stmt.ExecContext(ctx, tx)
 	if err != nil {
 		r.logger.Error("failed to delete scheduler config", zap.Error(err), zap.String("id", id.String()))
 		return fmt.Errorf("failed to delete scheduler config: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		// Distinguish between "is default" and "not found"
+		existing, err := r.GetByID(ctx, tx, id)
+		if err != nil {
+			if errors.Is(err, scheduleErrors.ErrSchedulerConfigNotFound) {
+				return scheduleErrors.ErrSchedulerConfigNotFound
+			}
+			return fmt.Errorf("failed to verify scheduler config deletion: %w", err)
+		}
+		if existing.IsDefault {
+			return scheduleErrors.ErrCannotDeleteDefault
+		}
+		return scheduleErrors.ErrSchedulerConfigNotFound
 	}
 
 	return nil

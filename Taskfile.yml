@@ -88,26 +88,14 @@ tasks:
     dir: "{{.FRONTEND_DIR}}"
     silent: true
     cmds:
-      - cmd: |
-          output=$(pnpm exec prettier --write "src/**/*.{ts,tsx,css}" 2>&1)
-          changed=$(echo "$output" | grep -v "(unchanged)" | grep -v "^$" || true)
-          if [ -n "$changed" ]; then
-            echo "Prettier formatted:"
-            echo "$changed"
-          fi
+      - pnpm exec prettier --write "src/**/*.{ts,tsx,css}"
 
   format:backend:
     desc: Format backend code with goimports
     dir: "{{.BACKEND_DIR}}"
     silent: true
     cmds:
-      - cmd: |
-          changed=$(go run golang.org/x/tools/cmd/goimports@v0.31.0 -l . 2>&1)
-          if [ -n "$changed" ]; then
-            echo "goimports formatted:"
-            echo "$changed"
-            go run golang.org/x/tools/cmd/goimports@v0.31.0 -w .
-          fi
+      - go run golang.org/x/tools/cmd/goimports@v0.31.0 -w .
 
   format:check:
     desc: Check formatting (exits non-zero if unformatted)

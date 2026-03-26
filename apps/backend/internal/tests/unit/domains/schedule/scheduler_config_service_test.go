@@ -342,6 +342,48 @@ func (s *SchedulerConfigServiceTestSuite) TestSetDefault_NoCurrentDefault() {
 	s.Equal(1, updateCalls)
 }
 
+// --- Delete ---
+
+func (s *SchedulerConfigServiceTestSuite) TestDelete_Success() {
+	targetID := uuid.New()
+	s.repo.DeleteFn = func(_ context.Context, _ *sql.Tx, id uuid.UUID) error {
+		s.Equal(targetID, id)
+		return nil
+	}
+
+	err := s.service.Delete(s.authCtx, targetID)
+
+	s.Require().NoError(err)
+}
+
+func (s *SchedulerConfigServiceTestSuite) TestDelete_NotFound() {
+	s.repo.DeleteFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) error {
+		return scheduleErrors.ErrSchedulerConfigNotFound
+	}
+
+	err := s.service.Delete(s.authCtx, uuid.New())
+
+	s.Require().Error(err)
+	s.ErrorIs(err, scheduleErrors.ErrSchedulerConfigNotFound)
+}
+
+func (s *SchedulerConfigServiceTestSuite) TestDelete_CannotDeleteDefault() {
+	s.repo.DeleteFn = func(_ context.Context, _ *sql.Tx, _ uuid.UUID) error {
+		return scheduleErrors.ErrCannotDeleteDefault
+	}
+
+	err := s.service.Delete(s.authCtx, uuid.New())
+
+	s.Require().Error(err)
+	s.ErrorIs(err, scheduleErrors.ErrCannotDeleteDefault)
+}
+
+func (s *SchedulerConfigServiceTestSuite) TestDelete_MissingAuthContext() {
+	err := s.service.Delete(context.Background(), uuid.New())
+
+	s.ErrorIs(err, scheduleErrors.ErrMissingAuthContext)
+}
+
 func (s *SchedulerConfigServiceTestSuite) TestSetDefault_NotFound() {
 	s.repo.GetDefaultFn = func(_ context.Context, _ *sql.Tx) (*aggregate.SchedulerConfig, error) {
 		return nil, scheduleErrors.ErrSchedulerConfigNotFound

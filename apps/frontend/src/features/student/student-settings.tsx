@@ -276,7 +276,7 @@ export function StudentSettings() {
     const student = profileQuery.data
     const transcript = student?.transcript_metadata
 
-    const updateProfile = useUpdateMyProfile()
+    const updateProfile = useUpdateMyProfile({ silent: true })
     const updateStudentProfile = useUpdateMyStudentProfile()
 
     const [firstName, setFirstName] = useState(userFirstName ?? '')
