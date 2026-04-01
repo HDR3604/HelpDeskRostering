@@ -270,7 +270,7 @@ func (h *StudentHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	student, err := h.studentService.GetByID(r.Context(), studentID)
+	student, err := h.studentService.GetMyProfile(r.Context(), studentID)
 	if err != nil {
 		h.handleStudentError(w, err)
 		return

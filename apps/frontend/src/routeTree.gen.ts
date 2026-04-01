@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DeactivatedRouteImport } from './routes/deactivated'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -34,6 +35,11 @@ import { Route as AppScheduleScheduleIdRouteImport } from './routes/_app/schedul
 import { Route as AppAssistantsTimeLogsRouteImport } from './routes/_app/assistants/time-logs'
 import { Route as AppAssistantsPaymentsRouteImport } from './routes/_app/assistants/payments'
 
+const DeactivatedRoute = DeactivatedRouteImport.update({
+  id: '/deactivated',
+  path: '/deactivated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => rootRouteImport,
@@ -155,6 +161,7 @@ const AppAssistantsPaymentsRoute = AppAssistantsPaymentsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/deactivated': typeof DeactivatedRoute
   '/applications': typeof AppApplicationsRoute
   '/assistants': typeof AppAssistantsRouteWithChildren
   '/clock': typeof AppClockRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
+  '/deactivated': typeof DeactivatedRoute
   '/applications': typeof AppApplicationsRoute
   '/clock': typeof AppClockRoute
   '/clock-in-station': typeof AppClockInStationRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/deactivated': typeof DeactivatedRoute
   '/_app/applications': typeof AppApplicationsRoute
   '/_app/assistants': typeof AppAssistantsRouteWithChildren
   '/_app/clock': typeof AppClockRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/deactivated'
     | '/applications'
     | '/assistants'
     | '/clock'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/deactivated'
     | '/applications'
     | '/clock'
     | '/clock-in-station'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_auth'
+    | '/deactivated'
     | '/_app/applications'
     | '/_app/assistants'
     | '/_app/clock'
@@ -302,10 +314,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  DeactivatedRoute: typeof DeactivatedRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/deactivated': {
+      id: '/deactivated'
+      path: '/deactivated'
+      fullPath: '/deactivated'
+      preLoaderRoute: typeof DeactivatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_auth': {
       id: '/_auth'
       path: ''
@@ -570,6 +590,7 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  DeactivatedRoute: DeactivatedRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
