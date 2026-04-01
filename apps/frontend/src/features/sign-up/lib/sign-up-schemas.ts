@@ -52,23 +52,7 @@ export const verifySchema = z.object({
         .min(0.01, 'Degree GPA is required')
         .max(4.3, 'GPA cannot exceed 4.3')
         .refine((v) => !isNaN(v), { message: 'Degree GPA is required' }),
-    courses: z
-        .array(courseSchema)
-        .min(1, 'At least one course is required')
-        .superRefine((courses, ctx) => {
-            const codes = courses.map((c) => c.courseCode.trim().toUpperCase())
-            const seen = new Set<string>()
-            codes.forEach((code, i) => {
-                if (code && seen.has(code)) {
-                    ctx.addIssue({
-                        code: z.ZodIssueCode.custom,
-                        message: `Duplicate course code: ${code}`,
-                        path: [i, 'courseCode'],
-                    })
-                }
-                seen.add(code)
-            })
-        }),
+    courses: z.array(courseSchema).min(1, 'At least one course is required'),
 })
 
 export type VerifyData = z.infer<typeof verifySchema>

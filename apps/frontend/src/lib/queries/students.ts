@@ -93,11 +93,8 @@ export function useAcceptStudent() {
                 studentKeys.detail(updated.student_id),
                 updated,
             )
-            invalidateLists(queryClient)
-            toast.success(`Accepted ${updated.first_name} ${updated.last_name}`)
         },
         onError: (error) => {
-            invalidateLists(queryClient)
             toast.error('Accept failed', {
                 description: getApiErrorMessage(error),
             })
@@ -115,11 +112,8 @@ export function useRejectStudent() {
                 studentKeys.detail(updated.student_id),
                 updated,
             )
-            invalidateLists(queryClient)
-            toast.success(`Rejected ${updated.first_name} ${updated.last_name}`)
         },
         onError: (error) => {
-            invalidateLists(queryClient)
             toast.error('Reject failed', {
                 description: getApiErrorMessage(error),
             })

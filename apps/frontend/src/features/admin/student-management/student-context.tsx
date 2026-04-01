@@ -1,10 +1,12 @@
 import { createContext, useContext, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
     useStudents as useStudentsQuery,
     useAcceptStudent,
     useRejectStudent,
     useDeactivateStudent,
     useActivateStudent,
+    studentKeys,
 } from '@/lib/queries/students'
 import type { Student } from '@/types/student'
 
@@ -15,8 +17,8 @@ type StudentContextValue = {
     isLoading: boolean
     handleDeactivate: (student: Student) => void
     handleActivate: (student: Student) => void
-    handleReject: (studentId: number) => void
-    handleAccept: (studentId: number) => void
+    handleReject: (studentId: number) => Promise<void>
+    handleAccept: (studentId: number) => Promise<void>
     refetch: () => void
     isRefetching: boolean
     isMutating: boolean
@@ -25,6 +27,7 @@ type StudentContextValue = {
 export const StudentContext = createContext<StudentContextValue | null>(null)
 
 export function StudentProvider({ children }: { children: React.ReactNode }) {
+    const queryClient = useQueryClient()
     const {
         data: students = [],
         isLoading,
@@ -55,12 +58,14 @@ export function StudentProvider({ children }: { children: React.ReactNode }) {
         activateMutation.mutate(student.student_id)
     }
 
-    function handleAccept(studentId: number) {
-        acceptMutation.mutate(studentId)
+    async function handleAccept(studentId: number) {
+        await acceptMutation.mutateAsync(studentId).catch(() => {})
+        await queryClient.invalidateQueries({ queryKey: studentKeys.lists() })
     }
 
-    function handleReject(studentId: number) {
-        rejectMutation.mutate(studentId)
+    async function handleReject(studentId: number) {
+        await rejectMutation.mutateAsync(studentId).catch(() => {})
+        await queryClient.invalidateQueries({ queryKey: studentKeys.lists() })
     }
 
     function handleRefetch() {

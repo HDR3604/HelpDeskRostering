@@ -26,7 +26,7 @@ interface StudentColumnCallbacks {
     onAccept: (studentId: number) => void
     onReject: (studentId: number) => void
     onViewTranscript: (student: Student) => void
-    isMutating?: boolean
+    pendingStudentIds?: Set<number>
 }
 
 function formatDate(iso: string): string {
@@ -41,7 +41,7 @@ export function getStudentColumns({
     onAccept,
     onReject,
     onViewTranscript,
-    isMutating,
+    pendingStudentIds,
 }: StudentColumnCallbacks): ColumnDef<Student>[] {
     return [
         {
@@ -146,7 +146,9 @@ export function getStudentColumns({
             cell: ({ row }) => {
                 const student = row.original
                 const status = getApplicationStatus(student)
-                const disabled = status !== 'pending' || !!isMutating
+                const disabled =
+                    status !== 'pending' ||
+                    !!pendingStudentIds?.has(student.student_id)
                 return (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
