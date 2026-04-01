@@ -2,17 +2,27 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { ShieldX, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeSwitcher } from '@/components/layout/theme-switcher'
-import { useLogout } from '@/lib/auth'
-import { requireAuth, getTokenPayload } from '@/lib/auth'
+import { useLogout, requireAuth, getTokenPayload } from '@/lib/auth'
+import { getMyStudentProfile } from '@/lib/api/students'
 
 export const Route = createFileRoute('/deactivated')({
     beforeLoad: async (ctx) => {
         await requireAuth(ctx)
 
-        // Only students can be deactivated — admins go home
         const payload = getTokenPayload()
+        // Only students can be deactivated — admins go home
         if (payload?.role !== 'student') {
             throw redirect({ to: '/' })
+        }
+
+        // If the student is not actually deactivated, send them to the app
+        try {
+            const profile = await getMyStudentProfile()
+            if (profile.status !== 'deactivated') {
+                throw redirect({ to: '/' })
+            }
+        } catch (e) {
+            if (e != null && typeof e === 'object' && 'to' in e) throw e
         }
     },
     component: DeactivatedPage,

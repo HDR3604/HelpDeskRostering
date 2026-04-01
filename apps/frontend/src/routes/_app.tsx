@@ -15,6 +15,8 @@ import {
     isOnboardingVerified,
     markOnboardingVerified,
 } from '@/lib/auth/onboarding-check'
+import { queryClient } from '@/routes/__root'
+import { studentKeys } from '@/lib/queries/students'
 
 export const Route = createFileRoute('/_app')({
     beforeLoad: async (ctx) => {
@@ -24,7 +26,11 @@ export const Route = createFileRoute('/_app')({
         if (payload?.role === 'student') {
             // A student with a JWT always has a profile (accepted + onboarded).
             // Check deactivation before anything else.
-            const profile = await getMyStudentProfile()
+            const profile = await queryClient.fetchQuery({
+                queryKey: studentKeys.me(),
+                queryFn: getMyStudentProfile,
+                staleTime: 0,
+            })
             if (profile.status === 'deactivated') {
                 throw redirect({ to: '/deactivated' })
             }
