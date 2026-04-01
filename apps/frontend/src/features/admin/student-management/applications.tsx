@@ -100,25 +100,21 @@ export function Applications() {
         const existing = pendingTimers.current.get(studentId)
         if (existing) clearTimeout(existing)
 
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             pendingTimers.current.delete(studentId)
 
-            const onSettled = () => {
-                setOptimisticUpdates((prev) => {
-                    const next = new Map(prev)
-                    next.delete(studentId)
-                    return next
-                })
-            }
+            const mutation =
+                action === 'accept'
+                    ? handleAccept(studentId)
+                    : handleReject(studentId)
 
-            if (action === 'accept') {
-                handleAccept(studentId)
-            } else {
-                handleReject(studentId)
-            }
-
-            // Clear optimistic state after a short delay to let the mutation settle
-            setTimeout(onSettled, 1000)
+            // Keep optimistic overlay until the mutation and query invalidation settle
+            await mutation
+            setOptimisticUpdates((prev) => {
+                const next = new Map(prev)
+                next.delete(studentId)
+                return next
+            })
         }, UNDO_DELAY)
 
         pendingTimers.current.set(studentId, timer)
@@ -198,7 +194,10 @@ export function Applications() {
         [displayStudents],
     )
 
-    const hasPendingOptimistic = optimisticUpdates.size > 0
+    const pendingStudentIds = useMemo(
+        () => new Set(optimisticUpdates.keys()),
+        [optimisticUpdates],
+    )
 
     const columns = useMemo(
         () =>
@@ -206,9 +205,9 @@ export function Applications() {
                 onAccept,
                 onReject,
                 onViewTranscript: setTranscriptStudent,
-                isMutating: isMutating || hasPendingOptimistic,
+                pendingStudentIds,
             }),
-        [onAccept, onReject, isMutating, hasPendingOptimistic],
+        [onAccept, onReject, pendingStudentIds],
     )
 
     function handleBulkConfirm() {

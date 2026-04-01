@@ -14,15 +14,18 @@ import { buildStudentNameMap } from '@/lib/mock-data'
 import { formatDateRange } from '@/lib/format'
 import { getApplicationStatus } from '@/types/student'
 import type { Student } from '@/types/student'
+import { useQueryClient } from '@tanstack/react-query'
 import {
     useStudents,
     useAcceptStudent,
     useRejectStudent,
+    studentKeys,
 } from '@/lib/queries/students'
 
 const TOAST_DURATION = 3000
 
 export function AdminDashboard() {
+    const queryClient = useQueryClient()
     const studentsQuery = useStudents()
     const students = studentsQuery.data ?? []
 
@@ -107,23 +110,24 @@ export function AdminDashboard() {
         const existing = pendingTimers.current.get(studentId)
         if (existing) clearTimeout(existing)
 
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             pendingTimers.current.delete(studentId)
 
-            // Clear optimistic state only after mutation settles (success or error)
-            const onSettled = () => {
-                setOptimisticUpdates((prev) => {
-                    const next = new Map(prev)
-                    next.delete(studentId)
-                    return next
-                })
-            }
+            const mutation =
+                action === 'accept'
+                    ? acceptMutation.mutateAsync(studentId)
+                    : rejectMutation.mutateAsync(studentId)
 
-            if (action === 'accept') {
-                acceptMutation.mutate(studentId, { onSettled })
-            } else {
-                rejectMutation.mutate(studentId, { onSettled })
-            }
+            // Keep optimistic overlay until the mutation and list refetch settle
+            await mutation.catch(() => {})
+            await queryClient.invalidateQueries({
+                queryKey: studentKeys.lists(),
+            })
+            setOptimisticUpdates((prev) => {
+                const next = new Map(prev)
+                next.delete(studentId)
+                return next
+            })
         }, TOAST_DURATION)
 
         pendingTimers.current.set(studentId, timer)
