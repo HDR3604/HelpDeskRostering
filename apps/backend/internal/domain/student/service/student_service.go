@@ -17,6 +17,7 @@ import (
 type StudentServiceInterface interface {
 	Apply(ctx context.Context, input ApplyInput) (*aggregate.Student, error)
 	GetByID(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	GetMyProfile(ctx context.Context, studentID int32) (*aggregate.Student, error)
 	GetByEmail(ctx context.Context, email string) (*aggregate.Student, error)
 	List(ctx context.Context, status string) ([]*aggregate.Student, error)
 	Accept(ctx context.Context, studentID int32) (*aggregate.Student, error)
@@ -127,6 +128,29 @@ func (s *StudentService) GetByID(ctx context.Context, studentID int32) (*aggrega
 	})
 	if err != nil {
 		s.logger.Error("failed to get student by ID", zap.Int32("studentID", studentID), zap.Error(err))
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetMyProfile returns a student's own profile, including deactivated students.
+func (s *StudentService) GetMyProfile(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	s.logger.Debug("getting own student profile", zap.Int32("studentID", studentID))
+
+	authCtx, err := s.authCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result *aggregate.Student
+	err = s.txManager.InAuthTx(ctx, authCtx, func(tx *sql.Tx) error {
+		var txErr error
+		result, txErr = s.repository.GetByIDIncludingDeactivated(ctx, tx, studentID)
+		return txErr
+	})
+	if err != nil {
+		s.logger.Error("failed to get own student profile", zap.Int32("studentID", studentID), zap.Error(err))
 		return nil, err
 	}
 

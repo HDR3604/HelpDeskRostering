@@ -12,6 +12,7 @@ var _ service.StudentServiceInterface = (*MockStudentService)(nil)
 type MockStudentService struct {
 	ApplyFn          func(ctx context.Context, input service.ApplyInput) (*aggregate.Student, error)
 	GetByIDFn        func(ctx context.Context, studentID int32) (*aggregate.Student, error)
+	GetMyProfileFn   func(ctx context.Context, studentID int32) (*aggregate.Student, error)
 	GetByEmailFn     func(ctx context.Context, email string) (*aggregate.Student, error)
 	ListFn           func(ctx context.Context, status string) ([]*aggregate.Student, error)
 	AcceptFn         func(ctx context.Context, studentID int32) (*aggregate.Student, error)
@@ -28,6 +29,13 @@ func (m *MockStudentService) Apply(ctx context.Context, input service.ApplyInput
 }
 
 func (m *MockStudentService) GetByID(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	return m.GetByIDFn(ctx, studentID)
+}
+
+func (m *MockStudentService) GetMyProfile(ctx context.Context, studentID int32) (*aggregate.Student, error) {
+	if m.GetMyProfileFn != nil {
+		return m.GetMyProfileFn(ctx, studentID)
+	}
 	return m.GetByIDFn(ctx, studentID)
 }
 

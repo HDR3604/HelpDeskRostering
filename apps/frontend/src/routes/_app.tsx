@@ -10,27 +10,42 @@ import { SiteHeader } from '@/components/layout/site-header'
 import { CommandPalette } from '@/components/layout/command-palette'
 import { StudentProvider } from '@/features/admin/student-management/student-context'
 import { requireAuth, getTokenPayload } from '@/lib/auth'
-import { getMyBankingDetails } from '@/lib/api/students'
+import { getMyBankingDetails, getMyStudentProfile } from '@/lib/api/students'
 import {
     isOnboardingVerified,
     markOnboardingVerified,
 } from '@/lib/auth/onboarding-check'
+import { queryClient } from '@/routes/__root'
+import { studentKeys } from '@/lib/queries/students'
 
 export const Route = createFileRoute('/_app')({
     beforeLoad: async (ctx) => {
         await requireAuth(ctx)
 
         const payload = getTokenPayload()
-        if (
-            payload?.role === 'student' &&
-            !isOnboardingVerified() &&
-            ctx.location.pathname !== '/complete-onboarding'
-        ) {
-            try {
-                await getMyBankingDetails()
-                markOnboardingVerified()
-            } catch {
-                throw redirect({ to: '/complete-onboarding' })
+        if (payload?.role === 'student') {
+            // A student with a JWT always has a profile (accepted + onboarded).
+            // Check deactivation before anything else.
+            const profile = await queryClient.fetchQuery({
+                queryKey: studentKeys.me(),
+                queryFn: getMyStudentProfile,
+                staleTime: 0,
+            })
+            if (profile.status === 'deactivated') {
+                throw redirect({ to: '/deactivated' })
+            }
+
+            // Check onboarding (banking details)
+            if (
+                !isOnboardingVerified() &&
+                ctx.location.pathname !== '/complete-onboarding'
+            ) {
+                try {
+                    await getMyBankingDetails()
+                    markOnboardingVerified()
+                } catch {
+                    throw redirect({ to: '/complete-onboarding' })
+                }
             }
         }
     },
