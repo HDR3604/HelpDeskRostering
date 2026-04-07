@@ -241,19 +241,21 @@ export function BankingDetailsForm({
                                                     role="combobox"
                                                     aria-expanded={bankOpen}
                                                     className={cn(
-                                                        'w-full justify-between font-normal',
+                                                        'w-full justify-between font-normal overflow-hidden',
                                                         !field.value &&
                                                             'text-muted-foreground',
                                                     )}
                                                 >
-                                                    {field.value
-                                                        ? (TT_BANKS.find(
-                                                              (b) =>
-                                                                  b ===
-                                                                  field.value,
-                                                          ) ?? field.value)
-                                                        : 'Select a bank...'}
-                                                    <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                                                    <span className='truncate'>
+                                                        {field.value
+                                                            ? (TT_BANKS.find(
+                                                                (b) =>
+                                                                    b ===
+                                                                    field.value,
+                                                            ) ?? field.value)
+                                                            : 'Select a bank...'}
+                                                    </span>
+                                                    <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
                                                 </Button>
                                             </FormControl>
                                         </PopoverTrigger>
