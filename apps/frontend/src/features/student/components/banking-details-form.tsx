@@ -246,7 +246,7 @@ export function BankingDetailsForm({
                                                             'text-muted-foreground',
                                                     )}
                                                 >
-                                                    <span className='truncate'>
+                                                    <span className="truncate">
                                                         {field.value
                                                             ? (TT_BANKS.find(
                                                                 (b) =>
