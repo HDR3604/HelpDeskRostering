@@ -1,49 +1,46 @@
 # System Architecture
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '24px', 'fontFamily': 'Arial'}}}%%
 graph TB
     subgraph External
         Users["Users (Browser)"]
         GH["GitHub (main branch)"]
+        Resend["Resend<br/>Email API"]
     end
-
-    subgraph "Cloudflare"
+    subgraph "Cloudflare ¹"
         CF["Cloudflare CDN/Proxy<br/>SSL/TLS · DDoS Protection<br/>Schema Validation · WAF"]
     end
-
-    subgraph "Dokploy Server"
-        Traefik["Traefik<br/>Reverse Proxy<br/>(TLS + Routing)"]
-
+    subgraph "Dokploy Server ¹"
+        Traefik["Traefik ¹<br/>Reverse Proxy<br/>(TLS + Routing)"]
         subgraph "Docker Compose Stack"
             FE["Frontend<br/>React 19 + Vite<br/>TanStack Router · shadcn/ui<br/>Nginx :5173"]
             BE["Backend<br/>Go + Chi Router<br/>Go-Jet v2 ORM · River Job Queue<br/>:8080"]
             SCH["Scheduler<br/>Python + FastAPI<br/>PuLP LP Solver<br/>:8000"]
             TR["Transcripts<br/>Python + FastAPI<br/>pdfplumber<br/>:8001"]
-            PG[("PostgreSQL 16<br/>Schemas: auth, schedule<br/>Row-Level Security<br/>:5432")]
-            MP["Mailpit / Resend<br/>Email Service"]
+            PG[("PostgreSQL 16<br/>Schemas: auth, schedule<br/>Row-Level Security · River Jobs<br/>:5432")]
+            MP["Mailpit<br/>Dev Email Only :8025<br/>(docker-compose.local.yml)"]
+            ES["EmailSenderInterface<br/>Mailpit (dev) · Resend (prod)"]
         end
     end
-
-    subgraph "CI/CD (GitHub Actions)"
+    subgraph "CI/CD — GitHub Actions ¹"
         CI["Test & Build<br/>Backend · Scheduler · Transcripts · Frontend"]
         CD["Deploy Job<br/>POST compose.deploy"]
     end
-
     Users -->|"HTTPS"| CF
     CF -->|"Proxied"| Traefik
     Traefik -->|"/* static"| FE
     Traefik -->|"/api/* proxy"| BE
-
-    BE -->|"Schedule optimization"| SCH
     BE -->|"PDF transcript extraction"| TR
     BE -->|"SQL (RLS: authenticated / internal)"| PG
     BE -->|"River jobs (schedule gen, emails)"| PG
-    BE -->|"Onboarding & verification emails"| MP
-
+    BE -->|"River async schedule generation"| SCH
+    BE -->|"River async emails"| ES
+    ES -->|"SMTP catch-all (dev)"| MP
+    ES -->|"Resend HTTP API (prod)"| Resend
     GH -->|"push to main"| CI
     CI -->|"all jobs pass"| CD
     CD -->|"Dokploy API"| Traefik
-
     style Traefik fill:#f59e0b,color:#000
     style FE fill:#3b82f6,color:#fff
     style BE fill:#10b981,color:#fff
@@ -54,6 +51,8 @@ graph TB
     style CI fill:#6b7280,color:#fff
     style CD fill:#6b7280,color:#fff
     style MP fill:#ec4899,color:#fff
+    style Resend fill:#ec4899,color:#fff
+    style ES fill:#475569,color:#fff
 ```
 
 ## Backend Domain Architecture
