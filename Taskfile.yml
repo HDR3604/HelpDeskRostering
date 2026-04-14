@@ -278,3 +278,60 @@ tasks:
     desc: "Show assistant availability for a schedule (usage: task visualize:availability -- <id>)"
     cmds:
       - ./scripts/visualize.sh availability {{.CLI_ARGS}}
+
+  # Benchmarks
+  bench:backend:
+    desc: Run backend Go benchmarks (repository, service, handler, e2e)
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=30m ./internal/tests/benchmarks/...
+
+  bench:backend:repo:
+    desc: Run backend repository benchmarks only
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=30m ./internal/tests/benchmarks/repository/...
+
+  bench:backend:service:
+    desc: Run backend service benchmarks only
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=10m ./internal/tests/benchmarks/service/...
+
+  bench:backend:handler:
+    desc: Run backend handler benchmarks only
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=10m ./internal/tests/benchmarks/handler/...
+
+  bench:backend:e2e:
+    desc: Run backend E2E benchmarks only
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=30m ./internal/tests/benchmarks/e2e/...
+
+  bench:scheduler:
+    desc: Run scheduler HTTP benchmarks (requires scheduler service running on :8001)
+    dir: ./tests/benchmarks
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=30m ./scheduler/...
+
+  bench:transcripts:
+    desc: Run transcripts HTTP benchmarks (requires transcripts service running on :8002)
+    dir: ./tests/benchmarks
+    cmds:
+      - go test -bench=. -benchmem -count=3 -run=^$ -timeout=30m ./transcripts/...
+
+  bench:services:
+    desc: Start Python services and run HTTP benchmarks
+    cmds:
+      - docker compose -f docker-compose.bench.yml up -d --wait
+      - task: bench:scheduler
+      - task: bench:transcripts
+      - docker compose -f docker-compose.bench.yml down
+
+  bench:all:
+    desc: Run all benchmarks (backend + scheduler + transcripts)
+    cmds:
+      - task: bench:backend
+      - task: bench:services
