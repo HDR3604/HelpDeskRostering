@@ -249,10 +249,10 @@ export function BankingDetailsForm({
                                                     <span className="truncate">
                                                         {field.value
                                                             ? (TT_BANKS.find(
-                                                                (b) =>
-                                                                    b ===
-                                                                    field.value,
-                                                            ) ?? field.value)
+                                                                  (b) =>
+                                                                      b ===
+                                                                      field.value,
+                                                              ) ?? field.value)
                                                             : 'Select a bank...'}
                                                     </span>
                                                     <ChevronsUpDown className="size-4 shrink-0 opacity-50" />

@@ -1,0 +1,44 @@
+# docker-compose.bench.yml
+# Lightweight compose file for running benchmark targets against
+# the scheduler and transcripts Python services.
+#
+# Usage:
+#   docker compose -f docker-compose.bench.yml up -d
+#   cd tests/benchmarks && go test -bench=. -benchmem -count=3 -run=^$ ./...
+#   docker compose -f docker-compose.bench.yml down
+
+name: help-desk-bench
+services:
+  scheduler:
+    build:
+      context: ./apps/scheduler
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./apps/scheduler:/app
+      - /app/tmp
+    environment:
+      - LOG_LEVEL=WARNING
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/healthy')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  transcripts:
+    build:
+      context: ./apps/transcripts
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8002:8001"
+    volumes:
+      - ./apps/transcripts:/app
+      - /app/tmp
+    environment:
+      - LOG_LEVEL=WARNING
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/healthy')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
